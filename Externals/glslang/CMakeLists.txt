@@ -11,7 +11,7 @@ add_subdirectory(glslang)
 if (TARGET glslang)
   target_include_directories(glslang
   # Silence warnings on glslang by flagging it as a system include
-  SYSTEM PUBLIC
+  PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/glslang>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/glslang/Public>
   PUBLIC
