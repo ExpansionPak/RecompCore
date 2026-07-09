@@ -52,8 +52,7 @@ add_library(${MODULE_NAME} SHARED
   "${DOLRUNTIME_DIR}/src/core/cpu.c"
   ${CHUNK_SOURCES})
 
-option(ENABLE_UNITY_BUILD "Enable Unity Build" OFF)
-set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD ${ENABLE_UNITY_BUILD})
+set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD ON)
 set_source_files_properties("${MODULE_TABLES}" PROPERTIES HEADER_FILE_ONLY TRUE GENERATED TRUE)
 
 target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
@@ -66,13 +65,7 @@ target_include_directories(${MODULE_NAME} PRIVATE
 
 target_link_libraries(${MODULE_NAME} PRIVATE m)
 
-option(ENABLE_LTO "Enable ThinLTO optimization" ON)
-
 # ThinLTO so the DolRuntime cpu.c helpers inline into the generated chunk
 # call sites; semantics unchanged (no -ffast-math, FP stays bit-exact).
-if (ENABLE_LTO)
-  target_compile_options(${MODULE_NAME} PRIVATE -flto=thin)
-  target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
-endif()
-
-target_compile_options(${MODULE_NAME} PRIVATE -fvisibility=hidden)
+target_compile_options(${MODULE_NAME} PRIVATE -flto=thin -fvisibility=hidden)
+target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
