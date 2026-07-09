@@ -47,6 +47,6 @@ CMakeLists.txt.user
 # clangd cache for Neovim
 .cache/clangd
 /module-template/build
-/module-template/DolRuntime
-/module-template/generated
+/module-template/generated/*
+!/module-template/generated/generated.h
 /wii_menu
