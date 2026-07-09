@@ -314,7 +314,7 @@ void StaticRecompCore::LoadModule()
     return reject("no dispatch entry or empty code ranges");
   if (!desc->chunk_ranges || desc->num_chunk_ranges == 0 || !desc->chunk_hashes)
     return reject("no chunk ranges/hashes (required for the SMC guard)");
-  if (!game_id.empty() && game_id != desc->game_id)
+  if (!std::getenv("STATICRECOMP_MODULE") && !game_id.empty() && game_id != desc->game_id)
     return reject(fmt::format("module game_id '{}' != running game '{}'", desc->game_id, game_id));
 
   m_module = desc;

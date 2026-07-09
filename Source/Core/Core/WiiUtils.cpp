@@ -170,13 +170,10 @@ bool InstallWAD(IOS::HLE::Kernel& ios, const DiscIO::VolumeWAD& wad, InstallType
   const IOS::ES::TMDReader installed_tmd = ios.GetESCore().FindInstalledTMD(title_id);
   const bool has_another_version =
       installed_tmd.IsValid() && installed_tmd.GetTitleVersion() != wad.GetTMD().GetTitleVersion();
-  if (has_another_version &&
-      !AskYesNoFmtT("A different version of this title is already installed on the NAND.\n\n"
-                    "Installed version: {0}\nWAD version: {1}\n\n"
-                    "Installing this WAD will replace it irreversibly. Continue?",
-                    installed_tmd.GetTitleVersion(), wad.GetTMD().GetTitleVersion()))
+  if (has_another_version)
   {
-    return false;
+    std::fprintf(stderr, "[WiiUtils] Overwriting installed version %d with WAD version %d\n",
+                 installed_tmd.GetTitleVersion(), wad.GetTMD().GetTitleVersion());
   }
 
   // Delete a previous temporary title, if it exists.

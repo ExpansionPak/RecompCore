@@ -46,3 +46,4 @@ CMakeLists.txt.user
 
 # clangd cache for Neovim
 .cache/clangd
+/module-template/build

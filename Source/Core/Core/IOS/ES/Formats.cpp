@@ -294,6 +294,9 @@ bool TMDReader::IsvWii() const
 
 std::string TMDReader::GetGameID() const
 {
+  if (GetTitleId() == 0x0000000100000002)
+    return "000002";
+
   char game_id[6];
   std::memcpy(game_id, m_bytes.data() + offsetof(TMDHeader, title_id) + 4, 4);
   std::memcpy(game_id + 4, m_bytes.data() + offsetof(TMDHeader, group_id), 2);
