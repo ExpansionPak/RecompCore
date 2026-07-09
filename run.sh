@@ -9,4 +9,5 @@ echo "=== Booting Wii Menu WAD (using Static Recomp Module) ==="
 chmod +x "$MODULE_PATH" 2>/dev/null || true
 
 STATICRECOMP_MODULE="$MODULE_PATH" \
+STATICRECOMP_VERBOSE=1 \
 ./build/Binaries/dolphin-emu-nogui -e "$WAD_PATH" -C Dolphin.Core.CPUCore=6
