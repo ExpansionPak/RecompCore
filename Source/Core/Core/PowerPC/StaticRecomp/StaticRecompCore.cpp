@@ -38,12 +38,13 @@ namespace
 // warped guest time to 8 internal FPS at healthy gauges; the flat 6 that
 // replaced it read 100% in-match but left heavy cutscenes at ~80%.)
 
-// STATICRECOMP_VERBOSE=1 enables periodic dispatch-counter lines on stderr.
+/*
 static bool VerboseCounters()
 {
   static const bool enabled = std::getenv("STATICRECOMP_VERBOSE") != nullptr;
   return enabled;
 }
+*/
 
 constexpr u32 LOCKED_CACHE_BASE = 0xE0000000u;
 
@@ -734,7 +735,10 @@ void StaticRecompCore::HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia)
       const u32 ra = (raw >> 16) & 31u;
       const u32 rb = (raw >> 11) & 31u;
       const u32 ea = (ra ? cpu->gpr[ra] : 0u) + cpu->gpr[rb];
-      system.GetJitInterface().InvalidateICacheLine(ea);
+      if (xo == 982u)
+      {
+        system.GetJitInterface().InvalidateICacheLine(ea);
+      }
       // These bypass SingleStepInner, so charge Dolphin's PPCTables cost
       // here (icbi 4, dcbf/dcbst/dcbi 5); their emitted block cost is zero.
       ppc.downcount -= (xo == 982u) ? 4 : 5;
@@ -1409,6 +1413,8 @@ void StaticRecompCore::Run()
 
   m_guest.ram = memory.GetRAM();
   m_guest.ram_size = memory.GetRamSizeReal();
+  m_guest.exram = memory.GetEXRAM();
+  m_guest.exram_size = memory.GetExRamSizeReal();
 
   while (*state_ptr == CPU::State::Running)
   {
@@ -1473,6 +1479,7 @@ void StaticRecompCore::Run()
             m_ls_checked.insert(ls_entry);
             LockstepCheck(ls_entry, m_guest.pc, ls_snapshot);
           }
+          /*
           if (VerboseCounters() && (m_native_dispatches & 0x3FFFFFu) == 1u)
           {
             static const auto start = std::chrono::steady_clock::now();
@@ -1486,6 +1493,7 @@ void StaticRecompCore::Run()
                          (unsigned long long)m_system.GetSystemTimers().GetFakeTimeBase(), wall,
                          (unsigned long long)m_bursts, (unsigned long long)m_charged_cycles);
           }
+          */
           // Flush the module's per-block cycle charges into Dolphin's
           // downcount. A dispatch that charged nothing (PC-switch default,
           // pure embedded data) still costs 1 so the burst always makes
@@ -1497,11 +1505,17 @@ void StaticRecompCore::Run()
           m_guest.downcount = 0;
           ppc.downcount -= static_cast<int>(charge > 0 ? charge : 1);
           m_charged_cycles += static_cast<u64>(charge > 0 ? charge : 1);
-          // ctx->timebase is refreshed at burst start (SyncIn), NOT here: a
-          // per-dispatch GetFakeTimeBase() measured ~34% of the whole CPU
-          // thread (sample 2026-07-06). Mid-burst mftb staleness is bounded
-          // by the slice (~20k cycles): a guest time-poll loop still charges
-          // downcount, drains the slice, and re-enters with fresh TB.
+          m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
+
+          // Idle loop skipping for the Wii Menu's OSIdleThread
+          if (m_guest.pc == 0x8150D1D0)
+          {
+            m_system.GetCoreTiming().Idle();
+          }
+
+          // ctx->timebase is refreshed at burst start (SyncIn), and here we
+          // incrementally advance it by the exact block cycle charges to
+          // prevent guest busy-wait loops from spinning on a stale timebase.
           if (m_guest.exception)
           {
             // DolRecomp's runtime already redirected pc/msr/srr to the guest
@@ -1526,6 +1540,7 @@ void StaticRecompCore::Run()
         {
           ppc.downcount -= interpreter.SingleStepInner();
           ++m_fallback_steps;
+          /*
           if (VerboseCounters() && (m_fallback_steps & 0xFFFFFu) == 1u)
           {
             const int idx = m_module ? ChunkIndexOf(ppc.pc) : -2;
@@ -1538,6 +1553,7 @@ void StaticRecompCore::Run()
                          (unsigned long long)m_reverify_events,
                          (unsigned long long)m_hook_fallback_instructions);
           }
+          */
         } while (!(m_module && DispatchableAt(ppc.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
       }

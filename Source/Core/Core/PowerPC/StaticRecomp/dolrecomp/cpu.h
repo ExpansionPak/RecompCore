@@ -108,20 +108,133 @@ struct CPUState {
     u32 ram_size;
     PPCExternalPointer external_pointer;
     s64 downcount;
+    u8* exram;
+    u32 exram_size;
 };
+
+#include <stdio.h>
+
+typedef void (*PPCMemWriteJournal)(u32 offset, u32 size, void* user);
+extern PPCMemWriteJournal g_mem_write_journal;
+extern void* g_mem_write_journal_user;
+
+static inline __attribute__((always_inline)) u8* get_ram_ptr(CPUState* cpu, u32 addr, u32 size, u32* out_offset) {
+    u32 masked_addr = addr & ~0x40000000u;
+    
+    // Check MEM2 (EXRAM) first as it is much more common in Wii titles
+    if (cpu->exram) {
+        u32 offset = masked_addr - 0x90000000u;
+        if (offset <= cpu->exram_size - size) {
+            if (out_offset) *out_offset = (u32)-1;
+            return cpu->exram + offset;
+        }
+    }
+    
+    // Check MEM1
+    u32 offset = masked_addr - 0x80000000u;
+    if (offset <= cpu->ram_size - size) {
+        if (out_offset) *out_offset = offset;
+        return cpu->ram + offset;
+    }
+    
+    return NULL;
+}
+
+static inline __attribute__((always_inline)) u64 mem_read64(CPUState* cpu, u32 addr) {
+    u8* ptr = get_ram_ptr(cpu, addr, 8, NULL);
+    if (ptr == NULL) {
+        if (cpu->external_read)
+            return cpu->external_read(cpu, addr, 8);
+        return 0;
+    }
+    return read_be64(ptr);
+}
+
+static inline __attribute__((always_inline)) void mem_write64(CPUState* cpu, u32 addr, u64 value) {
+    u32 offset;
+    u8* ptr = get_ram_ptr(cpu, addr, 8, &offset);
+    if (ptr == NULL) {
+        if (cpu->external_write) {
+            cpu->external_write(cpu, addr, value, 8);
+        }
+        return;
+    }
+    if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 8, g_mem_write_journal_user);
+    write_be64(ptr, value);
+}
+
+static inline __attribute__((always_inline)) u32 mem_read32(CPUState* cpu, u32 addr) {
+    u8* ptr = get_ram_ptr(cpu, addr, 4, NULL);
+    if (ptr == NULL) {
+        if (cpu->external_read)
+            return (u32)cpu->external_read(cpu, addr, 4);
+        return 0;
+    }
+    return read_be32(ptr);
+}
+
+static inline __attribute__((always_inline)) void mem_write32(CPUState* cpu, u32 addr, u32 value) {
+    u32 offset;
+    u8* ptr = get_ram_ptr(cpu, addr, 4, &offset);
+    if (ptr == NULL) {
+        if (cpu->external_write) {
+            cpu->external_write(cpu, addr, value, 4);
+        }
+        return;
+    }
+    if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 4, g_mem_write_journal_user);
+    write_be32(ptr, value);
+}
+
+static inline __attribute__((always_inline)) u16 mem_read16(CPUState* cpu, u32 addr) {
+    u8* ptr = get_ram_ptr(cpu, addr, 2, NULL);
+    if (ptr == NULL) {
+        if (cpu->external_read)
+            return (u16)cpu->external_read(cpu, addr, 2);
+        return 0;
+    }
+    return read_be16(ptr);
+}
+
+static inline __attribute__((always_inline)) void mem_write16(CPUState* cpu, u32 addr, u16 value) {
+    u32 offset;
+    u8* ptr = get_ram_ptr(cpu, addr, 2, &offset);
+    if (ptr == NULL) {
+        if (cpu->external_write) {
+            cpu->external_write(cpu, addr, value, 2);
+        }
+        return;
+    }
+    if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 2, g_mem_write_journal_user);
+    write_be16(ptr, value);
+}
+
+static inline __attribute__((always_inline)) u8 mem_read8(CPUState* cpu, u32 addr) {
+    u8* ptr = get_ram_ptr(cpu, addr, 1, NULL);
+    if (ptr == NULL) {
+        if (cpu->external_read)
+            return (u8)cpu->external_read(cpu, addr, 1);
+        return 0;
+    }
+    return *ptr;
+}
+
+static inline __attribute__((always_inline)) void mem_write8(CPUState* cpu, u32 addr, u8 value) {
+    u32 offset;
+    u8* ptr = get_ram_ptr(cpu, addr, 1, &offset);
+    if (ptr == NULL) {
+        if (cpu->external_write) {
+            cpu->external_write(cpu, addr, value, 1);
+        }
+        return;
+    }
+    if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 1, g_mem_write_journal_user);
+    *ptr = value;
+}
 
 bool cpu_init(CPUState* cpu);
 void cpu_free(CPUState* cpu);
 void cpu_reset(CPUState* cpu);
-
-u64  mem_read64(CPUState* cpu, u32 addr);
-void mem_write64(CPUState* cpu, u32 addr, u64 value);
-u32  mem_read32(CPUState* cpu, u32 addr);
-void mem_write32(CPUState* cpu, u32 addr, u32 value);
-u16  mem_read16(CPUState* cpu, u32 addr);
-void mem_write16(CPUState* cpu, u32 addr, u16 value);
-u8   mem_read8(CPUState* cpu, u32 addr);
-void mem_write8(CPUState* cpu, u32 addr, u8 value);
 
 f64 ppc_approx_reciprocal(f64 value);
 f64 ppc_approx_rsqrt(f64 value);

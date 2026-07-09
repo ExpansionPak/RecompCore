@@ -67,5 +67,5 @@ target_link_libraries(${MODULE_NAME} PRIVATE m)
 
 # ThinLTO so the DolRuntime cpu.c helpers inline into the generated chunk
 # call sites; semantics unchanged (no -ffast-math, FP stays bit-exact).
-target_compile_options(${MODULE_NAME} PRIVATE -flto=thin)
+target_compile_options(${MODULE_NAME} PRIVATE -flto=thin -fvisibility=hidden)
 target_link_options(${MODULE_NAME} PRIVATE -flto=thin)

@@ -71,7 +71,6 @@ private:
                                   bool forced) override
     {
       m_core.OnICacheInvalidate(address, length);
-      JitBaseBlockCache::InvalidateICacheInternal(physical_address, address, length, forced);
     }
 
   private:

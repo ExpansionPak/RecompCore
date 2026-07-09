@@ -38,7 +38,7 @@ static const StaticRecompModuleDesc s_desc = {
     .chunk_hashes = s_chunk_hashes,
 };
 
-const StaticRecompModuleDesc* staticrecomp_get_module(void)
+__attribute__((visibility("default"))) const StaticRecompModuleDesc* staticrecomp_get_module(void)
 {
     return &s_desc;
 }
