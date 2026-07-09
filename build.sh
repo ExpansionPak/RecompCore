@@ -10,7 +10,6 @@ cmake --build build -j"$NCPU"
 
 echo "=== Building Static Recomp Module ==="
 cd module-template
-rm -rf build
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGAME_ID=000002
 cmake --build build -j"$NCPU"
 cd ..
