@@ -106,6 +106,9 @@ bool dol_guest_memory_write(DolGuestMemory* memory, u32 address, u8 size,
     return false;
 }
 
+#define Wii_EXRAM_BASE     0x90000000u
+#define Wii_EXRAM_UNCACHED 0xD0000000u
+
 void* dol_guest_memory_pointer(DolGuestMemory* memory, CPUState* cpu,
                                u32 address, u32* available) {
     u32 offset = 0;
@@ -114,6 +117,14 @@ void* dol_guest_memory_pointer(DolGuestMemory* memory, CPUState* cpu,
         if (available != NULL)
             *available = cpu->ram_size - offset;
         return cpu->ram + offset;
+    }
+    if (cpu != NULL && cpu->exram) {
+        u32 ex_offset = address - 0x10000000u;
+        if (ex_offset < cpu->exram_size) {
+            if (available != NULL)
+                *available = cpu->exram_size - ex_offset;
+            return cpu->exram + ex_offset;
+        }
     }
     if (cpu != NULL &&
         address >= GC_RAM_BASE && address < GC_RAM_BASE + cpu->ram_size) {
@@ -129,6 +140,20 @@ void* dol_guest_memory_pointer(DolGuestMemory* memory, CPUState* cpu,
         if (available != NULL)
             *available = cpu->ram_size - offset;
         return cpu->ram + offset;
+    }
+    if (cpu != NULL && cpu->exram) {
+        if (address >= Wii_EXRAM_BASE && address < Wii_EXRAM_BASE + cpu->exram_size) {
+            offset = address - Wii_EXRAM_BASE;
+            if (available != NULL)
+                *available = cpu->exram_size - offset;
+            return cpu->exram + offset;
+        }
+        if (address >= Wii_EXRAM_UNCACHED && address < Wii_EXRAM_UNCACHED + cpu->exram_size) {
+            offset = address - Wii_EXRAM_UNCACHED;
+            if (available != NULL)
+                *available = cpu->exram_size - offset;
+            return cpu->exram + offset;
+        }
     }
     if (memory != NULL && memory->vm != NULL &&
         address >= memory->config.vm_base &&
@@ -173,30 +198,54 @@ void dol_guest_address_resolver_init_callback(
 
 static void* resolve_mem1_physical(CPUState* cpu, u32 address,
                                    u32* available) {
-    if (cpu == NULL || address >= cpu->ram_size)
+    if (cpu == NULL)
         return NULL;
-    if (available != NULL)
-        *available = cpu->ram_size - address;
-    return cpu->ram + address;
+    if (address < cpu->ram_size) {
+        if (available != NULL)
+            *available = cpu->ram_size - address;
+        return cpu->ram + address;
+    }
+    if (cpu->exram) {
+        u32 offset = address - 0x10000000u;
+        if (offset < cpu->exram_size) {
+            if (available != NULL)
+                *available = cpu->exram_size - offset;
+            return cpu->exram + offset;
+        }
+    }
+    return NULL;
 }
 
 static void* resolve_mem1_virtual(CPUState* cpu, u32 address,
                                   u32* available) {
+    if (cpu == NULL)
+        return NULL;
     u32 offset = 0;
-    if (cpu != NULL &&
-        address >= GC_RAM_BASE && address < GC_RAM_BASE + cpu->ram_size) {
+    if (address >= GC_RAM_BASE && address < GC_RAM_BASE + cpu->ram_size) {
         offset = address - GC_RAM_BASE;
         if (available != NULL)
             *available = cpu->ram_size - offset;
         return cpu->ram + offset;
     }
-    if (cpu != NULL &&
-        address >= GC_RAM_UNCACHED &&
-        address < GC_RAM_UNCACHED + cpu->ram_size) {
+    if (address >= GC_RAM_UNCACHED && address < GC_RAM_UNCACHED + cpu->ram_size) {
         offset = address - GC_RAM_UNCACHED;
         if (available != NULL)
             *available = cpu->ram_size - offset;
         return cpu->ram + offset;
+    }
+    if (cpu->exram) {
+        if (address >= Wii_EXRAM_BASE && address < Wii_EXRAM_BASE + cpu->exram_size) {
+            offset = address - Wii_EXRAM_BASE;
+            if (available != NULL)
+                *available = cpu->exram_size - offset;
+            return cpu->exram + offset;
+        }
+        if (address >= Wii_EXRAM_UNCACHED && address < Wii_EXRAM_UNCACHED + cpu->exram_size) {
+            offset = address - Wii_EXRAM_UNCACHED;
+            if (available != NULL)
+                *available = cpu->exram_size - offset;
+            return cpu->exram + offset;
+        }
     }
     return NULL;
 }

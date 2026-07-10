@@ -22,10 +22,9 @@
  * NULL and zero-cost unless installed; the chassis resolves the setter by name
  * via dlsym, so its absence simply disables lockstep. `offset` is the RAM byte
  * offset (into cpu->ram) about to be written, `size` the width in bytes. */
-typedef void (*PPCMemWriteJournal)(u32 offset, u32 size, void* user);
-static PPCMemWriteJournal g_mem_write_journal = NULL;
-static void* g_mem_write_journal_user = NULL;
-void ppc_set_mem_write_journal(PPCMemWriteJournal fn, void* user) {
+PPCMemWriteJournal g_mem_write_journal = NULL;
+void* g_mem_write_journal_user = NULL;
+__attribute__((visibility("default"))) void ppc_set_mem_write_journal(PPCMemWriteJournal fn, void* user) {
     g_mem_write_journal = fn;
     g_mem_write_journal_user = user;
 }
@@ -61,6 +60,8 @@ void cpu_reset(CPUState* cpu) {
     PPCHostCall host_call = cpu->host_call;
     PPCExternalPointer external_pointer = cpu->external_pointer;
     void* external_user_data = cpu->external_user_data;
+    u8* exram = cpu->exram;
+    u32 exram_size = cpu->exram_size;
 
     memset(cpu, 0, sizeof(*cpu));
     cpu->ram = ram;
@@ -73,27 +74,12 @@ void cpu_reset(CPUState* cpu) {
     cpu->host_call = host_call;
     cpu->external_pointer = external_pointer;
     cpu->external_user_data = external_user_data;
+    cpu->exram = exram;
+    cpu->exram_size = exram_size;
 
     if (cpu->ram)
         memset(cpu->ram, 0, cpu->ram_size);
 }
-
-static u32 translate_addr(u32 addr, u32 ram_size) {
-    if (addr >= GC_RAM_BASE && addr < GC_RAM_BASE + ram_size)
-        return addr - GC_RAM_BASE;
-
-    if (addr >= GC_RAM_UNCACHED && addr < GC_RAM_UNCACHED + ram_size)
-        return addr - GC_RAM_UNCACHED;
-
-    return (u32)-1;
-}
-
-/* Ordinary stores do NOT clear a matching reservation: Dolphin's
- * single-core reservation model is just (reserve, reserve_address) checked
- * by stwcx. for exact address equality, and nothing else touches it. The
- * old cache-line invalidation here made stwcx fail where Dolphin's (and the
- * lockstep oracle's) succeeds. */
-
 #define PPC_BIT(n) (1u << (31u - (n)))
 #define PPC_MSR_RFI_MASK 0x87C0FFFFu
 #define PPC_MSR_POW PPC_BIT(13)
@@ -132,106 +118,6 @@ static u32 exception_msr(u32 old_msr, u32 exception) {
     if (old_msr & PPC_MSR_ILE)
         next |= PPC_MSR_LE;
     return next;
-}
-
-u64 mem_read64(CPUState* cpu, u32 addr) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1 || offset + 8 > cpu->ram_size) {
-        if (cpu->external_read)
-            return cpu->external_read(cpu, addr, 8);
-        fprintf(stderr, "warn: read64 from unmapped 0x%08X\n", addr);
-        return 0;
-    }
-    return read_be64(cpu->ram + offset);
-}
-
-void mem_write64(CPUState* cpu, u32 addr, u64 value) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1 || offset + 8 > cpu->ram_size) {
-        if (cpu->external_write) {
-            cpu->external_write(cpu, addr, value, 8);
-            return;
-        }
-        fprintf(stderr, "warn: write64 to unmapped 0x%08X\n", addr);
-        return;
-    }
-    if (g_mem_write_journal) g_mem_write_journal(offset, 8, g_mem_write_journal_user);
-    write_be64(cpu->ram + offset, value);
-}
-
-u32 mem_read32(CPUState* cpu, u32 addr) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1 || offset + 4 > cpu->ram_size) {
-        if (cpu->external_read)
-            return (u32)cpu->external_read(cpu, addr, 4);
-        fprintf(stderr, "warn: read32 from unmapped 0x%08X\n", addr);
-        return 0;
-    }
-    return read_be32(cpu->ram + offset);
-}
-
-void mem_write32(CPUState* cpu, u32 addr, u32 value) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1 || offset + 4 > cpu->ram_size) {
-        if (cpu->external_write) {
-            cpu->external_write(cpu, addr, value, 4);
-            return;
-        }
-        fprintf(stderr, "warn: write32 to unmapped 0x%08X\n", addr);
-        return;
-    }
-    if (g_mem_write_journal) g_mem_write_journal(offset, 4, g_mem_write_journal_user);
-    write_be32(cpu->ram + offset, value);
-}
-
-u16 mem_read16(CPUState* cpu, u32 addr) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1 || offset + 2 > cpu->ram_size) {
-        if (cpu->external_read)
-            return (u16)cpu->external_read(cpu, addr, 2);
-        fprintf(stderr, "warn: read16 from unmapped 0x%08X\n", addr);
-        return 0;
-    }
-    return read_be16(cpu->ram + offset);
-}
-
-void mem_write16(CPUState* cpu, u32 addr, u16 value) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1 || offset + 2 > cpu->ram_size) {
-        if (cpu->external_write) {
-            cpu->external_write(cpu, addr, value, 2);
-            return;
-        }
-        fprintf(stderr, "warn: write16 to unmapped 0x%08X\n", addr);
-        return;
-    }
-    if (g_mem_write_journal) g_mem_write_journal(offset, 2, g_mem_write_journal_user);
-    write_be16(cpu->ram + offset, value);
-}
-
-u8 mem_read8(CPUState* cpu, u32 addr) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1) {
-        if (cpu->external_read)
-            return (u8)cpu->external_read(cpu, addr, 1);
-        fprintf(stderr, "warn: read8 from unmapped 0x%08X\n", addr);
-        return 0;
-    }
-    return cpu->ram[offset];
-}
-
-void mem_write8(CPUState* cpu, u32 addr, u8 value) {
-    u32 offset = translate_addr(addr, cpu->ram_size);
-    if (offset == (u32)-1) {
-        if (cpu->external_write) {
-            cpu->external_write(cpu, addr, value, 1);
-            return;
-        }
-        fprintf(stderr, "warn: write8 to unmapped 0x%08X\n", addr);
-        return;
-    }
-    if (g_mem_write_journal) g_mem_write_journal(offset, 1, g_mem_write_journal_user);
-    cpu->ram[offset] = value;
 }
 
 bool ppc_add_overflowed(u32 a, u32 b, u32 result) {
