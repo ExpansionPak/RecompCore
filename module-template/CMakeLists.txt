@@ -7,7 +7,7 @@ project(recompcore_module C)
 # Configure with:
 #   cmake -B build -DGAME_ID=G4QE01 \
 #         -DGENERATED_DIR=/path/to/generated \
-#         -DDOLRUNTIME_DIR=/path/to/DolRuntime
+#         -DGXRUNTIME_DIR=/path/to/GXRuntime
 
 set(CMAKE_C_STANDARD 11)
 if(NOT CMAKE_BUILD_TYPE)
@@ -22,9 +22,9 @@ set(GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated" CACHE PATH "DolRecomp 
 if(NOT EXISTS "${GENERATED_DIR}")
   message(FATAL_ERROR "Generated directory not found at ${GENERATED_DIR}. Set -DGENERATED_DIR=<path to DolRecomp output>")
 endif()
-set(DOLRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../DolRuntime" CACHE PATH "DolRuntime checkout")
-if(NOT EXISTS "${DOLRUNTIME_DIR}")
-  message(FATAL_ERROR "DolRuntime not found at ${DOLRUNTIME_DIR}. Set -DDOLRUNTIME_DIR=<path to DolRuntime>")
+set(GXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../GXRuntime" CACHE PATH "GXRuntime checkout")
+if(NOT EXISTS "${GXRUNTIME_DIR}")
+  message(FATAL_ERROR "GXRuntime not found at ${GXRUNTIME_DIR}. Set -DGXRUNTIME_DIR=<path to GXRuntime>")
 endif()
 set(CHASSIS_ABI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../Source/Core/Core/PowerPC/StaticRecomp"
     CACHE PATH "RecompCore StaticRecomp ABI directory")
@@ -49,7 +49,8 @@ file(GLOB CHUNK_SOURCES "${GENERATED_DIR}/chunks/*.c")
 add_library(${MODULE_NAME} SHARED
   module_export.c
   "${MODULE_TABLES}"
-  "${DOLRUNTIME_DIR}/src/core/cpu.c"
+  "${GXRUNTIME_DIR}/src/core/cpu.c"
+  "${GXRUNTIME_DIR}/src/core/cpu_interpreter.c"
   ${CHUNK_SOURCES})
 
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD ON)
@@ -59,13 +60,13 @@ target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
 
 target_include_directories(${MODULE_NAME} PRIVATE
   "${GENERATED_DIR}"
-  "${DOLRUNTIME_DIR}/include"
+  "${GXRUNTIME_DIR}/include"
   "${CHASSIS_ABI_DIR}"
   "${CMAKE_CURRENT_BINARY_DIR}")
 
 target_link_libraries(${MODULE_NAME} PRIVATE m)
 
-# ThinLTO so the DolRuntime cpu.c helpers inline into the generated chunk
+# ThinLTO so the GXRuntime cpu.c helpers inline into the generated chunk
 # call sites; semantics unchanged (no -ffast-math, FP stays bit-exact).
 target_compile_options(${MODULE_NAME} PRIVATE -flto=thin -fvisibility=hidden)
 target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
