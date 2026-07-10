@@ -534,6 +534,8 @@ add_library(core
   NetPlay/NetPlayCommon.h
   NetPlay/NetPlayServer.cpp
   NetPlay/NetPlayServer.h
+  NetPlay/NetPlayServerChunked.cpp
+  NetPlay/NetPlayServerInput.cpp
   NetPlay/NetworkCaptureLogger.cpp
   NetPlay/NetworkCaptureLogger.h
   Cheats/PatchEngine.cpp
