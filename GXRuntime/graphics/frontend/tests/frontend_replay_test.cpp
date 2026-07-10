@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
 #include "gxruntime/aurora_recomp/retail_gx_frontend_c.h"
 

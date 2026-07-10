@@ -12,9 +12,10 @@ void GXPeekZ(u16 x, u16 y, u32* z) {
     if (aurora::gfx::depth_peek::read_latest(x, y, value)) {
       *z = value;
     } else {
-      *z = 0;
+      *z = aurora::gx::g_gxState.clearDepth;
     }
   }
 
+  aurora::gfx::depth_peek::request_snapshot();
   GX_WRITE_AURORA(GX_AURORA_REQUEST_DEPTH_SNAPSHOT);
 }

@@ -635,6 +635,10 @@ static inline wgpu::PrimitiveState to_primitive_state(GXCullMode gx_cullMode) {
   case GX_CULL_BACK:
     cullMode = wgpu::CullMode::Back;
     break;
+  case GX_CULL_ALL:
+    // WebGPU has no "Cull Both", map to Front since render() will drop the draw.
+    cullMode = wgpu::CullMode::Front;
+    break;
   case GX_CULL_NONE:
     break;
   }

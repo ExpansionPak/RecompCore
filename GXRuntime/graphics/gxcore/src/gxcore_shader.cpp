@@ -316,11 +316,11 @@ void emit_tev_fragment(std::string& out, const ShaderKey& key) {
 
     // tevin_{a,b,c} masked to 0..255; tevin_d keeps the 10-bit range.
     emitf(out, "    tevin_a = vec4i(%s, %s) & vec4i(255,255,255,255);\n",
-          kTevCInput[s.ac_a], kTevAInput[s.ac_a]);
+          kTevCInput[s.cc_a], kTevAInput[s.ac_a]);
     emitf(out, "    tevin_b = vec4i(%s, %s) & vec4i(255,255,255,255);\n",
-          kTevCInput[s.ac_b], kTevAInput[s.ac_b]);
+          kTevCInput[s.cc_b], kTevAInput[s.ac_b]);
     emitf(out, "    tevin_c = vec4i(%s, %s) & vec4i(255,255,255,255);\n",
-          kTevCInput[s.ac_c], kTevAInput[s.ac_c]);
+          kTevCInput[s.cc_c], kTevAInput[s.ac_c]);
     emitf(out, "    tevin_d = vec4i(%s, %s);\n", kTevCInput[s.cc_d],
           kTevAInput[s.ac_d]);
 

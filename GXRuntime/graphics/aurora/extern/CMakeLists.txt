@@ -1,7 +1,8 @@
 include(FetchContent)
 
 # Don't build tests for third party dependencies
-set(BUILD_TESTING OFF CACHE INTERNAL "Build tests")
+set(_prev_build_testing ${BUILD_TESTING})
+set(BUILD_TESTING OFF CACHE INTERNAL "Build tests" FORCE)
 set(SKIP_INSTALL_ALL ON)
 if (NOT DEFINED BUILD_SHARED_LIBS)
   set(_USE_SHARED ON)
@@ -325,3 +326,6 @@ if (NOT TARGET TracyClient)
     message(FATAL_ERROR "Failed to make TracyClient available")
   endif ()
 endif ()
+
+# Restore BUILD_TESTING setting for the rest of the project
+set(BUILD_TESTING ${_prev_build_testing} CACHE INTERNAL "Build tests" FORCE)

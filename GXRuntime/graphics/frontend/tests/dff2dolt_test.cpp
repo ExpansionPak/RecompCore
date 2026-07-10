@@ -7,6 +7,9 @@
 // the draw with no state commands at all, proving restored state persists
 // across converted frame boundaries.
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "gxruntime/aurora_recomp/dff2dolt.hpp"
 #include "gxruntime/aurora_recomp/replay.hpp"
 #include "gxruntime/aurora_recomp/trace.hpp"

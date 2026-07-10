@@ -18,6 +18,9 @@ wgpu::RenderPipeline create_pipeline(const PipelineConfig& config) {
 }
 
 void render(const DrawData& data, const wgpu::RenderPassEncoder& pass) {
+  if (data.cullMode == GX_CULL_ALL) {
+    return;
+  }
   if (!gfx::bind_pipeline(data.pipeline, pass)) {
     return;
   }

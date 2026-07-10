@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "core/cpu.h"
 #include "gxruntime/aram.h"
 #include "gxruntime/audio_dma.h"

@@ -1,5 +1,5 @@
 #include "host/hle_physics.h"
-#include "host/hle_abi.h"
+#include "gxruntime/hle_abi.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1906,13 +1906,6 @@ static void handle_draw_unmerged(GXPrimitive prim, GXVtxFmt fmt, u16 vtxCount, g
 
 static void push_gx_draw(GXPrimitive prim, GXVtxFmt fmt, u16 vtxCount, gfx::Range vertRange, gfx::Range idxRange,
                          u32 numIndices, const std::array<u32, GX_VA_MAX_ATTR>& arraySizes) {
-  // GX_CULL_ALL rasterizes nothing on real hardware (genMode cull=3, used by
-  // retail streams to blank draws). WebGPU has no cull-all and
-  // to_primitive_state fatals on it, so drop the draw here instead.
-  // Upstream remedy: handle GX_CULL_ALL in draw submission/pipeline state.
-  if (g_gxState.cullMode == GX_CULL_ALL) {
-    return;
-  }
   // Build pipeline, bind groups, and push draw command
   BindGroupRanges ranges{};
   for (int i = GX_VA_POS; i <= GX_VA_TEX7; ++i) {
@@ -1955,6 +1948,7 @@ static void push_gx_draw(GXPrimitive prim, GXVtxFmt fmt, u16 vtxCount, gfx::Rang
       .instanceCount = instanceCount,
       .bindGroups = bindGroups,
       .dstAlpha = g_gxState.dstAlpha,
+      .cullMode = g_gxState.cullMode,
   });
 }
 

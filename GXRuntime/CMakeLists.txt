@@ -28,6 +28,11 @@ add_library(gxruntime STATIC
     src/memory_card.c
     src/headless_backend.c
     src/savestate.c
+    src/hle/hle_abi.c
+    src/hle/hle_core.c
+    src/hle/hle_card.c
+    src/hle/hle_dvd.c
+    src/hle/hle_input.c
 )
 add_library(GXRuntime::runtime ALIAS gxruntime)
 

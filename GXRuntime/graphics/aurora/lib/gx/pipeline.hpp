@@ -14,6 +14,7 @@ struct DrawData {
   uint32_t instanceCount;
   GXBindGroups bindGroups;
   uint32_t dstAlpha;
+  GXCullMode cullMode;
 };
 
 constexpr uint32_t GXPipelineConfigVersion = 13;

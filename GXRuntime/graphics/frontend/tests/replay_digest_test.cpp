@@ -7,6 +7,9 @@
 // write_display_list (the CALL_DL record path) — the two frames must digest
 // identically, proving the two DL entry paths are byte-path-identical.
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "gxruntime/aurora_recomp/replay.hpp"
 #include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
 

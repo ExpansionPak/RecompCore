@@ -1,5 +1,6 @@
-#include "host/hle_dvd.h"
-#include "host/hle_abi.h"
+// SPDX-License-Identifier: GPL-3.0-or-later
+#include "gxruntime/hle.h"
+#include "gxruntime/hle_abi.h"
 #include "gxruntime/dvd.h"
 #include <stdio.h>
 
@@ -11,20 +12,25 @@
 #define DVD_FI_CALLBACK   0x38u
 #define DVD_STATE_END     0u
 
-void hle_DVDInit(CPUState* cpu) { (void)cpu; }
-void hle_DVDClose(CPUState* cpu) { hle_set_u32(cpu, 1); }
+void dol_hle_DVDInit(CPUState* cpu) {
+    (void)cpu;
+}
 
-void hle_DVDGetCommandBlockStatus(CPUState* cpu) {
+void dol_hle_DVDClose(CPUState* cpu) {
+    hle_set_u32(cpu, 1);
+}
+
+void dol_hle_DVDGetCommandBlockStatus(CPUState* cpu) {
     u32 block = hle_arg_u32(cpu, 0);
     s32 state = block ? (s32)mem_read32(cpu, block + DVD_CB_STATE) : DVD_STATE_END;
     hle_set_u32(cpu, state == 3 ? 1u : (u32)state);
 }
 
-void hle_DVDGetDriveStatus(CPUState* cpu) {
+void dol_hle_DVDGetDriveStatus(CPUState* cpu) {
     hle_set_u32(cpu, DVD_STATE_END);
 }
 
-void hle_DVDConvertPathToEntrynum(CPUState* cpu) {
+void dol_hle_DVDConvertPathToEntrynum(CPUState* cpu) {
     char path[256];
     hle_read_cstr(cpu, hle_arg_u32(cpu, 0), path, sizeof path);
     s32 entry = dvd_path_to_entrynum(path);
@@ -33,7 +39,7 @@ void hle_DVDConvertPathToEntrynum(CPUState* cpu) {
     hle_set_u32(cpu, (u32)entry);
 }
 
-void hle_DVDFastOpen(CPUState* cpu) {
+void dol_hle_DVDFastOpen(CPUState* cpu) {
     s32 entry = (s32)hle_arg_u32(cpu, 0);
     u32 fi = hle_arg_u32(cpu, 1);
     u32 start = 0, length = 0;
@@ -48,7 +54,7 @@ void hle_DVDFastOpen(CPUState* cpu) {
     }
 }
 
-void hle_DVDReadAsyncPrio(CPUState* cpu) {
+void dol_hle_DVDReadAsyncPrio(CPUState* cpu) {
     u32 fi = hle_arg_u32(cpu, 0);
     u32 addr = hle_arg_u32(cpu, 1);
     u32 length = hle_arg_u32(cpu, 2);
