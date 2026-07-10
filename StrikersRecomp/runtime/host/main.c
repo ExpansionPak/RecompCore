@@ -18,6 +18,7 @@
 #include "host/mmio.h"
 #include "host/hle.h"
 #include "host/interrupt.h"
+#include "host/hle_offsets.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -124,22 +125,22 @@ static float guest_float(CPUState* cpu, u32 address) {
 }
 
 static void dump_game_state(CPUState* cpu) {
-    const u32 task_manager = mem_read32(cpu, 0x803742B8u);
-    const u32 transition = mem_read32(cpu, 0x80373DA0u);
-    const u32 loading_global = mem_read32(cpu, 0x80373DE4u);
+    const u32 task_manager = mem_read32(cpu, STRIKERS_TASK_MANAGER);
+    const u32 transition = mem_read32(cpu, STRIKERS_TRANSITION);
+    const u32 loading_global = mem_read32(cpu, STRIKERS_LOADING_GLOBAL);
     const u32 loading = transition ? mem_read32(cpu, transition + 0x28u)
                                    : loading_global;
-    const u32 game_scene_manager = mem_read32(cpu, 0x80373840u);
-    const u32 fe_resource_manager = mem_read32(cpu, 0x80374448u);
-    const u32 fe_scene_manager = mem_read32(cpu, 0x80374450u);
-    const u32 fe_input = mem_read32(cpu, 0x80374458u);
-    const u32 view = mem_read32(cpu, 0x80336FC0u + 31u * 4u);
-    const u32 pending_resource = mem_read32(cpu, 0x80343610u);
-    const u32 current_resource = mem_read32(cpu, 0x80374434u);
-    const u32 resource_context = mem_read32(cpu, 0x80374438u);
-    const u32 pad_current = mem_read32(cpu, 0x80372FF0u);
-    const u32 pad_next = mem_read32(cpu, 0x80372FF4u);
-    const u32 pad_internal = mem_read32(cpu, 0x80372FF8u);
+    const u32 game_scene_manager = mem_read32(cpu, STRIKERS_GAME_SCENE_MANAGER);
+    const u32 fe_resource_manager = mem_read32(cpu, STRIKERS_FE_RESOURCE_MANAGER);
+    const u32 fe_scene_manager = mem_read32(cpu, STRIKERS_FE_SCENE_MANAGER);
+    const u32 fe_input = mem_read32(cpu, STRIKERS_FE_INPUT);
+    const u32 view = mem_read32(cpu, STRIKERS_VIEW_BASE + 31u * 4u);
+    const u32 pending_resource = mem_read32(cpu, STRIKERS_PENDING_RESOURCE);
+    const u32 current_resource = mem_read32(cpu, STRIKERS_CURRENT_RESOURCE);
+    const u32 resource_context = mem_read32(cpu, STRIKERS_RESOURCE_CONTEXT);
+    const u32 pad_current = mem_read32(cpu, STRIKERS_PAD_CURRENT);
+    const u32 pad_next = mem_read32(cpu, STRIKERS_PAD_NEXT);
+    const u32 pad_internal = mem_read32(cpu, STRIKERS_PAD_INTERNAL);
 
     fprintf(stderr,
             "[game] task-manager=0x%08X transition=0x%08X loading=0x%08X "
@@ -220,7 +221,7 @@ static void dump_game_state(CPUState* cpu) {
         // its m_Head is at +0x18. AreAllScenesValid() returns false while this
         // is non-null (pending scene push/pop), or if any handler's scene is
         // not yet m_bValid.
-        const u32 pushpop_head = mem_read32(cpu, 0x80343660u);
+        const u32 pushpop_head = mem_read32(cpu, STRIKERS_PUSHPOP_HEAD);
         fprintf(stderr,
                 "[game] FE top=0x%08X default-view=%u handler-ring=0x%08X "
                 "pushpop-queue=0x%08X\n",
@@ -252,16 +253,16 @@ static void dump_game_state(CPUState* cpu) {
             "timebase=%llu bus-clock=%u uptime=%g\n",
             pending_resource, current_resource, resource_context,
             (unsigned long long)cpu->timebase,
-            mem_read32(cpu, 0x800000F8u),
-            guest_float(cpu, 0x80373D78u));
+            mem_read32(cpu, STRIKERS_BUS_CLOCK),
+            guest_float(cpu, STRIKERS_UPTIME));
     fprintf(stderr,
             "[game] reset mode=%u state=%u audio-init=%u pressed=%u paused=%u "
             "check-card=%u hold=%u,%u,%u,%u\n",
-            mem_read32(cpu, 0x80373DB0u), mem_read32(cpu, 0x80373DB4u),
-            mem_read8(cpu, 0x80373DB8u), mem_read8(cpu, 0x80373DB9u),
-            mem_read8(cpu, 0x80373DBAu), mem_read8(cpu, 0x80373DBBu),
-            mem_read32(cpu, 0x802C16B0u), mem_read32(cpu, 0x802C16B4u),
-            mem_read32(cpu, 0x802C16B8u), mem_read32(cpu, 0x802C16BCu));
+            mem_read32(cpu, STRIKERS_RESET_MODE), mem_read32(cpu, STRIKERS_RESET_STATE),
+            mem_read8(cpu, STRIKERS_AUDIO_INIT), mem_read8(cpu, STRIKERS_RESET_PRESSED),
+            mem_read8(cpu, STRIKERS_GAME_PAUSED), mem_read8(cpu, STRIKERS_CHECK_CARD),
+            mem_read32(cpu, STRIKERS_RESET_HOLD_BASE), mem_read32(cpu, STRIKERS_RESET_HOLD_BASE + 4u),
+            mem_read32(cpu, STRIKERS_RESET_HOLD_BASE + 8u), mem_read32(cpu, STRIKERS_RESET_HOLD_BASE + 12u));
     fprintf(stderr,
             "[game] pads current=0x%08X next=0x%08X internal=0x%08X",
             pad_current, pad_next, pad_internal);
@@ -280,7 +281,7 @@ static void dump_game_state(CPUState* cpu) {
                 mem_read8(cpu, current_resource + 0x10u));
     }
     fprintf(stderr, "[game] view31 enabled=%u object=0x%08X\n",
-            mem_read8(cpu, 0x80302050u + 31u), view);
+            mem_read8(cpu, STRIKERS_VIEW_ENABLED_BASE + 31u), view);
     if (view) {
         fprintf(stderr,
                 "[game] view31 sort=%u size=%ux%u target=%u "
@@ -292,6 +293,7 @@ static void dump_game_state(CPUState* cpu) {
                 mem_read32(cpu, view + 0xF0u), mem_read8(cpu, view + 0xEDu));
     }
 }
+
 
 int main(int argc, char** argv) {
     // Keep stdout/stderr unbuffered so diagnostics are not lost when a worker

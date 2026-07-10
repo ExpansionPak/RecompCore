@@ -414,7 +414,6 @@ static void strikers_hle_GXBegin(CPUState* cpu) {
 // Input Script & Custom PAD Handlers
 // ---------------------------------------------------------------------------
 
-#ifdef STRIKERSRECOMP_AURORA
 static void hle_PADRead(CPUState* cpu) {
     // 1. Call clean standard pad read
     dol_hle_PADRead(cpu);
@@ -451,44 +450,7 @@ static void hle_PADRead(CPUState* cpu) {
     mem_write8(cpu, out + 8u, analog_a);
     mem_write8(cpu, out + 10u, (u8)(connected ? 0 : -1));
 }
-#else
-static void hle_PADInit(CPUState* cpu) {
-    hle_set_u32(cpu, 1u);
-}
-static void hle_PADRead(CPUState* cpu) {
-    const u32 out = hle_arg_u32(cpu, 0);
-    u16 buttons = 0;
-    s8 stick_x = 0;
-    s8 stick_y = 0;
-    u8 analog_a = 0;
-    const bool connected = headless_scripted_pad(cpu, &buttons, &stick_x, &stick_y, &analog_a);
-    for (u32 i = 0; i < 4u; i++) {
-        const u32 p = out + i * 12u;
-        mem_write16(cpu, i == 0u ? buttons : 0u);
-        mem_write8(cpu, p + 2u, (u8)(i == 0u ? stick_x : 0));
-        mem_write8(cpu, p + 3u, (u8)(i == 0u ? stick_y : 0));
-        for (u32 byte = 4u; byte < 8u; byte++)
-            mem_write8(cpu, p + byte, 0u);
-        mem_write8(cpu, p + 8u, i == 0u ? analog_a : 0u);
-        mem_write8(cpu, p + 9u, 0u);
-        mem_write8(cpu, p + 10u, (u8)((i == 0u && connected) ? 0 : -1));
-        mem_write8(cpu, p + 11u, 0u);
-    }
-    hle_set_u32(cpu, 0u);
-}
-static void hle_PADReset(CPUState* cpu) {
-    hle_set_u32(cpu, (g_auto_input || g_mash_to_gameplay || g_input_script_count != 0u) ? 1u : 0u);
-}
-static void hle_PADRecalibrate(CPUState* cpu) {
-    hle_set_u32(cpu, (g_auto_input || g_mash_to_gameplay || g_input_script_count != 0u) ? 1u : 0u);
-}
-static void hle_PADControlMotor(CPUState* cpu) {
-    (void)cpu;
-}
-static void hle_PADSetSpec(CPUState* cpu) {
-    (void)cpu;
-}
-#endif
+
 
 // ---------------------------------------------------------------------------
 // Handler registry
@@ -548,21 +510,13 @@ static const HleAddrEntry kAddrHandlers[] = {
     { 0x8024DD20u, strikers_hle_GXBegin,               "GXBegin" },
     { 0x80251510u, dol_hle_GXCallDisplayList,          "GXCallDisplayList" },
 #endif
-#ifdef STRIKERSRECOMP_AURORA
     { 0x8025AC10u, dol_hle_PADReset,                  "PADReset" },
     { 0x8025AD20u, dol_hle_PADRecalibrate,            "PADRecalibrate" },
     { 0x8025AE34u, dol_hle_PADInit,                   "PADInit" },
     { 0x8025AF84u, hle_PADRead,                       "PADRead" },
     { 0x8025B284u, dol_hle_PADControlMotor,           "PADControlMotor" },
     { 0x8025B33Cu, dol_hle_PADSetSpec,                "PADSetSpec" },
-#else
-    { 0x8025AC10u, hle_PADReset,                  "PADReset" },
-    { 0x8025AD20u, hle_PADRecalibrate,            "PADRecalibrate" },
-    { 0x8025AE34u, hle_PADInit,                   "PADInit" },
-    { 0x8025AF84u, hle_PADRead,                   "PADRead" },
-    { 0x8025B284u, hle_PADControlMotor,           "PADControlMotor" },
-    { 0x8025B33Cu, hle_PADSetSpec,                "PADSetSpec" },
-#endif
+
 };
 
 static const HleAddrEntry kNotify[] = {

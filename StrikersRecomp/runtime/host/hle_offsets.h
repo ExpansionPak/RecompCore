@@ -32,4 +32,31 @@
 #define STRIKERS_SOR_LCP_RETURN             0x80222994u
 #define STRIKERS_DX_STEP_BODY               0x80223F30u
 
+// Game diagnostic guest memory offsets for main.c
+#define STRIKERS_TASK_MANAGER               0x803742B8u
+#define STRIKERS_TRANSITION                 0x80373DA0u
+#define STRIKERS_LOADING_GLOBAL             0x80373DE4u
+#define STRIKERS_GAME_SCENE_MANAGER         0x80373840u
+#define STRIKERS_FE_RESOURCE_MANAGER        0x80374448u
+#define STRIKERS_FE_SCENE_MANAGER           0x80374450u
+#define STRIKERS_FE_INPUT                   0x80374458u
+#define STRIKERS_VIEW_BASE                  0x80336FC0u
+#define STRIKERS_PENDING_RESOURCE           0x80343610u
+#define STRIKERS_CURRENT_RESOURCE           0x80374434u
+#define STRIKERS_RESOURCE_CONTEXT           0x80374438u
+#define STRIKERS_PAD_CURRENT                0x80372FF0u
+#define STRIKERS_PAD_NEXT                   0x80372FF4u
+#define STRIKERS_PAD_INTERNAL               0x80372FF8u
+#define STRIKERS_PUSHPOP_HEAD               0x80343660u
+#define STRIKERS_BUS_CLOCK                  0x800000F8u
+#define STRIKERS_UPTIME                     0x80373D78u
+#define STRIKERS_RESET_MODE                 0x80373DB0u
+#define STRIKERS_RESET_STATE                0x80373DB4u
+#define STRIKERS_AUDIO_INIT                 0x80373DB8u
+#define STRIKERS_RESET_PRESSED              0x80373DB9u
+#define STRIKERS_GAME_PAUSED                0x80373DBAu
+#define STRIKERS_CHECK_CARD                 0x80373DBBu
+#define STRIKERS_RESET_HOLD_BASE            0x802C16B0u
+#define STRIKERS_VIEW_ENABLED_BASE          0x80302050u
+
 #endif /* STRIKERSRECOMP_HLE_OFFSETS_H */
