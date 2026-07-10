@@ -526,6 +526,10 @@ add_library(core
   MovieFile.h
   NetPlay/NetPlayClient.cpp
   NetPlay/NetPlayClient.h
+  NetPlay/NetPlayClientCheats.cpp
+  NetPlay/NetPlayClientDigest.cpp
+  NetPlay/NetPlayClientInput.cpp
+  NetPlay/NetPlayClientSaves.cpp
   NetPlay/NetPlayCommon.cpp
   NetPlay/NetPlayCommon.h
   NetPlay/NetPlayServer.cpp
