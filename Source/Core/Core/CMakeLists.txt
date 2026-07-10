@@ -647,6 +647,7 @@ if(_M_X86_64)
     DSP/Jit/x64/DSPEmitter.cpp
     DSP/Jit/x64/DSPEmitter.h
     DSP/Jit/x64/DSPJitArithmetic.cpp
+    DSP/Jit/x64/DSPJitArithmeticShift.cpp
     DSP/Jit/x64/DSPJitBranch.cpp
     DSP/Jit/x64/DSPJitCCUtil.cpp
     DSP/Jit/x64/DSPJitExtOps.cpp
