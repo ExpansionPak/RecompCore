@@ -1,4 +1,5 @@
 #include "host/hle_physics.h"
+#include "host/hle_offsets.h"
 #include "gxruntime/hle_abi.h"
 #include <math.h>
 #include <stdio.h>
@@ -203,7 +204,7 @@ static void log_character_force_write(CPUState* cpu, const char* kind) {
     const u32 body = cpu->gpr[3];
     const u32 object = mem_read32(cpu, body + 0x0Cu);
     if (!guest_ram_range_valid(cpu, object, 0x94u) ||
-        mem_read32(cpu, object) != 0x802AFA18u)
+        mem_read32(cpu, object) != STRIKERS_BALL_VTABLE)
         return;
     fprintf(stderr,
             "[physics-force-write] kind=%s step=%llu body=0x%08X "
@@ -219,7 +220,7 @@ static void log_character_force_write(CPUState* cpu, const char* kind) {
 
 static bool ball_physics_addresses(CPUState* cpu, u32* ball_out,
                                    u32* physics_out, u32* body_out) {
-    const u32 ball = mem_read32(cpu, 0x80373664u); // g_pBall
+    const u32 ball = mem_read32(cpu, STRIKERS_GBALL_GLOBAL); // g_pBall
     if (!guest_ram_range_valid(cpu, ball, 0xACu))
         return false;
     const u32 physics = mem_read32(cpu, ball + 0x38u);
@@ -747,7 +748,7 @@ void notify_DrawableBallRender(CPUState* cpu) {
         return;
 
     const u32 snapshot_ball = cpu->gpr[3];
-    const u32 ball = mem_read32(cpu, 0x80373664u); // g_pBall
+    const u32 ball = mem_read32(cpu, STRIKERS_GBALL_GLOBAL); // g_pBall
     const u32 drawable = ball ? mem_read32(cpu, ball + 0x20u) : 0u;
     fprintf(stderr,
             "[ball-state] render=%u guest-frame=%llu snapshot=0x%08X "

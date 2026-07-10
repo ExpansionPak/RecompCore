@@ -8,10 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define ARAM_BASE 0x10000000u
-#define ARAM_SIZE 0x01000000u
-
 // Logging flags and memory card pointer
 bool g_hle_log = false;
 bool g_card_log = false;

@@ -1,5 +1,6 @@
 // Faithful VI-retrace external interrupt. See interrupt.h.
 #include "host/interrupt.h"
+#include "host/hle_offsets.h"
 #include "host/audio.h"
 #include "gxruntime/interrupts.h"
 #include "gxruntime/si.h"
@@ -12,8 +13,6 @@
 #define MSR_EE 0x00008000u  // MSR[EE], external interrupts enabled (bit 16)
 
 // Guest globals / entry points.
-#define OS_CURRENT_CONTEXT 0x800000D4u  // OSContext* __OSCurrentContext
-#define DISPATCH_INTERRUPT 0x80256FD0u  // __OSDispatchInterrupt(exc, context)
 #define EXC_EXTERNAL 4u                 // __OS_EXCEPTION_EXTERNAL_INTERRUPT
 
 // OSContext field offsets (dolphin/os/OSContext.h).
@@ -195,7 +194,7 @@ void interrupt_set_di_pending(bool pending) {
 // the VI DI register and wakes the retrace waiter), reschedules, and ends in
 // OSLoadContext -> rfi, transferring control to the resumed thread.
 static void deliver_external(CPUState* cpu) {
-    u32 ctx = mem_read32(cpu, OS_CURRENT_CONTEXT);
+    u32 ctx = mem_read32(cpu, STRIKERS_OS_CONTEXT_POINTER);
     if (ctx < GC_RAM_BASE || ctx >= GC_RAM_BASE + cpu->ram_size)
         return;  // no current context established yet
 
@@ -223,7 +222,7 @@ static void deliver_external(CPUState* cpu) {
     cpu->srr0 = cpu->pc;
     cpu->srr1 = cpu->msr;
     cpu->msr &= ~MSR_EE;  // run the handler with external interrupts masked
-    cpu->pc = DISPATCH_INTERRUPT;
+    cpu->pc = STRIKERS_DISPATCH_INTERRUPT_ADDR;
 }
 
 // A VI retrace is one work unit in ~350,000, and external-interrupt delivery is

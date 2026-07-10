@@ -1,4 +1,5 @@
 #include "host/audio.h"
+#include "host/hle_offsets.h"
 
 #include "gxruntime/audio_dma.h"
 #include "gxruntime/aram.h"
@@ -15,8 +16,6 @@
 #define AI_SIZE  0x20u
 
 #define AI_CONTROL_OFF DOL_AUDIO_DMA_AI_CONTROL_OFF
-
-#define MUSYX_DSP_DONE 0x80374A98u
 
 #define AX_SAMPLES_PER_MS 32u
 #define AX_FRAME_MS       5u
@@ -648,9 +647,9 @@ void audio_dsp_mail(CPUState* cpu, u32 mail) {
 
     g_waiting_for_command_list = false;
     process_command_list(cpu, mail);
-    mem_write32(cpu, MUSYX_DSP_DONE, 1);
+    mem_write32(cpu, STRIKERS_MUSYX_DSP_DONE_ADDR, 1);
 }
 
 void audio_skip_dsp_init(CPUState* cpu) {
-    mem_write32(cpu, MUSYX_DSP_DONE, 1);
+    mem_write32(cpu, STRIKERS_MUSYX_DSP_DONE_ADDR, 1);
 }
