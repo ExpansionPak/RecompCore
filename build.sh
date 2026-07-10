@@ -8,6 +8,12 @@ export GIT_CONFIG_NOSYSTEM=1
 
 
 # Core count detection
+if [ "$1" = "--force" ] || [ "$1" = "-f" ]; then
+  echo "=== Force rebuild requested. Cleaning build directories... ==="
+  rm -rf build
+  rm -rf module-template/build
+fi
+
 NCPU=$(sysctl -n hw.ncpu 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
 
 # Detect Ninja generator for faster builds
