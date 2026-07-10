@@ -471,6 +471,8 @@ add_library(core
   IOS/USB/Bluetooth/BTStub.cpp
   IOS/USB/Bluetooth/BTStub.h
   IOS/USB/Bluetooth/hci.h
+  IOS/USB/Bluetooth/hci_commands.h
+  IOS/USB/Bluetooth/hci_events.h
   IOS/USB/Bluetooth/l2cap.h
   IOS/USB/Bluetooth/WiimoteDevice.cpp
   IOS/USB/Bluetooth/WiimoteDevice.h
