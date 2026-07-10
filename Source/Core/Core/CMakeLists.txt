@@ -196,6 +196,8 @@ add_library(core
   HW/DSPLLE/DSPSymbols.h
   HW/DVD/DVDInterface.cpp
   HW/DVD/DVDInterface.h
+  HW/DVD/DVDInterfaceAudio.cpp
+  HW/DVD/DVDInterfaceDisc.cpp
   HW/DVD/AMMediaboard.cpp
   HW/DVD/AMMediaboard.h
   HW/DVD/DVDMath.cpp
