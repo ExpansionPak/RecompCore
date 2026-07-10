@@ -25,6 +25,7 @@
 #include "Common/MsgHandler.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigLoaders/BaseConfigLoader.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -134,6 +135,8 @@ void Init()
   };
   s_config_changed_callback_id = Config::AddConfigChangedCallback(config_changed_callback);
   Config::AddLayer(ConfigLoaders::GenerateBaseConfigLoader());
+  Config::SetBaseOrCurrent(Config::GFX_DUMP_TEXTURES, false);
+  Config::Save();
   SConfig::Init();
   g_Config.Init();
   Discord::Init();
