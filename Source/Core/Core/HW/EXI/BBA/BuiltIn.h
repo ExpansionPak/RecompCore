@@ -11,8 +11,15 @@ using socklen_t = int;
 #endif
 
 #include <SFML/Network.hpp>
+#include <chrono>
 #include "Common/CommonTypes.h"
 #include "Common/Network.h"
+
+inline u64 GetTickCountStd()
+{
+  using namespace std::chrono;
+  return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
 
 constexpr u16 TCP_FLAG_SIN = 0x2;
 constexpr u16 TCP_FLAG_ACK = 0x10;

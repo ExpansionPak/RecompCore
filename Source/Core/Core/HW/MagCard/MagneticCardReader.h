@@ -18,8 +18,43 @@
 
 #include "Core/HW/Triforce/SerialDevice.h"
 
+#include "Common/SmallVector.h"
+#include "Common/StringUtil.h"
+
 namespace MagCard
 {
+
+constexpr std::string_view VERSION_STRING = "AP:S1234-5678,OS:S9012-3456,0000";
+
+constexpr u8 START_OF_TEXT = 0x02;
+constexpr u8 END_OF_TEXT = 0x03;
+constexpr u8 ENQUIRY = 0x05;
+constexpr u8 ACK = 0x06;
+constexpr u8 NACK = 0x15;
+
+enum class BitMode : u8
+{
+  SevenBitParity = 0x30,
+  EightBitNoParity = 0x31,
+};
+
+enum class Track : u8
+{
+  Track_1 = 0x30,
+  Track_2 = 0x31,
+  Track_3 = 0x32,
+  Track_1_And_2 = 0x33,
+  Track_1_And_3 = 0x34,
+  Track_2_And_3 = 0x35,
+  Track_1_2_And_3 = 0x36,
+};
+
+inline void AppendRange(auto* container, const auto& range)
+{
+  const auto prev_size = container->size();
+  container->resize(prev_size + range.size());
+  std::ranges::copy(range, container->data() + prev_size);
+}
 
 class MagneticCardReader : public Triforce::SerialDevice
 {
@@ -201,5 +236,37 @@ protected:
   DT m_time_since_machine_moved_card{};
   DT m_time_since_person_moved_card{};
 };
+
+inline auto GetTrackIndicesForTrackType(Track track)
+{
+  Common::SmallVector<std::size_t, MagneticCardReader::NUM_TRACKS> result;
+
+  switch (track)
+  {
+  case Track::Track_1:
+  case Track::Track_2:
+  case Track::Track_3:
+    result.emplace_back(std::size_t(track) - 0x30);
+    break;
+
+  case Track::Track_1_And_2:
+  case Track::Track_1_And_3:
+  case Track::Track_2_And_3:
+    result.emplace_back((track == Track::Track_2_And_3) ? 1 : 0);
+    result.emplace_back((track == Track::Track_1_And_2) ? 1 : 2);
+    break;
+
+  case Track::Track_1_2_And_3:
+    result.emplace_back(0);
+    result.emplace_back(1);
+    result.emplace_back(2);
+    break;
+
+  default:
+    break;
+  }
+
+  return result;
+}
 
 }  // namespace MagCard

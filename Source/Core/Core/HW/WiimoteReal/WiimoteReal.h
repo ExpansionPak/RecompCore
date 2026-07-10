@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <unordered_set>
 #include <vector>
 
 #include "Common/Config/Config.h"
@@ -232,10 +233,33 @@ private:
 };
 
 // Mutex is recursive as ControllerInterface may call AddWiimoteToPool within ProcessWiimotePool.
+struct WiimotePoolEntry
+{
+  using Clock = std::chrono::steady_clock;
+
+  std::unique_ptr<Wiimote> wiimote;
+  Clock::time_point entry_time = Clock::now();
+
+  bool IsExpired() const
+  {
+    constexpr auto POOL_TIME = std::chrono::seconds{5};
+    return (Clock::now() - entry_time) > POOL_TIME;
+  }
+};
+
+extern std::unordered_set<std::string> s_known_ids;
+extern std::mutex s_known_ids_mutex;
+extern std::vector<WiimotePoolEntry> s_wiimote_pool;
+
 extern std::recursive_mutex g_wiimotes_mutex;
 extern std::unique_ptr<Wiimote> g_wiimotes[MAX_BBMOTES];
 
 void AddWiimoteToPool(std::unique_ptr<Wiimote>);
+void HandleWiimoteDisconnect(int index);
+void TryToConnectBalanceBoard(std::unique_ptr<Wiimote> bboard);
+bool TryToConnectWiimoteToSlot(std::unique_ptr<Wiimote>& wiimote, unsigned int slot);
+int CalculateWantedWiimotes();
+int CalculateWantedBB();
 
 bool IsValidDeviceName(std::string_view name);
 bool IsWiimoteName(std::string_view name);

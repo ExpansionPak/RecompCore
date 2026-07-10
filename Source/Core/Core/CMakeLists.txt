@@ -218,6 +218,7 @@ add_library(core
   HW/EXI/BBA/TAPServerBBA.cpp
   HW/EXI/BBA/XLINK_KAI_BBA.cpp
   HW/EXI/BBA/BuiltIn.cpp
+  HW/EXI/BBA/BuiltInPackets.cpp
   HW/EXI/BBA/BuiltIn.h
   HW/EXI/Modem/TAPServerModem.cpp
   HW/EXI/EXI_Channel.cpp
@@ -289,6 +290,7 @@ add_library(core
   HW/MagCard/C1231LR.cpp
   HW/MagCard/C1231LR.h
   HW/MagCard/MagneticCardReader.cpp
+  HW/MagCard/MagneticCardReaderCommands.cpp
   HW/MagCard/MagneticCardReader.h
   HW/Memmap.cpp
   HW/Memmap.h
@@ -341,6 +343,7 @@ add_library(core
   HW/Triforce/Touchscreen.cpp
   HW/Triforce/Touchscreen.h
   HW/VideoInterface.cpp
+  HW/VideoInterfaceRegisters.cpp
   HW/VideoInterface.h
   HW/WII_IPC.cpp
   HW/WII_IPC.h
@@ -390,8 +393,10 @@ add_library(core
   HW/WiimoteEmu/Speaker.cpp
   HW/WiimoteEmu/Speaker.h
   HW/WiimoteEmu/WiimoteEmu.cpp
+  HW/WiimoteEmu/WiimoteEmuGroup.cpp
   HW/WiimoteEmu/WiimoteEmu.h
   HW/WiimoteReal/WiimoteReal.cpp
+  HW/WiimoteReal/WiimoteScanner.cpp
   HW/WiimoteReal/WiimoteReal.h
   HW/WiiSave.cpp
   HW/WiiSave.h
