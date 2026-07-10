@@ -77,6 +77,9 @@ if(GXRUNTIME_ENABLE_AURORA)
 
     add_library(gxruntime_aurora STATIC
         backends/aurora/aurora_backend.cpp
+        backends/aurora/aurora_graphics.cpp
+        backends/aurora/aurora_audio.cpp
+        backends/aurora/aurora_input.cpp
     )
     add_library(GXRuntime::aurora ALIAS gxruntime_aurora)
     target_include_directories(gxruntime_aurora

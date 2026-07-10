@@ -38,12 +38,20 @@ find_package(ZLIB QUIET)
 
 add_executable(dolrecomp
     src/main.c
+    src/util.c
+    src/loader.c
+    src/analysis.c
     src/frontend/dol.c
     src/frontend/rel.c
     src/frontend/rpx.c
     src/frontend/disc_extract.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
     src/backend/emitter.c
+    src/backend/emitter_integer.c
+    src/backend/emitter_float.c
+    src/backend/emitter_branch.c
+    src/backend/emitter_system.c
 )
 
 target_include_directories(dolrecomp PRIVATE src)
@@ -60,6 +68,7 @@ endif()
 add_executable(test_opcodes
     tests/test_opcodes.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
 )
 target_include_directories(test_opcodes PRIVATE src)
 
@@ -70,6 +79,7 @@ add_test(NAME opcodes COMMAND test_opcodes)
 add_executable(test_cross_check
     tests/test_cross_check.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
 )
 target_include_directories(test_cross_check PRIVATE src)
 add_test(NAME cross_check COMMAND test_cross_check)
@@ -113,6 +123,7 @@ add_test(NAME disc_extract
 add_executable(test_pc_reference
     tests/test_pc_reference.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
     src/frontend/dol.c
     src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
@@ -127,7 +138,12 @@ add_test(NAME pc_reference COMMAND test_pc_reference)
 add_executable(test_codegen_emit
     tests/test_codegen_emit.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
     src/backend/emitter.c
+    src/backend/emitter_integer.c
+    src/backend/emitter_float.c
+    src/backend/emitter_branch.c
+    src/backend/emitter_system.c
 )
 target_include_directories(test_codegen_emit PRIVATE src)
 add_test(NAME codegen_compile
@@ -150,7 +166,12 @@ add_test(NAME codegen_compile
 add_executable(diff_gen
     tests/diff/gen.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
     src/backend/emitter.c
+    src/backend/emitter_integer.c
+    src/backend/emitter_float.c
+    src/backend/emitter_branch.c
+    src/backend/emitter_system.c
 )
 target_include_directories(diff_gen PRIVATE src tests/diff)
 
@@ -187,6 +208,7 @@ add_executable(dol_corpus_inventory
     tests/corpus/inventory.c
     tests/test_codegen_emit.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
     src/frontend/dol.c
 )
 target_compile_definitions(dol_corpus_inventory PRIVATE DOLRECOMP_OPCODE_SAMPLES_ONLY)
@@ -197,7 +219,12 @@ target_include_directories(dol_corpus_inventory PRIVATE src tests tests/diff)
 add_executable(dedicated_diff_gen
     tests/oracle/dedicated_gen.c
     src/frontend/decoder.c
+    src/frontend/disasm.c
     src/backend/emitter.c
+    src/backend/emitter_integer.c
+    src/backend/emitter_float.c
+    src/backend/emitter_branch.c
+    src/backend/emitter_system.c
 )
 target_include_directories(dedicated_diff_gen PRIVATE src tests/oracle)
 
