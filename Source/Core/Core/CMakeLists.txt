@@ -661,6 +661,9 @@ if(_M_X86_64)
     DSP/Jit/x64/DSPJitUtil.cpp
     PowerPC/Jit64/Jit.cpp
     PowerPC/Jit64/Jit.h
+    PowerPC/Jit64/Jit_Cache.cpp
+    PowerPC/Jit64/Jit_Compile.cpp
+    PowerPC/Jit64/Jit_Fault.cpp
     PowerPC/Jit64/Jit64_Tables.cpp
     PowerPC/Jit64/Jit_Branch.cpp
     PowerPC/Jit64/Jit_FloatingPoint.cpp
