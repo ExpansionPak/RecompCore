@@ -557,8 +557,13 @@ add_library(core
   PowerPC/PowerPC.h
   PowerPC/StaticRecomp/StaticRecompABI.h
   PowerPC/StaticRecomp/StaticRecompCore.cpp
+  PowerPC/StaticRecomp/StaticRecompCore_SMC.cpp
+  PowerPC/StaticRecomp/StaticRecompCore_Sync.cpp
+  PowerPC/StaticRecomp/StaticRecompCore_Hooks.cpp
+  PowerPC/StaticRecomp/StaticRecompCore_Run.cpp
   PowerPC/StaticRecomp/StaticRecompCore.h
-  PowerPC/StaticRecomp/StaticRecompLockstep.cpp
+  PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.cpp
+  PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.h
   PowerPC/PPCAnalyst.cpp
   PowerPC/PPCAnalyst.h
   PowerPC/PPCCache.cpp

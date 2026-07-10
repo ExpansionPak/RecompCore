@@ -1,7 +1,7 @@
 // RecompCore: StaticRecomp lockstep differential hook.
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "Core/PowerPC/StaticRecomp/StaticRecompLockstep.h"
+#include "Core/PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.h"
 #include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Interpreter/Interpreter.h"

@@ -12,7 +12,7 @@
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PowerPC.h"
-#include "Core/PowerPC/StaticRecomp/StaticRecompLockstep.h"
+#include "Core/PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.h"
 #include "Core/System.h"
 
 /*
