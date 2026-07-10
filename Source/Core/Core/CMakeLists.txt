@@ -719,6 +719,7 @@ elseif(_M_ARM_64)
     PowerPC/JitArm64/JitArm64_Branch.cpp
     PowerPC/JitArm64/JitArm64_FloatingPoint.cpp
     PowerPC/JitArm64/JitArm64_IntegerArithmetic.cpp
+    PowerPC/JitArm64/JitArm64_IntegerMulDiv.cpp
     PowerPC/JitArm64/JitArm64_IntegerLogical.cpp
     PowerPC/JitArm64/JitArm64_LoadStore.cpp
     PowerPC/JitArm64/JitArm64_LoadStoreSpecial.cpp
