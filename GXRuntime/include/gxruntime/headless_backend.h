@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_HEADLESS_BACKEND_H
-#define DOLRUNTIME_HEADLESS_BACKEND_H
+#ifndef GXRUNTIME_HEADLESS_BACKEND_H
+#define GXRUNTIME_HEADLESS_BACKEND_H
 
-#include "dolruntime/platform.h"
+#include "gxruntime/platform.h"
 
 // A deterministic DolPlatformOps implementation for headless runs and probes.
 //

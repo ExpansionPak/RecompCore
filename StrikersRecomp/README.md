@@ -2,7 +2,7 @@
 
 A static recompilation of *Super Mario Strikers* (`G4QE01`, NTSC) — the worked
 example for [RecompCore](https://github.com/aharonahdoot/RecompCore) and
-[DolRuntime](https://github.com/aharonahdoot/DolRuntime).
+[GXRuntime](https://github.com/aharonahdoot/GXRuntime).
 
 This repository holds only policy, glue, and tools for G4QE01: symbol maps,
 game-specific HLE decisions, MMIO routing, and the scripts that turn your own
@@ -21,7 +21,7 @@ cd StrikersRecomp && ./bootstrap.sh
 
 `bootstrap.sh` clones [DolRecomp](https://github.com/aharonahdoot/DolRecomp)
 (our maintained fork, pending upstream review),
-[DolRuntime](https://github.com/aharonahdoot/DolRuntime), and
+[GXRuntime](https://github.com/aharonahdoot/GXRuntime), and
 [RecompCore](https://github.com/aharonahdoot/RecompCore) next to this checkout.
 
 ## Generating the recompiled code
@@ -55,7 +55,7 @@ Then run RecompCore with `-C Dolphin.Core.CPUCore=6`. This path has been
 verified in lockstep against Dolphin's interpreter: 0 divergences over 37.7
 billion dispatches, boot through a full match.
 
-**2. Standalone DolRuntime app.** A self-contained runtime with its own GX
+**2. Standalone GXRuntime app.** A self-contained runtime with its own GX
 renderer, input, and audio:
 
 ```sh

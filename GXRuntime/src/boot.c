@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/boot.h"
+#include "gxruntime/boot.h"
 
 #include <stdio.h>
 

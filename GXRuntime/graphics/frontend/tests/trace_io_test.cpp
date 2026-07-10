@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -9,12 +9,12 @@
 
 namespace {
 
-using dolruntime::aurora_recomp::trace::PresentStats;
-using dolruntime::aurora_recomp::trace::RecordKind;
-using dolruntime::aurora_recomp::trace::RecordView;
-using dolruntime::aurora_recomp::trace::TraceHeader;
-using dolruntime::aurora_recomp::trace::TraceReader;
-using dolruntime::aurora_recomp::trace::TraceWriter;
+using gxruntime::aurora_recomp::trace::PresentStats;
+using gxruntime::aurora_recomp::trace::RecordKind;
+using gxruntime::aurora_recomp::trace::RecordView;
+using gxruntime::aurora_recomp::trace::TraceHeader;
+using gxruntime::aurora_recomp::trace::TraceReader;
+using gxruntime::aurora_recomp::trace::TraceWriter;
 
 constexpr const char* kPath = "trace_io_test.dolt";
 

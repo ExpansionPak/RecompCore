@@ -1061,7 +1061,7 @@ std::string build_shader_source(const ShaderConfig& config) noexcept {
   }
 
   {
-    // DolRuntime recomp patch (0006): zero TEV stages is invalid (SDK state
+    // GXRuntime recomp patch (0006): zero TEV stages is invalid (SDK state
     // always flushes >=1) but reachable from replayed streams with an
     // incomplete baseline; the unchecked count-1 index fabricated a wild
     // pointer. Warn once and read stage 0.

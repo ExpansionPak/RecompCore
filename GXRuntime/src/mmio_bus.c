@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/mmio_bus.h"
+#include "gxruntime/mmio_bus.h"
 
 #include <string.h>
 

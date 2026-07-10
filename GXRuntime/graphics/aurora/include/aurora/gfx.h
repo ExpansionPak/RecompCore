@@ -34,7 +34,7 @@ float aurora_get_fps();
 void aurora_enable_vsync(bool enabled);
 
 /*
- * EFB readback (DolRuntime recomp patch): arm a one-shot copy of the next
+ * EFB readback (GXRuntime recomp patch): arm a one-shot copy of the next
  * submitted frame's present source; take returns tightly packed RGBA8 rows
  * (top-left origin) once the copy completed and consumes the result. The
  * returned pointer stays valid until the next readback completes.

@@ -12,11 +12,11 @@
 // calls and whether each is handled.
 #include "hle.h"
 
-#include "dolruntime/aram.h"
-#include "dolruntime/memory_card.h"
+#include "gxruntime/aram.h"
+#include "gxruntime/memory_card.h"
 #include "host/audio.h"
-#include "dolruntime/dvd.h"
-#include "dolruntime/platform.h"
+#include "gxruntime/dvd.h"
+#include "gxruntime/platform.h"
 #include "host/hle_abi.h"
 #include "host/interrupt.h"
 #include "host/mmio.h"

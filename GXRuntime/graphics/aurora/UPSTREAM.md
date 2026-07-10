@@ -1,6 +1,6 @@
 # Aurora fork — provenance
 
-This directory is DolRuntime's **owned hard fork** of Aurora (program 63, decision 5,
+This directory is GXRuntime's **owned hard fork** of Aurora (program 63, decision 5,
 2026-07-03). It is first-class product source: changes are normal commits here. There is no
 patch stack and no upstream tracking/rebase intent.
 
@@ -30,5 +30,5 @@ vendor time: pristine+stack rebuild diffed empty against this tree):
 
 - `lib/gfx/`, `lib/webgpu/`, window/input shell, texture codecs, present: **kept** (substrate).
 - `lib/gx/` (GX semantics: state→pipeline, WGSL TEV/lighting/texgen): **replaced** by
-  `DolRuntime/graphics/gxcore/` (Dolphin-ported, GPLv2+ — see `docs/abi-scope-license.md`),
+  `GXRuntime/graphics/gxcore/` (Dolphin-ported, GPLv2+ — see `docs/abi-scope-license.md`),
   then deleted at program 63 Mfin.

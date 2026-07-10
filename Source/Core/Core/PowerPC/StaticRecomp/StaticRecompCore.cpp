@@ -255,9 +255,9 @@ void StaticRecompCore::LoadModule()
     return reject("missing or null " STATICRECOMP_GET_MODULE_SYMBOL);
   if (desc->abi_version != STATICRECOMP_ABI_VERSION)
     return reject(fmt::format("abi_version {} != {}", desc->abi_version, STATICRECOMP_ABI_VERSION));
-  if (desc->cpu_abi_version != DOLRUNTIME_CPU_ABI_VERSION)
+  if (desc->cpu_abi_version != GXRUNTIME_CPU_ABI_VERSION)
     return reject(fmt::format("cpu_abi_version {} != {}", desc->cpu_abi_version,
-                              DOLRUNTIME_CPU_ABI_VERSION));
+                              GXRUNTIME_CPU_ABI_VERSION));
   if (desc->cpu_state_size != sizeof(CPUState))
     return reject(fmt::format("cpu_state_size {} != sizeof(CPUState) {}", desc->cpu_state_size,
                               sizeof(CPUState)));

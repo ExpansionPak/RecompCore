@@ -5,8 +5,8 @@
 #include "texture.hpp"
 #include "tex_copy_conv.hpp" // EFB-copy format conversion (63/S16)
 
-#include <dolruntime/gxcore/gxcore.hpp> // EfbCopyCommand
-#include <dolruntime/gxcore/texture_decode.hpp>
+#include <gxruntime/gxcore/gxcore.hpp> // EfbCopyCommand
+#include <gxruntime/gxcore/texture_decode.hpp>
 
 #include <absl/container/flat_hash_map.h>
 
@@ -16,7 +16,7 @@
 
 namespace aurora::gfx::gxcore {
 
-namespace gxc = dolruntime::gxcore;
+namespace gxc = gxruntime::gxcore;
 
 using webgpu::g_device;
 using webgpu::g_graphicsConfig;
@@ -217,7 +217,7 @@ wgpu::RenderPipeline create_pipeline(const PipelineConfig& config) {
   };
   const auto pipelineLayout = g_device.CreatePipelineLayout(&layoutDescriptor);
 
-  // Fixed decoded-vertex layout (dolruntime/gxcore/shader.hpp). The normal
+  // Fixed decoded-vertex layout (gxruntime/gxcore/shader.hpp). The normal
   // (location 8) is only declared by the lit shader, so add it to the pipeline
   // only when the key is lit — WGSL requires the vertex layout to satisfy every
   // shader input.

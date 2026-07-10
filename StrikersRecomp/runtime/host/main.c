@@ -8,12 +8,12 @@
 // dolrecomp_call() / DOLRECOMP_ENTRY_POINT.
 #include "generated.h"
 
-#include "dolruntime/aurora_backend.h"
-#include "dolruntime/boot.h"
-#include "dolruntime/dvd.h"
-#include "dolruntime/loader.h"
-#include "dolruntime/platform.h"
-#include "dolruntime/savestate.h"
+#include "gxruntime/aurora_backend.h"
+#include "gxruntime/boot.h"
+#include "gxruntime/dvd.h"
+#include "gxruntime/loader.h"
+#include "gxruntime/platform.h"
+#include "gxruntime/savestate.h"
 #include "host/audio.h"
 #include "host/mmio.h"
 #include "host/hle.h"
@@ -30,7 +30,7 @@
 // (blr -> pc == sentinel). Aligned, well outside any real code range.
 #define CALL_RETURN_SENTINEL 0x0BADF00Cu
 
-// Deterministic save-state harness (see DolRuntime savestate.h). SIGUSR1 requests
+// Deterministic save-state harness (see GXRuntime savestate.h). SIGUSR1 requests
 // a snapshot at the next safe dispatch boundary, so an agent can `kill -USR1` the
 // process at any interactive gameplay moment without a controller hotkey.
 #include <signal.h>
@@ -468,7 +468,7 @@ int main(int argc, char** argv) {
     // path that sets HID2, so HID2[PSE|LSQE] is clear and the FIRST paired-single
     // load/store (psq_l/psq_st -- pervasive in SDK vector/matrix/physics code)
     // raises a spurious PROGRAM(ILLEGAL) before block 0 (psq_check_enabled,
-    // DolRuntime/src/core/cpu.c). These enables are architectural: any booted
+    // GXRuntime/src/core/cpu.c). These enables are architectural: any booted
     // Gekko running PS code has them set, so default them here. The GQR *contents*
     // (SDK fastcast quantization, e.g. gqr[5]/gqr[6]) are game policy, not
     // architectural -- pass --restore <gameplay savestate> below to recover the

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/dff2dolt.hpp"
+#include "gxruntime/aurora_recomp/dff2dolt.hpp"
 
-#include "dolruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <vector>
 
-namespace dolruntime::aurora_recomp::dff {
+namespace gxruntime::aurora_recomp::dff {
 namespace {
 
 // FifoDataFile on-disk layout (packed little-endian; sizes asserted upstream
@@ -440,4 +440,4 @@ bool convert_file(const char* dff_path, const char* out_path,
   return convert(bytes.data(), bytes.size(), out_path, options, stats, error);
 }
 
-} // namespace dolruntime::aurora_recomp::dff
+} // namespace gxruntime::aurora_recomp::dff

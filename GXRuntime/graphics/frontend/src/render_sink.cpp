@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/render_sink.hpp"
+#include "gxruntime/aurora_recomp/render_sink.hpp"
 
 #include <cstring>
 
-namespace dolruntime::aurora_recomp {
+namespace gxruntime::aurora_recomp {
 
 bool RecordingAuroraRenderSink::submit_packet(const RenderPacket& packet) {
   packets_.push_back(packet);
@@ -730,4 +730,4 @@ const char* trace_event_name(DolGxRecompEventKind kind) {
   }
 }
 
-} // namespace dolruntime::aurora_recomp
+} // namespace gxruntime::aurora_recomp

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_VI_CLOCK_H
-#define DOLRUNTIME_VI_CLOCK_H
+#ifndef GXRUNTIME_VI_CLOCK_H
+#define GXRUNTIME_VI_CLOCK_H
 
 #include "core/types.h"
-#include "dolruntime/event_clock.h"
+#include "gxruntime/event_clock.h"
 
 #define DOL_VI_DEFAULT_REFRESH_HZ 60u
 #define DOL_VI_DEFAULT_TIMEBASE_HZ 40500000ull

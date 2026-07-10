@@ -2,9 +2,9 @@
 
 StrikersRecomp is the game integration: **DolRecomp's recompiled C**, G4QE01
 symbols/addresses, game HLE policy, and diagnostics. The game-agnostic host is
-the separate sibling repository [DolRuntime](../../DolRuntime).
+the separate sibling repository [GXRuntime](../../GXRuntime).
 
-Strikers links `DolRuntime::runtime` and, for GUI builds, `DolRuntime::aurora`.
+Strikers links `GXRuntime::runtime` and, for GUI builds, `GXRuntime::aurora`.
 Reusable PPC, memory, DOL/boot, disc, and platform behavior belongs there.
 
 ## 1. The block-dispatch model
@@ -35,7 +35,7 @@ exception, or the `--max-blocks` watchdog.
 
 ## 2. Memory
 
-DolRuntime's `cpu_init` allocates 24 MB into `CPUState::ram`.
+GXRuntime's `cpu_init` allocates 24 MB into `CPUState::ram`.
 `mem_read*/mem_write*` map the
 cached (`0x8000_0000`) and uncached (`0xC000_0000`) windows into it; anything
 outside RAM is routed to the `external_read`/`external_write` hooks.
@@ -48,9 +48,9 @@ outside RAM is routed to the `external_read`/`external_write` hooks.
 
 ## 3. Boot
 
-`DolRuntime/src/loader.c` parses the DOL header (7 text + 11 data sections),
+`GXRuntime/src/loader.c` parses the DOL header (7 text + 11 data sections),
 copies each section to `address - 0x8000_0000`, and zeroes the BSS.
-`DolRuntime/src/boot.c` writes the GameCube low-memory OS globals (physical memory
+`GXRuntime/src/boot.c` writes the GameCube low-memory OS globals (physical memory
 size, bus/core clocks, console type, arena bounds) and an initial stack pointer.
 `main.c` then sets `pc` to the DOL entry point (`0x80005240` for Strikers) and
 starts the dispatcher.
@@ -59,9 +59,9 @@ starts the dispatcher.
 
 The current migration boundary is explicit:
 
-- **DolRuntime** — PPC core, DOL/boot, ARAM, DVD image service, VM/locked-cache
+- **GXRuntime** — PPC core, DOL/boot, ARAM, DVD image service, VM/locked-cache
   backing, and the Aurora graphics/input/audio adapter.
-- **`runtime/host/mmio.c`** — temporary Strikers device router over DolRuntime
+- **`runtime/host/mmio.c`** — temporary Strikers device router over GXRuntime
   memory plus the not-yet-extracted audio/interrupt devices.
 - **`runtime/host/hle.c`** — G4QE01 host-call replacements/notifications. A
   `true` return skips the recompiled function and produces the game-visible
@@ -70,7 +70,7 @@ The current migration boundary is explicit:
 
 The checked-out `smstrikers-decomp/config/G4QE01/symbols.txt` supplies the SDK
 and game symbol map used to generate `generated/sdk_symbols.inc`. Exact guest
-addresses remain in Strikers; they are never compiled into DolRuntime.
+addresses remain in Strikers; they are never compiled into GXRuntime.
 
 1. **Signature matching (FLIRT-style):** retail GameCube games are built with
    known Metrowerks CodeWarrior + Nintendo SDK archives. Build a signature

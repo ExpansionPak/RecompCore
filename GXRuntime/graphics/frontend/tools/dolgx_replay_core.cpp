@@ -11,10 +11,10 @@
 
 #include "dolgx_replay_pixels.hpp"
 
-#include "dolruntime/aurora_backend.h"
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
-#include "dolruntime/aurora_recomp/trace.hpp"
-#include "dolruntime/gxcore/gxcore.hpp"
+#include "gxruntime/aurora_backend.h"
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/gxcore/gxcore.hpp"
 
 #include "gfx/gxcore_draw.hpp" // fork-internal (aurora lib dir on this target)
 
@@ -37,9 +37,9 @@ bool aurora_backend_should_quit(void);
 
 namespace {
 
-namespace trace = dolruntime::aurora_recomp::trace;
-namespace ar = dolruntime::aurora_recomp;
-namespace gxc = dolruntime::gxcore;
+namespace trace = gxruntime::aurora_recomp::trace;
+namespace ar = gxruntime::aurora_recomp;
+namespace gxc = gxruntime::gxcore;
 
 constexpr std::uint64_t kFnvBasis = 1469598103934665603ull;
 constexpr std::uint64_t kFnvPrime = 1099511628211ull;

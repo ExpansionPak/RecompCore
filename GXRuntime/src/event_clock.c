@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/event_clock.h"
+#include "gxruntime/event_clock.h"
 
 #include <string.h>
 

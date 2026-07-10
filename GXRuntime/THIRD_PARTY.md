@@ -1,8 +1,8 @@
 # Third-party notices
 
-- **CPU semantics**: DolRuntime's PPC core mirrors the interpreter behavior of
+- **CPU semantics**: GXRuntime's PPC core mirrors the interpreter behavior of
   [Dolphin](https://github.com/dolphin-emu/dolphin) (GPL-2.0-or-later). This
-  is why DolRuntime is licensed GPL-3.0-or-later.
+  is why GXRuntime is licensed GPL-3.0-or-later.
 - **`graphics/aurora/`**: a vendored fork of
   [encounter/aurora](https://github.com/encounter/aurora) (MIT). Its original
   license file and notices are retained in that directory.

@@ -50,7 +50,7 @@ Builds `gG4QE01_recomp.<dylib|so>` (ThinLTO, Release) and installs it into
 `USER_DIR` is `<repo>/.tools/dolphin/user`. After packaging, any G4QE01 ISO runs on the
 chassis with just `-C Dolphin.Core.CPUCore=6` (no `STATICRECOMP_MODULE` env).
 
-Module perf: the module is built with **ThinLTO** so the DolRuntime `cpu.c` helpers
+Module perf: the module is built with **ThinLTO** so the GXRuntime `cpu.c` helpers
 (`mem_read32`/`translate_addr`, the FP & paired-single ops, `ppc_host_call`) inline into
 the generated chunk call sites — the dominant per-op cost was out-of-line helper calls
 across translation units. Semantics are unchanged (no `-ffast-math`); guarded by the
@@ -79,7 +79,7 @@ cheap. All substantial code is NEW files under `Source/Core/Core/PowerPC/StaticR
 2. Rebase our commits onto the target upstream release commit. New files never conflict;
    resolve only the ~10 seam hunks above (each small and localized).
 3. Update this file's **Upstream base commit** hash + a dated sync note.
-4. Re-vendor `dolrecomp/{cpu,types}.h` only if DolRuntime's `CPUState` layout changed
+4. Re-vendor `dolrecomp/{cpu,types}.h` only if GXRuntime's `CPUState` layout changed
    (bump `cpu_abi_version`; the loader rejects a mismatched module).
 5. **Re-verify before trusting the synced fork** (all must pass):
    - build `dolphin-emu-nogui`;

@@ -1,8 +1,8 @@
-# DolRuntime
+# GXRuntime
 
 A game-agnostic runtime for statically recompiled GameCube games. You run a
 game's `main.dol` through [DolRecomp](https://github.com/aharonahdoot/DolRecomp),
-compile the emitted C, and DolRuntime supplies everything around it: PPC
+compile the emitted C, and GXRuntime supplies everything around it: PPC
 state and semantics, big-endian guest memory, boot services, devices, and a
 GX renderer. It is the standalone line of the same ecosystem as
 [RecompCore](https://github.com/aharonahdoot/RecompCore), which integrates the
@@ -11,7 +11,7 @@ share the module ABI (v2), and the CPU semantics are verified against
 Dolphin's interpreter in lockstep (0 divergences over 37.7 billion dispatches
 in a full retail game).
 
-DolRuntime is a work in progress. Honest status, with
+GXRuntime is a work in progress. Honest status, with
 [StrikersRecomp](https://github.com/aharonahdoot/StrikersRecomp) as the
 integration client:
 
@@ -29,14 +29,14 @@ tested host today).
 
 ## Architecture
 
-Game frontend (generated C + HLE policy) → DolRuntime core (CPU, memory,
+Game frontend (generated C + HLE policy) → GXRuntime core (CPU, memory,
 devices) → gxcore (GX command processing) → vendored Aurora substrate
 (windowing, GPU, input, audio).
 
 ## Building
 
 ```sh
-cmake -S . -B build -DDOLRUNTIME_ENABLE_AURORA=OFF   # headless core + tests
+cmake -S . -B build -DGXRUNTIME_ENABLE_AURORA=OFF   # headless core + tests
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
@@ -44,8 +44,8 @@ ctest --test-dir build --output-on-failure
 Consumed as a sibling CMake project:
 
 ```cmake
-add_subdirectory(../DolRuntime DolRuntime)
-target_link_libraries(MyGame PRIVATE DolRuntime::runtime)
+add_subdirectory(../GXRuntime GXRuntime)
+target_link_libraries(MyGame PRIVATE GXRuntime::runtime)
 ```
 
 ## Roadmap
@@ -54,7 +54,7 @@ A GX-register-complete renderer sweep with a mechanized coverage gate,
 DSP-LLE audio, XFB/VI presentation, an interpreter fallback with an SMC
 guard, one-command game onboarding, per-game completion certificates, and Windows
 support (macOS and Linux build in CI today).
-Because this architecture needs no JIT, DolRuntime is the lightweight path
+Because this architecture needs no JIT, GXRuntime is the lightweight path
 toward platforms where JITs aren't allowed.
 
 ## License and provenance

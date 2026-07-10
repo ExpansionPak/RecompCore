@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
 
 #include <cstring>
 
-namespace dolruntime::aurora_recomp::trace {
+namespace gxruntime::aurora_recomp::trace {
 
 namespace {
 
@@ -278,4 +278,4 @@ bool decode_present_stats(const RecordView& r, PresentStats& out) {
   return true;
 }
 
-} // namespace dolruntime::aurora_recomp::trace
+} // namespace gxruntime::aurora_recomp::trace

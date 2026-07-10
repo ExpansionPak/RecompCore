@@ -1,8 +1,8 @@
 #include "host/audio.h"
 
-#include "dolruntime/audio_dma.h"
-#include "dolruntime/aram.h"
-#include "dolruntime/platform.h"
+#include "gxruntime/audio_dma.h"
+#include "gxruntime/aram.h"
+#include "gxruntime/platform.h"
 
 #include <limits.h>
 #include <stdio.h>

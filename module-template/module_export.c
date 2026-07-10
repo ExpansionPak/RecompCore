@@ -23,7 +23,7 @@ static void chassis_on_state_loaded(CPUState* ctx)
 
 static const StaticRecompModuleDesc s_desc = {
     .abi_version = STATICRECOMP_ABI_VERSION,
-    .cpu_abi_version = DOLRUNTIME_CPU_ABI_VERSION,
+    .cpu_abi_version = GXRUNTIME_CPU_ABI_VERSION,
     .cpu_state_size = (u32)sizeof(CPUState),
     .game_id = MODULE_GAME_ID,
     .entry_point = DOLRECOMP_ENTRY_POINT,

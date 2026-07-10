@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // dff2dolt — Dolphin FIFO log (.dff) to .dolt trace converter.
-// See include/dolruntime/aurora_recomp/dff2dolt.hpp for the mapping.
+// See include/gxruntime/aurora_recomp/dff2dolt.hpp for the mapping.
 
-#include "dolruntime/aurora_recomp/dff2dolt.hpp"
+#include "gxruntime/aurora_recomp/dff2dolt.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -23,7 +23,7 @@ int usage(std::FILE* out) {
 } // namespace
 
 int main(int argc, char** argv) {
-  namespace dff = dolruntime::aurora_recomp::dff;
+  namespace dff = gxruntime::aurora_recomp::dff;
 
   const char* in_path = nullptr;
   const char* out_path = nullptr;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_ARAM_H
-#define DOLRUNTIME_ARAM_H
+#ifndef GXRUNTIME_ARAM_H
+#define GXRUNTIME_ARAM_H
 
 #include "core/types.h"
 

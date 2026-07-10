@@ -1,4 +1,4 @@
-# DolRuntime ABI, scope, and licensing status
+# GXRuntime ABI, scope, and licensing status
 
 This document records the current reusable-runtime boundary. It is part of the
 runtime repository so consumers do not need the harness notes to understand the
@@ -6,7 +6,7 @@ contract.
 
 ## Generated-code ABI
 
-DolRuntime currently consumes DolRecomp-style generated C:
+GXRuntime currently consumes DolRecomp-style generated C:
 
 ```c
 void func_<guest_address>(CPUState* ctx);
@@ -17,9 +17,9 @@ int dolrecomp_run_blocks(CPUState* ctx, u32 max_blocks);
 Generated code includes `core/cpu.h` and directly reads/writes fields in
 `CPUState`, so the struct layout is an ABI, not an implementation detail.
 
-`DolRuntime/include/core/cpu.h` intentionally mirrors
+`GXRuntime/include/core/cpu.h` intentionally mirrors
 `DolRecomp/src/core/cpu.h` through the `ram_size` field. The only current
-DolRuntime extension is a tail field:
+GXRuntime extension is a tail field:
 
 ```c
 PPCExternalPointer external_pointer;
@@ -33,9 +33,9 @@ capability.
 The current macros are:
 
 ```c
-DOLRUNTIME_CPU_ABI_VERSION = 1
-DOLRUNTIME_CPU_ABI_DOLRECOMP_PREFIX = 1
-DOLRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION = 1
+GXRUNTIME_CPU_ABI_VERSION = 1
+GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX = 1
+GXRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION = 1
 ```
 
 `tests/runtime_tests.c` has compile-time guards for the generated-code prefix
@@ -45,7 +45,7 @@ allowing silent drift.
 
 ## Current v1 scope
 
-DolRuntime owns game-independent console/runtime services:
+GXRuntime owns game-independent console/runtime services:
 
 - PPC state and helper semantics required by generated code.
 - Big-endian MEM1 access and host-backed external memory windows.
@@ -82,16 +82,16 @@ Game clients own title-specific policy:
 - diagnostics and scene automation.
 
 Reference projects remain reference projects. Under the current repository
-rules, DolRuntime may contain narrow shims for read-only Aurora limitations, but
+rules, GXRuntime may contain narrow shims for read-only Aurora limitations, but
 those shims are not the stable graphics architecture. In a collaboration
 end-state, Aurora should own retail FIFO decoding/resource resolution with an
 external guest-memory resolver.
 
 ## Not complete yet
 
-Before DolRuntime can be called a complete reusable runtime, at minimum:
+Before GXRuntime can be called a complete reusable runtime, at minimum:
 
-- DolRecomp and DolRuntime need a jointly owned versioned generated-code ABI.
+- DolRecomp and GXRuntime need a jointly owned versioned generated-code ABI.
 - DolRecomp/generated code must report deterministic guest work, preferably
   original instruction/cycle counts. The runtime now has event-clock and VI
   clock primitives, but Strikers still feeds them through a transitional
@@ -99,7 +99,7 @@ Before DolRuntime can be called a complete reusable runtime, at minimum:
 - The MMIO bus and first PI/VI/SI/PE/DSP interrupt source model are tested,
   but broader device MMIO behavior and external-interrupt delivery still need
   generalized runtime APIs. The AI/DSP-AID audio device registers and a
-  deterministic headless backend and SI register device are now in DolRuntime,
+  deterministic headless backend and SI register device are now in GXRuntime,
   but concrete DI command and EXI device payloads, the Aurora guest-memory
   resolver, and durable GX trace replay remain open.
 - The graphics boundary is now specified as a Dolphin-grounded retail-GX front
@@ -113,7 +113,7 @@ Before DolRuntime can be called a complete reusable runtime, at minimum:
 
 ## Licensing status
 
-DolRuntime currently contains code derived from DolRecomp's CPU support and
+GXRuntime currently contains code derived from DolRecomp's CPU support and
 floating-point helper tables adapted from Dolphin Emulator
 `Common/FloatUtils.cpp`.
 
@@ -122,7 +122,7 @@ Observed source facts:
 - `DolRecomp/LICENSE` is GNU GPL version 3 text.
 - Dolphin's copied floating-point helper material is marked
   `GPL-2.0-or-later`.
-- `DolRuntime/src/core/cpu.c` preserves the Dolphin attribution on the adapted
+- `GXRuntime/src/core/cpu.c` preserves the Dolphin attribution on the adapted
   table.
 - `graphics/aurora/` is a vendored hard fork of Aurora
   (`https://github.com/encounter/aurora`, fork point `0549581`), MIT-licensed;
@@ -132,7 +132,7 @@ Observed source facts:
   cpu.c tables extends to the graphics core. MIT (Aurora) is compatible with
   inclusion in a GPL-licensed whole.
 
-Resolution: DolRuntime is licensed **GPL-3.0-or-later**. The repository-level
+Resolution: GXRuntime is licensed **GPL-3.0-or-later**. The repository-level
 `LICENSE` file carries the GPLv3 text, source files carry
 `SPDX-License-Identifier: GPL-3.0-or-later` headers (excluding the vendored
 `graphics/aurora/` tree, which remains MIT with its notices retained), and

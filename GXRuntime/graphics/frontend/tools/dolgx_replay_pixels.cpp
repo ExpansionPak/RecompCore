@@ -17,9 +17,9 @@
 
 #include "dolgx_replay_pixels.hpp"
 
-#include "dolruntime/aurora_backend.h"
-#include "dolruntime/aurora_recomp/trace.hpp"
-#include "dolruntime/gx_recomp.h"
+#include "gxruntime/aurora_backend.h"
+#include "gxruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/gx_recomp.h"
 
 #include <aurora/gfx.h>
 #include <dolphin/gx.h>
@@ -47,7 +47,7 @@ void aurora_backend_set_guest_address_resolver(
 
 namespace {
 
-namespace trace = dolruntime::aurora_recomp::trace;
+namespace trace = gxruntime::aurora_recomp::trace;
 
 // GXAttr GX_VA_POS (dolphin/gx/GXEnum.h); the trace stores CP array indices
 // relative to it (the backend's gx_attr_to_cp_array mapping).

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/audio_dma.h"
-#include "dolruntime/platform.h"
+#include "gxruntime/audio_dma.h"
+#include "gxruntime/platform.h"
 
 #include <string.h>
 

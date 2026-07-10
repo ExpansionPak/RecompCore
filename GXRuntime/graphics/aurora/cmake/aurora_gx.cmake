@@ -58,12 +58,12 @@ if (AURORA_ENABLE_RMLUI)
 endif ()
 
 # gxcore (63/S12): Dolphin-ported GX core draws on this substrate. Present
-# only when the fork builds inside DolRuntime with the recomp modules on.
-if (TARGET DolRuntime::gxcore)
+# only when the fork builds inside GXRuntime with the recomp modules on.
+if (TARGET GXRuntime::gxcore)
     target_sources(aurora_gx PRIVATE
         lib/gfx/gxcore_draw.cpp
         lib/gfx/gxcore_draw.hpp
     )
-    target_link_libraries(aurora_gx PRIVATE DolRuntime::gxcore)
+    target_link_libraries(aurora_gx PRIVATE GXRuntime::gxcore)
     target_compile_definitions(aurora_gx PRIVATE AURORA_ENABLE_GXCORE=1)
 endif ()

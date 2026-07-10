@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_LOADER_H
-#define DOLRUNTIME_LOADER_H
+#ifndef GXRUNTIME_LOADER_H
+#define GXRUNTIME_LOADER_H
 
 #include "core/cpu.h"
 

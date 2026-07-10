@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_INTERRUPTS_H
-#define DOLRUNTIME_INTERRUPTS_H
+#ifndef GXRUNTIME_INTERRUPTS_H
+#define GXRUNTIME_INTERRUPTS_H
 
 #include "core/types.h"
 

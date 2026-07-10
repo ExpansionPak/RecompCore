@@ -4,13 +4,13 @@
 // (the designated oracle; the fork substrate codec matches it bit-for-bit).
 // THE synthetic-fixture pattern: build known guest bytes, assert decoded RGBA.
 
-#include "dolruntime/gxcore/texture_decode.hpp"
+#include "gxruntime/gxcore/texture_decode.hpp"
 
 #include <cstdint>
 #include <cstdio>
 #include <vector>
 
-namespace gxc = dolruntime::gxcore;
+namespace gxc = gxruntime::gxcore;
 
 static int g_failures = 0;
 

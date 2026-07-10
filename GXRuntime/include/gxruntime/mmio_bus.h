@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_MMIO_BUS_H
-#define DOLRUNTIME_MMIO_BUS_H
+#ifndef GXRUNTIME_MMIO_BUS_H
+#define GXRUNTIME_MMIO_BUS_H
 
 #include "core/cpu.h"
 

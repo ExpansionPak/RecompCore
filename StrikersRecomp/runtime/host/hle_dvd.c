@@ -1,6 +1,6 @@
 #include "host/hle_dvd.h"
 #include "host/hle_abi.h"
-#include "dolruntime/dvd.h"
+#include "gxruntime/dvd.h"
 #include <stdio.h>
 
 #define DVD_CB_STATE      0x0Cu

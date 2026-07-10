@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "dolruntime/aurora_recomp/render_sink.hpp"
+#include "gxruntime/aurora_recomp/render_sink.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -9,10 +9,10 @@
 #include <vector>
 
 extern "C" {
-#include "dolruntime/gx_recomp.h"
+#include "gxruntime/gx_recomp.h"
 }
 
-namespace dolruntime::aurora_recomp {
+namespace gxruntime::aurora_recomp {
 
 struct DrawTransformSnapshot {
   std::uint32_t transform_flags = 0;
@@ -148,4 +148,4 @@ private:
   std::uint32_t last_error_d_ = 0;
 };
 
-} // namespace dolruntime::aurora_recomp
+} // namespace gxruntime::aurora_recomp

@@ -1,13 +1,13 @@
 # Aurora recomp graphics architecture
 
 This document is the implementation contract for agents working on
-DolRuntime's game-agnostic graphics path. It supersedes the assumption that
+GXRuntime's game-agnostic graphics path. It supersedes the assumption that
 Aurora's source-native command processor can become the compatibility
 authority through isolated fixes.
 
 ## Decision
 
-Build a DolRuntime-owned retail-GX front end, grounded in Dolphin's hardware
+Build a GXRuntime-owned retail-GX front end, grounded in Dolphin's hardware
 model, and feed normalized immutable state/draw/resource packets into Aurora's
 existing renderer.
 
@@ -70,7 +70,7 @@ PE, and VI, not source-native GX SDK metadata.
 DolRecomp also supports this boundary. Its public README and emitted helpers
 make it CPU/codegen-only: generated code calls a supplied runtime through
 `CPUState`, memory helpers, external MMIO callbacks, and host-call hooks. A
-complete DolRuntime must therefore provide the missing machine services and the
+complete GXRuntime must therefore provide the missing machine services and the
 GX frontend contract. It should not require each game to reinvent renderer
 metadata HLE.
 
@@ -82,7 +82,7 @@ extensions, but it is not hardware truth and cannot be the stable recomp API.
 
 ```text
 DolRecomp game
-  -> DolRuntime WGPIPE / PE / VI / guest-memory services
+  -> GXRuntime WGPIPE / PE / VI / guest-memory services
   -> RetailGxFrontend
        FIFO assembler + display lists
        CP/VCD/VAT + vertex fetch
@@ -97,9 +97,9 @@ DolRecomp game
        WebGPU submission and VI presentation
 ```
 
-- DolRuntime owns guest memory, MMIO, event clocks, interrupts, and the
+- GXRuntime owns guest memory, MMIO, event clocks, interrupts, and the
   frontend-to-renderer host contract.
-- The DolRuntime-owned Aurora fork/subtree owns `RetailGxFrontend` and
+- The GXRuntime-owned Aurora fork/subtree owns `RetailGxFrontend` and
   `AuroraRenderSink`.
 - Strikers owns only title automation, SDK symbol policy, and diagnostics.
 - Dolphin and Dusklight remain read-only oracles.
@@ -230,14 +230,14 @@ the matrix. Do not diagnose the scene until the relevant module corpus passes.
 
 ## Migration
 
-1. Materialize the DolRuntime-owned Aurora fork/subtree with upstream commit,
+1. Materialize the GXRuntime-owned Aurora fork/subtree with upstream commit,
    MIT notice, and patch provenance.
 2. Add `RetailGxFrontend` and `AuroraRenderSink` as separately buildable
    libraries with no Strikers dependency.
 3. Move the resolver/resource helpers and direct replay into the frontend.
 4. Port/implement the complete module matrix against Dolphin differentials.
 5. Adapt Aurora's current `GXState`/pipeline path behind the immutable sink.
-6. Route DolRuntime WGPIPE/PE/VI exclusively through the frontend.
+6. Route GXRuntime WGPIPE/PE/VI exclusively through the frontend.
 7. Remove Strikers array/texture/TLUT/copy metadata from the correctness path.
 8. Delete the bounded `dol_gx_recomp` parser or retain only a fixture builder
    once the frontend owns replay.
@@ -247,7 +247,7 @@ the matrix. Do not diagnose the scene until the relevant module corpus passes.
 ## Licensing
 
 Aurora is MIT. Dolphin's relevant source is generally
-`GPL-2.0-or-later`. DolRuntime already contains GPL-derived material and is
+`GPL-2.0-or-later`. GXRuntime already contains GPL-derived material and is
 currently documented as GPL-compatible pending a repository-level license
 decision.
 

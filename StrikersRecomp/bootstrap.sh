@@ -15,7 +15,7 @@ clone() {
 }
 
 clone DolRecomp   https://github.com/aharonahdoot/DolRecomp.git   ""
-clone DolRuntime  https://github.com/aharonahdoot/DolRuntime.git  v0.1.0
+clone GXRuntime  https://github.com/aharonahdoot/GXRuntime.git  v0.1.0
 clone RecompCore  https://github.com/aharonahdoot/RecompCore.git  v0.1.0
 
 cat <<'EOF'

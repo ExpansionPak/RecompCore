@@ -7,13 +7,13 @@
 // semantics), topology indices, packed uniforms, pipeline key. Headless: the
 // GPU submission layer lives in the fork (lib/gfx/gxcore_draw.*).
 
-#include "dolruntime/gxcore/shader.hpp"
+#include "gxruntime/gxcore/shader.hpp"
 
-#include "dolruntime/aurora_recomp/render_sink.hpp"
+#include "gxruntime/aurora_recomp/render_sink.hpp"
 
 #include <cstdint>
 
-namespace dolruntime::gxcore {
+namespace gxruntime::gxcore {
 
 // Loud-counter taxonomy for everything the slice does not implement yet.
 // Consumers print non-zero counters after a replay; a growing counter is the
@@ -61,7 +61,7 @@ struct CachedVertexAttrs {
 class GxCoreState {
 public:
   void reset();
-  void apply(const dolruntime::aurora_recomp::RenderStatePacket& state);
+  void apply(const gxruntime::aurora_recomp::RenderStatePacket& state);
 
   // Build the plan for one span-complete draw. `counters` collects gap
   // signals; the plan is self-contained (vertices/indices/uniforms copied).
@@ -71,7 +71,7 @@ public:
   // VertexLoaderManager normal_cache write on m_remaining==0). nullptr in unit
   // tests that don't exercise the fallback (fields stay zero, matching a fresh
   // cache).
-  DrawPlan build_draw_plan(const dolruntime::aurora_recomp::ConsumedDraw& draw,
+  DrawPlan build_draw_plan(const gxruntime::aurora_recomp::ConsumedDraw& draw,
                            GapCounters& counters,
                            CachedVertexAttrs* cached = nullptr) const;
 
@@ -99,7 +99,7 @@ private:
 // its Draw packet. The observer receives (plan-ready) ConsumedDraws; the
 // register snapshot is taken when the Draw packet passes through — state
 // packets that arrive later belong to the NEXT draw.
-class GxCoreSink final : public dolruntime::aurora_recomp::AuroraRenderSink {
+class GxCoreSink final : public gxruntime::aurora_recomp::AuroraRenderSink {
 public:
   using PlanObserver = void (*)(const DrawPlan& plan, void* user);
   // Fires when a CopyDestination packet arrives, AFTER the pending draw is
@@ -122,23 +122,23 @@ public:
   }
 
   bool submit_packet(
-      const dolruntime::aurora_recomp::RenderPacket& packet) override;
+      const gxruntime::aurora_recomp::RenderPacket& packet) override;
   // Frame boundary: plan the final pending draw of the frame.
   void flush_frame();
 
   const GapCounters& counters() const { return counters_; }
   GapCounters& counters() { return counters_; }
-  const dolruntime::aurora_recomp::ConsumingAuroraRenderSink& consumer() const {
+  const gxruntime::aurora_recomp::ConsumingAuroraRenderSink& consumer() const {
     return consumer_;
   }
   const char* failure_reason() const { return consumer_.failure_reason(); }
 
 private:
   static void on_consumed_draw(
-      const dolruntime::aurora_recomp::ConsumedDraw& draw,
+      const gxruntime::aurora_recomp::ConsumedDraw& draw,
       unsigned long long cumulative_draw, void* user);
 
-  dolruntime::aurora_recomp::ConsumingAuroraRenderSink consumer_;
+  gxruntime::aurora_recomp::ConsumingAuroraRenderSink consumer_;
   GxCoreState live_state_;    // updated by every state packet
   GxCoreState pending_state_; // snapshot paired with the pending draw
   CachedVertexAttrs cached_attrs_{}; // cross-draw N/B/T fallback (stream order)
@@ -149,4 +149,4 @@ private:
   GapCounters counters_{};
 };
 
-} // namespace dolruntime::gxcore
+} // namespace gxruntime::gxcore

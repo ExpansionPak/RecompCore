@@ -7,8 +7,8 @@
 // write_display_list (the CALL_DL record path) — the two frames must digest
 // identically, proving the two DL entry paths are byte-path-identical.
 
-#include "dolruntime/aurora_recomp/replay.hpp"
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/replay.hpp"
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -19,8 +19,8 @@
 
 namespace {
 
-namespace replay = dolruntime::aurora_recomp::replay;
-namespace trace = dolruntime::aurora_recomp::trace;
+namespace replay = gxruntime::aurora_recomp::replay;
+namespace trace = gxruntime::aurora_recomp::trace;
 
 std::uint32_t tex_image0(std::uint16_t width, std::uint16_t height,
                          std::uint32_t format) {

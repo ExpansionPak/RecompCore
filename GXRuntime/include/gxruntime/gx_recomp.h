@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_GX_RECOMP_H
-#define DOLRUNTIME_GX_RECOMP_H
+#ifndef GXRUNTIME_GX_RECOMP_H
+#define GXRUNTIME_GX_RECOMP_H
 
-#include "dolruntime/guest_memory.h"
+#include "gxruntime/guest_memory.h"
 
 #ifdef __cplusplus
 extern "C" {

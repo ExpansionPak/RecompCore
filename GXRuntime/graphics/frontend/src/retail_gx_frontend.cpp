@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
-#include "dolruntime/aurora_recomp/retail_gx_frontend_c.h"
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/retail_gx_frontend_c.h"
 
 #include <cstring>
 #include <new>
 
-namespace dolruntime::aurora_recomp {
+namespace gxruntime::aurora_recomp {
 
 namespace {
 
@@ -945,12 +945,12 @@ void RetailGxFrontend::drain_emitted_packets(std::uint32_t emitted_count) {
   emitted_trace_count_ = 0u;
 }
 
-} // namespace dolruntime::aurora_recomp
+} // namespace gxruntime::aurora_recomp
 
 extern "C" {
 
 struct DolAuroraRecompRetailGxFrontend {
-  dolruntime::aurora_recomp::RetailGxFrontend impl;
+  gxruntime::aurora_recomp::RetailGxFrontend impl;
 };
 
 DolAuroraRecompRetailGxFrontend*
@@ -1019,7 +1019,7 @@ bool dol_aurora_recomp_frontend_flush(
     DolAuroraRecompRenderPacketFn submit, void* user) {
   if (frontend == nullptr)
     return false;
-  dolruntime::aurora_recomp::CallbackRenderSink sink(submit, user);
+  gxruntime::aurora_recomp::CallbackRenderSink sink(submit, user);
   return frontend->impl.flush(&sink);
 }
 
@@ -1028,7 +1028,7 @@ bool dol_aurora_recomp_frontend_replay_fifo(
     DolAuroraRecompRenderPacketFn submit, void* user) {
   if (frontend == nullptr || bytes == nullptr || size == 0u)
     return false;
-  dolruntime::aurora_recomp::CallbackRenderSink sink(submit, user);
+  gxruntime::aurora_recomp::CallbackRenderSink sink(submit, user);
   return frontend->impl.replay_fifo(
       std::span<const std::uint8_t>{static_cast<const std::uint8_t*>(bytes),
                                     size},
@@ -1059,7 +1059,7 @@ const DolGxRecompTraceEvent* dol_aurora_recomp_frontend_trace_events(
 }
 
 const char* dol_aurora_recomp_trace_event_name(DolGxRecompEventKind kind) {
-  return dolruntime::aurora_recomp::trace_event_name(kind);
+  return gxruntime::aurora_recomp::trace_event_name(kind);
 }
 
 } // extern "C"

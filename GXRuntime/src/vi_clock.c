@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/vi_clock.h"
+#include "gxruntime/vi_clock.h"
 
 #define DOL_VI_RETRACE_EVENT 1u
 

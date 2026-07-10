@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
-#include "dolruntime/aurora_recomp/retail_gx_frontend_c.h"
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/retail_gx_frontend_c.h"
 
 #include <cassert>
 #include <cstdint>
@@ -10,12 +10,12 @@
 
 namespace {
 
-using dolruntime::aurora_recomp::RecordingAuroraRenderSink;
-using dolruntime::aurora_recomp::RenderPacketKind;
-using dolruntime::aurora_recomp::RenderResourceKind;
-using dolruntime::aurora_recomp::RenderStateKind;
-using dolruntime::aurora_recomp::RenderStreamKind;
-using dolruntime::aurora_recomp::RetailGxFrontend;
+using gxruntime::aurora_recomp::RecordingAuroraRenderSink;
+using gxruntime::aurora_recomp::RenderPacketKind;
+using gxruntime::aurora_recomp::RenderResourceKind;
+using gxruntime::aurora_recomp::RenderStateKind;
+using gxruntime::aurora_recomp::RenderStreamKind;
+using gxruntime::aurora_recomp::RetailGxFrontend;
 
 std::uint32_t tex_image0(std::uint16_t width, std::uint16_t height,
                          std::uint32_t format) {
@@ -744,9 +744,9 @@ int main() {
   // Replay the same FIFO through a consuming sink and assert it reconstructs
   // the renderer-facing draw model a live Aurora sink would translate.
   {
-    using dolruntime::aurora_recomp::ConsumedArrayInput;
-    using dolruntime::aurora_recomp::ConsumedDraw;
-    using dolruntime::aurora_recomp::ConsumingAuroraRenderSink;
+    using gxruntime::aurora_recomp::ConsumedArrayInput;
+    using gxruntime::aurora_recomp::ConsumedDraw;
+    using gxruntime::aurora_recomp::ConsumingAuroraRenderSink;
 
     RetailGxFrontend consume_frontend(resolver);
     ConsumingAuroraRenderSink consume_sink;
@@ -831,7 +831,7 @@ int main() {
     // the display list populated PN matrix 0 from CP array 12, index 1.
     assert(d.current_pn_matrix == 0u);
     assert((d.transform_flags &
-            dolruntime::aurora_recomp::kDrawTransformPayloadPnMatrixValid) !=
+            gxruntime::aurora_recomp::kDrawTransformPayloadPnMatrixValid) !=
            0u);
     assert(d.payload_pn_matrix_mask == 0x7u);
     assert((d.position_matrix_valid_mask & 1u) != 0u);
@@ -845,11 +845,11 @@ int main() {
     // (12) bytes at array_base + index*stride(12). This is the per-vertex data a
     // live Aurora draw consumes for the indexed attribute.
     {
-      using dolruntime::aurora_recomp::AssembledDrawStats;
-      using dolruntime::aurora_recomp::AssembledElement;
+      using gxruntime::aurora_recomp::AssembledDrawStats;
+      using gxruntime::aurora_recomp::AssembledElement;
       std::vector<AssembledElement> elements;
       const AssembledDrawStats stats =
-          dolruntime::aurora_recomp::assemble_consumed_draw(d, &elements);
+          gxruntime::aurora_recomp::assemble_consumed_draw(d, &elements);
       assert(stats.ok);
       assert(stats.indexed_attr_count == 1u);
       assert(stats.element_reads == 3u);
@@ -876,8 +876,8 @@ int main() {
     // Topology index buffer mirrors Aurora's prepare_idx_buffer: a quad becomes
     // two triangles {0,1,2}{2,3,0}; a triangle list is identity.
     {
-      using dolruntime::aurora_recomp::build_topology_indices;
-      using dolruntime::aurora_recomp::GxPrimitive;
+      using gxruntime::aurora_recomp::build_topology_indices;
+      using gxruntime::aurora_recomp::GxPrimitive;
       std::vector<std::uint16_t> idx;
       const std::uint32_t n =
           build_topology_indices(GxPrimitive::Quads, 0u, 4u, &idx);
@@ -901,7 +901,7 @@ int main() {
     // arraySizes for the cutover draw map directly from the resolved spans: the
     // single indexed attr (0) has span 72, all others zero.
     {
-      using dolruntime::aurora_recomp::build_array_sizes;
+      using gxruntime::aurora_recomp::build_array_sizes;
       std::uint32_t array_sizes[16] = {0};
       const std::uint32_t nz = build_array_sizes(d, array_sizes, 16u);
       assert(nz == 1u);

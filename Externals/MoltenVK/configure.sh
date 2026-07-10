@@ -15,6 +15,8 @@ CURRENT_VERSION="$3"
 LAST_VERSION=$(cat "$VERSION_PATH" || true)
 
 if ! [ "$LAST_VERSION" = "$3" ]; then
+  python3 -c "import pathlib; p = pathlib.Path('$2/fetchDependencies'); p.write_bytes(p.read_bytes().replace(b'\r\n', b'\n'))"
+  python3 -c "import pathlib; [p.write_bytes(p.read_bytes().replace(b'\r\n', b'\n')) for p in (pathlib.Path('$2') / 'ExternalRevisions').glob('*') if p.is_file()]"
   $2/fetchDependencies --macos
   echo $CURRENT_VERSION > $VERSION_PATH
 fi

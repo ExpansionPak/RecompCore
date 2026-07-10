@@ -1,18 +1,18 @@
 # Aurora recomp mode
 
-This directory is the DolRuntime-owned home for Aurora changes required by
+This directory is the GXRuntime-owned home for Aurora changes required by
 static-recompiled GameCube games.
 
 Do not commit recomp-specific work into the standalone workspace `aurora/`
 checkout — it is a pristine upstream reference. The
-vendored fork is materialized at `DolRuntime/graphics/aurora/` (see its
+vendored fork is materialized at `GXRuntime/graphics/aurora/` (see its
 `UPSTREAM.md`): Aurora changes are normal commits there. The bootstrap patch
 stack this directory used to own is retired; its content is folded into the
 fork baseline and documented below for provenance.
 
 ## Decision
 
-Build a recompilation-friendly Aurora mode under DolRuntime ownership.
+Build a recompilation-friendly Aurora mode under GXRuntime ownership.
 
 Replace the recomp-facing GX front end, not the renderer. Aurora already owns a
 useful GX-to-host renderer, but its source-native command processor is no longer
@@ -27,13 +27,13 @@ The selected architecture is:
 
 ```
 recompiled game
-  -> DolRuntime guest memory / hardware services
+  -> GXRuntime guest memory / hardware services
   -> retail-GX frontend (Dolphin-grounded semantics)
   -> immutable draw/state/resource packets
   -> Aurora render sink
 ```
 
-The current patch overlay and bounded DolRuntime parser are checkpoint/fixture
+The current patch overlay and bounded GXRuntime parser are checkpoint/fixture
 mechanisms. They must not survive as competing production semantic owners.
 Development is module-driven from the complete matrix in `ARCHITECTURE.md`;
 Strikers and a second title are acceptance clients.
@@ -46,16 +46,16 @@ Aurora's source-native metadata path cannot be the seam.
 
 ## Owned module targets
 
-The first DolRuntime-owned module is materialized in this directory:
+The first GXRuntime-owned module is materialized in this directory:
 
-- `DolRuntime::retail_gx_frontend` owns the current bounded retail parser for
+- `GXRuntime::retail_gx_frontend` owns the current bounded retail parser for
   fragmented FIFO, nested display lists, CP/BP/XF/indexed-XF, indexed draw
   spans, CP VCD/VAT-derived vertex layouts, and texture/TLUT/copy resource
   derivation.
-- `DolRuntime::aurora_render_sink` defines the packet sink seam that Aurora's
+- `GXRuntime::aurora_render_sink` defines the packet sink seam that Aurora's
   renderer will consume.
 - `retail_gx_frontend_c.h` exposes the frontend through an opaque C ABI plus
-  render-packet callback for DolRuntime clients and backend integration.
+  render-packet callback for GXRuntime clients and backend integration.
 - `aurora_recomp_frontend_tests` replays the all-module synthetic FIFO through
   `RetailGxFrontend -> RecordingAuroraRenderSink`, proving the direct replay now
   crosses the frontend/sink boundary without booting a game or linking Aurora.
@@ -79,7 +79,7 @@ focused fixture or replay before it is called stable.
    - Must support MEM1 and future ARAM/locked-cache backed resources where
      applicable.
    - Aurora must not require native source pointers for retail resources.
-   - Current DolRuntime API: `DolGuestAddressResolver` plus
+   - Current GXRuntime API: `DolGuestAddressResolver` plus
      `dol_guest_address_resolver_resolve`, with typed resource kinds for display
      lists, vertex arrays, textures, TLUTs, FIFO data, and copy destinations.
 
@@ -122,7 +122,7 @@ focused fixture or replay before it is called stable.
      truth.
 
 8. FIFO/resource trace replay
-   - Record retail FIFO bytes plus memory-resource snapshots at the DolRuntime
+   - Record retail FIFO bytes plus memory-resource snapshots at the GXRuntime
      boundary.
    - Replay without booting the full game.
    - Compare command state and frames against Dolphin/Aurora expectations.
@@ -140,8 +140,8 @@ when it has:
   passes after.
 - A source-grounded oracle note: Dolphin source for hardware semantics, Aurora
   source/Dusklight for existing source-native behavior when relevant.
-- No G4QE01-specific addresses or scene assumptions in DolRuntime/Aurora.
-- A documented boundary: what belongs in DolRuntime, what belongs in Aurora
+- No G4QE01-specific addresses or scene assumptions in GXRuntime/Aurora.
+- A documented boundary: what belongs in GXRuntime, what belongs in Aurora
   recomp mode, and what remains title policy.
 - A Strikers smoke or capture proving the acceptance client did not regress.
 
@@ -193,7 +193,7 @@ contract execute through Aurora's real parser:
 
 - Moves the guest resolver plus lazy texture/TLUT resolution into a focused
   `lib/gx/recomp.cpp` unit shared by the renderer and headless FIFO tests.
-- Lets DolRuntime add its owned replay fixture to Aurora's existing
+- Lets GXRuntime add its owned replay fixture to Aurora's existing
   `gx_fifo_tests` target without copying Aurora's test harness.
 - Fixes retail indexed-XF decoding to read the encoded 16-bit source index and
   to map opcodes `0x20/0x28/0x30/0x38` to XF arrays 21-24.
@@ -203,12 +203,12 @@ contract execute through Aurora's real parser:
   and draw submission through Aurora.
 
 There is no patch application step anymore: the fork at
-`DolRuntime/graphics/aurora/` already contains this baseline, and both build
+`GXRuntime/graphics/aurora/` already contains this baseline, and both build
 systems point at it by default.
 
 ## Current implemented contract
 
-`DolRuntime/include/dolruntime/guest_memory.h` defines the first stable
+`GXRuntime/include/gxruntime/guest_memory.h` defines the first stable
 recomp-mode seam:
 
 - `DolGuestAddressSpace`: auto, forced virtual, forced physical.
@@ -231,7 +231,7 @@ This is the resolver Aurora recomp mode should consume before CP array bases,
 display-list addresses, textures, TLUTs, or copy destinations are moved out of
 Strikers metadata HLE.
 
-`DolRuntime/include/dolruntime/gx_recomp.h` defines the coordinated module
+`GXRuntime/include/gxruntime/gx_recomp.h` defines the coordinated module
 fixture surface:
 
 - Retail FIFO ingress: fixed-capacity byte capture that preserves the exact
@@ -304,12 +304,12 @@ Next, replace trace-only packets with normalized immutable draw/resource/state
 packets in `AuroraRenderSink`, then submit/compare those packets before routing
 live rendering exclusively through the frontend.
 
-`DolRuntime/include/dolruntime/platform.h` now exposes
+`GXRuntime/include/gxruntime/platform.h` now exposes
 `dol_platform_set_guest_address_resolver`, an installation hook used by
 Strikers to connect `DolGuestAddressResolver` to the active Aurora backend.
 The Aurora backend maps that callback into `aurora::gx::recomp` without making
-standalone Aurora depend on DolRuntime headers. This is the bootstrap shape of
-the future DolRuntime-owned Aurora fork/subtree boundary.
+standalone Aurora depend on GXRuntime headers. This is the bootstrap shape of
+the future GXRuntime-owned Aurora fork/subtree boundary.
 
 ## Development rule for future agents
 

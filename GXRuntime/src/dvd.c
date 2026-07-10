@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Host-backed GameCube DVD layer. See dvd.h.
-#include "dolruntime/dvd.h"
+#include "gxruntime/dvd.h"
 
 #include <ctype.h>
 #include <stdio.h>

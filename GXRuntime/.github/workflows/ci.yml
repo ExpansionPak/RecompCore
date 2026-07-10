@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure (headless)
-        run: cmake -S . -B build -DDOLRUNTIME_ENABLE_AURORA=OFF
+        run: cmake -S . -B build -DGXRUNTIME_ENABLE_AURORA=OFF
       - name: Build
         run: cmake --build build -j3
       - name: Test

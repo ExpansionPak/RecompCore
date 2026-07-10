@@ -9,7 +9,7 @@
 // ABI status:
 // - Fields up through `ram_size` intentionally mirror DolRecomp's current
 //   generated-code CPUState contract.
-// - DolRuntime extends that contract only at the tail with `external_pointer`,
+// - GXRuntime extends that contract only at the tail with `external_pointer`,
 //   used as a fast path for host-backed external memory such as locked cache.
 // - Do not insert fields into the mirrored prefix without coordinating a
 //   generated-code ABI bump with DolRecomp.
@@ -19,9 +19,9 @@
 //   consumes and resets it (Dolphin chassis: per-dispatch flush into
 //   ppc_state.downcount). Hosts that do not meter guest time may ignore it
 //   (s64: it cannot wrap in any realistic session).
-#define DOLRUNTIME_CPU_ABI_VERSION 2u
-#define DOLRUNTIME_CPU_ABI_DOLRECOMP_PREFIX 1u
-#define DOLRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION 1u
+#define GXRUNTIME_CPU_ABI_VERSION 2u
+#define GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX 1u
+#define GXRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION 1u
 
 #define GC_MAIN_RAM_SIZE    (24 * 1024 * 1024)
 #define GC_RAM_BASE         0x80000000u

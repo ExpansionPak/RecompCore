@@ -2,7 +2,7 @@
 """Diff two raw guest-MEM1 dumps and map divergent regions to decomp symbols.
 
 This is the analysis half of the deterministic save-state differential harness
-(see DolRuntime savestate.h + StrikersRecomp main.c --snapshot/--restore/--dump-mem).
+(see GXRuntime savestate.h + StrikersRecomp main.c --snapshot/--restore/--dump-mem).
 Given two MEM1 dumps -- e.g. the recomp's state vs Dolphin's at the same frame, or
 the recomp before vs after a fix -- it finds the byte ranges that differ, coalesces
 them into runs, and labels each run with the nearest preceding symbol from the

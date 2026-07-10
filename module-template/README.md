@@ -17,7 +17,7 @@ whatever the module doesn't cover.
    ```sh
    cmake -B build -DGAME_ID=<disc id> \
          -DGENERATED_DIR=/path/to/generated \
-         -DDOLRUNTIME_DIR=/path/to/DolRuntime
+         -DGXRUNTIME_DIR=/path/to/GXRuntime
    cmake --build build -j
    ```
 

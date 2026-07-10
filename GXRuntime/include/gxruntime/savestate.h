@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_SAVESTATE_H
-#define DOLRUNTIME_SAVESTATE_H
+#ifndef GXRUNTIME_SAVESTATE_H
+#define GXRUNTIME_SAVESTATE_H
 
-// Deterministic guest-state snapshot/restore for DolRuntime.
+// Deterministic guest-state snapshot/restore for GXRuntime.
 //
 // Purpose is twofold and both matter for "a runtime that just works":
 //   1. A real runtime feature: save states.
@@ -64,4 +64,4 @@ size_t dol_savestate_cpu_pod_size(void);
 }
 #endif
 
-#endif // DOLRUNTIME_SAVESTATE_H
+#endif // GXRUNTIME_SAVESTATE_H

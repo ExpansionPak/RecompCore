@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/headless_backend.h"
+#include "gxruntime/headless_backend.h"
 
 #include <string.h>
 

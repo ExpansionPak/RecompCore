@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <string>
 
-namespace dolruntime::aurora_recomp::dff {
+namespace gxruntime::aurora_recomp::dff {
 
 struct ConvertOptions {
   std::uint32_t frame_base = 1u; // first FRAME_BEGIN index (digests are 1-based)
@@ -59,4 +59,4 @@ bool convert_file(const char* dff_path, const char* out_path,
                   const ConvertOptions& options, ConvertStats* stats,
                   std::string* error);
 
-} // namespace dolruntime::aurora_recomp::dff
+} // namespace gxruntime::aurora_recomp::dff

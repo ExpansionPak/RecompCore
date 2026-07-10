@@ -4,7 +4,7 @@
 > lazy-FP semantics, per-block cycle emission / generated-code ABI v2, an fcmp
 > FPCC mirror, and a Dolphin-differential test suite) pending upstream review:
 > [tracking issue](https://github.com/ExpansionPak/DolRecomp/issues/8), [test-suite PR](https://github.com/ExpansionPak/DolRecomp/pull/9).
-> It is pinned by [DolRuntime](https://github.com/aharonahdoot/DolRuntime),
+> It is pinned by [GXRuntime](https://github.com/aharonahdoot/GXRuntime),
 > [StrikersRecomp](https://github.com/aharonahdoot/StrikersRecomp), and
 > [RecompCore](https://github.com/aharonahdoot/RecompCore) until merged.
 

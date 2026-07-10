@@ -18,23 +18,23 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(STRIKERSRECOMP_ENABLE_AURORA
        "Build with the Aurora graphics/input/audio backend" ON)
-set(STRIKERSRECOMP_DOLRUNTIME_DIR "${CMAKE_SOURCE_DIR}/../DolRuntime"
-    CACHE PATH "Path to a DolRuntime checkout")
-set(STRIKERSRECOMP_AURORA_DIR "${STRIKERSRECOMP_DOLRUNTIME_DIR}/graphics/aurora"
-    CACHE PATH "Path to the DolRuntime-owned Aurora fork (DolRuntime/graphics/aurora)")
+set(STRIKERSRECOMP_GXRUNTIME_DIR "${CMAKE_SOURCE_DIR}/../GXRuntime"
+    CACHE PATH "Path to a GXRuntime checkout")
+set(STRIKERSRECOMP_AURORA_DIR "${STRIKERSRECOMP_GXRUNTIME_DIR}/graphics/aurora"
+    CACHE PATH "Path to the GXRuntime-owned Aurora fork (GXRuntime/graphics/aurora)")
 
-if(NOT EXISTS "${STRIKERSRECOMP_DOLRUNTIME_DIR}/CMakeLists.txt")
+if(NOT EXISTS "${STRIKERSRECOMP_GXRUNTIME_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "DolRuntime not found at ${STRIKERSRECOMP_DOLRUNTIME_DIR}. Set "
-        "-DSTRIKERSRECOMP_DOLRUNTIME_DIR=<path>.")
+        "GXRuntime not found at ${STRIKERSRECOMP_GXRUNTIME_DIR}. Set "
+        "-DSTRIKERSRECOMP_GXRUNTIME_DIR=<path>.")
 endif()
 
-set(DOLRUNTIME_ENABLE_AURORA ${STRIKERSRECOMP_ENABLE_AURORA}
-    CACHE BOOL "Build DolRuntime's Aurora backend" FORCE)
-set(DOLRUNTIME_AURORA_DIR "${STRIKERSRECOMP_AURORA_DIR}"
-    CACHE PATH "Path to a DolRuntime-owned Aurora recomp-mode checkout, or a patch-applied Aurora checkout" FORCE)
-add_subdirectory("${STRIKERSRECOMP_DOLRUNTIME_DIR}"
-                 "${CMAKE_BINARY_DIR}/DolRuntime")
+set(GXRUNTIME_ENABLE_AURORA ${STRIKERSRECOMP_ENABLE_AURORA}
+    CACHE BOOL "Build GXRuntime's Aurora backend" FORCE)
+set(GXRUNTIME_AURORA_DIR "${STRIKERSRECOMP_AURORA_DIR}"
+    CACHE PATH "Path to a GXRuntime-owned Aurora recomp-mode checkout, or a patch-applied Aurora checkout" FORCE)
+add_subdirectory("${STRIKERSRECOMP_GXRUNTIME_DIR}"
+                 "${CMAKE_BINARY_DIR}/GXRuntime")
 
 # Where `tools/generate.py` placed the recompiled output.
 set(STRIKERSRECOMP_GENERATED_DIR "${CMAKE_SOURCE_DIR}/generated"
@@ -91,7 +91,7 @@ target_include_directories(StrikersRecomp PRIVATE
     "${CMAKE_SOURCE_DIR}/runtime"
     "${STRIKERSRECOMP_GENERATED_DIR}"
 )
-target_link_libraries(StrikersRecomp PRIVATE DolRuntime::runtime)
+target_link_libraries(StrikersRecomp PRIVATE GXRuntime::runtime)
 
 include(CheckLibraryExists)
 check_library_exists(m sqrt "" STRIKERSRECOMP_HAVE_LIBM)
@@ -101,7 +101,7 @@ endif()
 
 if(STRIKERSRECOMP_ENABLE_AURORA)
     enable_language(CXX)
-    target_link_libraries(StrikersRecomp PRIVATE DolRuntime::aurora)
+    target_link_libraries(StrikersRecomp PRIVATE GXRuntime::aurora)
     target_compile_features(StrikersRecomp PRIVATE cxx_std_20)
     target_compile_definitions(StrikersRecomp PRIVATE STRIKERSRECOMP_AURORA=1)
     set_target_properties(StrikersRecomp PROPERTIES LINKER_LANGUAGE CXX)

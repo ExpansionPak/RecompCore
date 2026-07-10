@@ -7,9 +7,9 @@
 // the draw with no state commands at all, proving restored state persists
 // across converted frame boundaries.
 
-#include "dolruntime/aurora_recomp/dff2dolt.hpp"
-#include "dolruntime/aurora_recomp/replay.hpp"
-#include "dolruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/aurora_recomp/dff2dolt.hpp"
+#include "gxruntime/aurora_recomp/replay.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -20,9 +20,9 @@
 
 namespace {
 
-namespace dff = dolruntime::aurora_recomp::dff;
-namespace replay = dolruntime::aurora_recomp::replay;
-namespace trace = dolruntime::aurora_recomp::trace;
+namespace dff = gxruntime::aurora_recomp::dff;
+namespace replay = gxruntime::aurora_recomp::replay;
+namespace trace = gxruntime::aurora_recomp::trace;
 
 constexpr std::uint32_t kArrayBase = 0x400u;
 constexpr std::uint32_t kMem1Retail = 0x01800000u;

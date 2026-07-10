@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_MEMORY_CARD_H
-#define DOLRUNTIME_MEMORY_CARD_H
+#ifndef GXRUNTIME_MEMORY_CARD_H
+#define GXRUNTIME_MEMORY_CARD_H
 
 #include "core/types.h"
 
@@ -39,7 +39,7 @@ typedef enum DolCardResult {
 typedef struct DolMemoryCard DolMemoryCard;
 
 typedef struct DolMemoryCardConfig {
-    // Explicit host path for the portable DolRuntime card container. NULL or
+    // Explicit host path for the portable GXRuntime card container. NULL or
     // empty creates a non-persistent in-memory card. Path/default policy
     // belongs to the game executable.
     const char* path;

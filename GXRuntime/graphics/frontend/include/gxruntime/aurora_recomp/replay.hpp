@@ -7,14 +7,14 @@
 // gated against the trace's own PRESENT_STATS (steady-state rules) or an
 // exact golden digest file.
 
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
-#include "dolruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace dolruntime::aurora_recomp::replay {
+namespace gxruntime::aurora_recomp::replay {
 
 struct FrameDigest {
   std::uint32_t frame_index = 0;
@@ -71,4 +71,4 @@ struct StatsCompareResult {
 // storage extents carry Aurora merge/cache caveats and are never gated.
 StatsCompareResult compare_against_stats(const ReplayResult& result);
 
-} // namespace dolruntime::aurora_recomp::replay
+} // namespace gxruntime::aurora_recomp::replay

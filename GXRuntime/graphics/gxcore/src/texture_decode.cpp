@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/gxcore/texture_decode.hpp"
+#include "gxruntime/gxcore/texture_decode.hpp"
 
 #include <algorithm>
 #include <array>
@@ -11,7 +11,7 @@
 //   rd_le16 == a native u16 read on a little-endian host (IA8 + IA8 TLUT),
 //   rd_be16 == bswap(native u16) (RGB565/RGB5A3/C14X2/CMPR colors).
 
-namespace dolruntime::gxcore {
+namespace gxruntime::gxcore {
 
 namespace {
 
@@ -367,4 +367,4 @@ std::vector<std::uint8_t> decode_ci(std::uint32_t format, std::uint32_t width,
   return out;
 }
 
-} // namespace dolruntime::gxcore
+} // namespace gxruntime::gxcore

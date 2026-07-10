@@ -2,12 +2,12 @@
 
 // gxcore substrate integration (63/S12): the 4th per-type draw module beside
 // clear/gx/rmlui. Pipelines and WGSL come from the headless
-// dolruntime::gxcore lib; this file owns only the wgpu plumbing (pipeline
+// gxruntime::gxcore lib; this file owns only the wgpu plumbing (pipeline
 // descriptor, bind groups, buffer pushes, draw submission).
 
 #include "common.hpp"
 
-#include <dolruntime/gxcore/shader.hpp>
+#include <gxruntime/gxcore/shader.hpp>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -36,7 +36,7 @@ constexpr uint32_t GXCorePipelineConfigVersion = 5;
 
 struct PipelineConfig {
   uint32_t version = GXCorePipelineConfigVersion;
-  dolruntime::gxcore::PipelineKey key;
+  gxruntime::gxcore::PipelineKey key;
   uint32_t msaaSamples = 1;
 };
 static_assert(std::has_unique_object_representations_v<PipelineConfig>);
@@ -48,13 +48,13 @@ void render(const DrawData& data, const wgpu::RenderPassEncoder& pass);
 // a texture keyed by the copy destination address, so a later draw binding that
 // address samples the copied EFB instead of stale guest memory. Called by the
 // GxCoreSink copy observer at the copy's stream position (pending draw flushed).
-void copy_efb_to_texture(const dolruntime::gxcore::EfbCopyCommand& cmd);
+void copy_efb_to_texture(const gxruntime::gxcore::EfbCopyCommand& cmd);
 
 // Submission layer: turn one headless DrawPlan into buffer pushes, texture
 // upload (guest-identity cache keyed incl. TLUT identity; gxcore decodes every
 // format to RGBA8, S13 A3), viewport state, and a queued draw command on the
 // current pass. False = plan not drawable.
-bool submit_draw_plan(const dolruntime::gxcore::DrawPlan& plan);
+bool submit_draw_plan(const gxruntime::gxcore::DrawPlan& plan);
 // Drop the texture cache + reset its stats (start of a replay run).
 void reset_texture_cache();
 

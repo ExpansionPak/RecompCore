@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/guest_memory.h"
+#include "gxruntime/guest_memory.h"
 
 #include <stdlib.h>
 #include <string.h>

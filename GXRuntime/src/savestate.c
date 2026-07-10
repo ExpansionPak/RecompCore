@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/savestate.h"
+#include "gxruntime/savestate.h"
 
 #include <stdio.h>
 #include <string.h>

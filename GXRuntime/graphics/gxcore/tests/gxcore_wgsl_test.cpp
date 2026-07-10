@@ -4,7 +4,7 @@
 // later modules (S13-S16) copy: drive GxCoreState/build_draw_plan with
 // hand-built state, assert bytes.
 
-#include "dolruntime/gxcore/gxcore.hpp"
+#include "gxruntime/gxcore/gxcore.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-namespace ar = dolruntime::aurora_recomp;
-namespace gxc = dolruntime::gxcore;
+namespace ar = gxruntime::aurora_recomp;
+namespace gxc = gxruntime::gxcore;
 
 static int g_failures = 0;
 

@@ -1,7 +1,7 @@
 #include "host/hle_card.h"
 #include "host/hle_abi.h"
 #include "host/mmio.h"
-#include "dolruntime/memory_card.h"
+#include "gxruntime/memory_card.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

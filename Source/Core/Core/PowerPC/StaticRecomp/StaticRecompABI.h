@@ -6,9 +6,9 @@
 // can include it directly.
 //
 // The guest CPU state layout is DolRecomp's CPUState, vendored verbatim under
-// dolrecomp/ (provenance: DolRuntime include/core/cpu.h, CPU ABI v2 with the
+// dolrecomp/ (provenance: GXRuntime include/core/cpu.h, CPU ABI v2 with the
 // tail `downcount` cycle-charge accumulator; originally @ 9a40e03). Both sides
-// may alternatively define CPUState by including DolRuntime's original header;
+// may alternatively define CPUState by including GXRuntime's original header;
 // the shared DOLRECOMP_CPU_H include guard makes that safe. Layout drift is
 // guarded at load time via cpu_abi_version + cpu_state_size.
 
@@ -32,7 +32,7 @@ typedef struct StaticRecompRange
 typedef struct StaticRecompModuleDesc
 {
   u32 abi_version;      // must equal STATICRECOMP_ABI_VERSION
-  u32 cpu_abi_version;  // must equal DOLRUNTIME_CPU_ABI_VERSION
+  u32 cpu_abi_version;  // must equal GXRUNTIME_CPU_ABI_VERSION
   u32 cpu_state_size;   // must equal sizeof(CPUState) on the chassis side
   char game_id[8];      // e.g. "G4QE01", NUL-terminated
   u32 entry_point;      // guest entry PC the module was generated for (informational)

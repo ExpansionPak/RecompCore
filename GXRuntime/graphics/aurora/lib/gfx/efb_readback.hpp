@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-// DolRuntime recomp patch (0006): one-shot CPU readback of the frame's
+// GXRuntime recomp patch (0006): one-shot CPU readback of the frame's
 // present source, for deterministic pixel replay (dolgx_replay --pixels).
 // Upstream remedy: a public aurora framebuffer readback API.
 namespace aurora::gfx::efb_readback {

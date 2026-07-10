@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_backend.h"
-#include "dolruntime/gx_recomp.h"
-#include "dolruntime/platform.h"
+#include "gxruntime/aurora_backend.h"
+#include "gxruntime/gx_recomp.h"
+#include "gxruntime/platform.h"
 
-#if DOLRUNTIME_HAS_AURORA_RECOMP
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
-#include "dolruntime/aurora_recomp/trace.hpp"
-#include "dolruntime/gxcore/gxcore.hpp"
+#if GXRUNTIME_HAS_AURORA_RECOMP
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/trace.hpp"
+#include "gxruntime/gxcore/gxcore.hpp"
 #endif
 
 #include <aurora/aurora.h>
@@ -36,14 +36,14 @@
 #include <string>
 #include <unordered_map>
 
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
 // gxcore substrate submission lives in the Aurora fork (lib/gfx/gxcore_draw.cpp),
 // linked into this binary via aurora::gx. Forward-declare the three entry points
 // the live cutover uses so the backend needn't reach the fork-internal header
 // (that path is reserved for the dolgx_replay tool target).
 namespace aurora::gfx::gxcore {
-bool submit_draw_plan(const dolruntime::gxcore::DrawPlan& plan);
-void copy_efb_to_texture(const dolruntime::gxcore::EfbCopyCommand& cmd);
+bool submit_draw_plan(const gxruntime::gxcore::DrawPlan& plan);
+void copy_efb_to_texture(const gxruntime::gxcore::EfbCopyCommand& cmd);
 void reset_texture_cache();
 } // namespace aurora::gfx::gxcore
 #endif
@@ -94,14 +94,14 @@ struct PendingTlutMetadata {
 
 std::array<PendingTextureMetadata, 8> g_pending_textures{};
 std::array<PendingTlutMetadata, 20> g_pending_tluts{};
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
 // Shadow validation now runs through the consuming sink: it reconstructs the
 // renderer-facing draw/resource/state model a real Aurora sink would translate
 // into draw calls, while still enforcing the packet-shape invariants the old
 // validating sink checked. The live Aurora path stays authoritative; this only
 // proves the consumer survives real FIFO traffic ahead of renderer cutover.
-dolruntime::aurora_recomp::RetailGxFrontend g_shadow_frontend;
-dolruntime::aurora_recomp::ConsumingAuroraRenderSink g_shadow_packet_sink;
+gxruntime::aurora_recomp::RetailGxFrontend g_shadow_frontend;
+gxruntime::aurora_recomp::ConsumingAuroraRenderSink g_shadow_packet_sink;
 bool g_shadow_frontend_enabled = false;
 bool g_shadow_frontend_failed = false;
 // 63/Mfin live cutover: when DOL_GX_CORE is set, the same shadow frontend that
@@ -110,10 +110,10 @@ bool g_shadow_frontend_failed = false;
 // live Aurora gx layer is bypassed entirely (no double-draw). This is the
 // program's evidence-gated cutover — the live path stays compiled until the old
 // gx-semantics layer is deleted, but at runtime only one path renders.
-dolruntime::gxcore::GxCoreSink g_core_sink;
+gxruntime::gxcore::GxCoreSink g_core_sink;
 unsigned long long g_core_submitted = 0;
 unsigned long long g_core_rejected = 0;
-void core_plan_observer(const dolruntime::gxcore::DrawPlan& plan, void*) {
+void core_plan_observer(const gxruntime::gxcore::DrawPlan& plan, void*) {
     if (!plan.ok)
         return; // skip reasons are tallied in the sink gap counters
     if (aurora::gfx::gxcore::submit_draw_plan(plan))
@@ -121,7 +121,7 @@ void core_plan_observer(const dolruntime::gxcore::DrawPlan& plan, void*) {
     else
         ++g_core_rejected;
 }
-void core_copy_observer(const dolruntime::gxcore::EfbCopyCommand& cmd, void*) {
+void core_copy_observer(const gxruntime::gxcore::EfbCopyCommand& cmd, void*) {
     aurora::gfx::gxcore::copy_efb_to_texture(cmd);
 }
 // Per-frame draw-count diff (frontend shadow decode vs live Aurora push_gx_draw).
@@ -339,7 +339,7 @@ bool aurora_guest_address_resolver_bridge(
         map_resource_kind(resource), data, available);
 }
 
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
 void shadow_frontend_fail_metadata(const char* reason, u32 attr,
                                    u32 guest_address, u32 value) {
     g_shadow_frontend_failed = true;
@@ -367,7 +367,7 @@ unsigned long long g_trace_last_frame = ~0ull;
 unsigned long long g_trace_present_scope_frame = 0ull;
 bool g_trace_frame_begun = false;
 unsigned long long g_trace_frames_recorded = 0ull;
-dolruntime::aurora_recomp::trace::TraceWriter g_trace_writer;
+gxruntime::aurora_recomp::trace::TraceWriter g_trace_writer;
 // (guest_addr,size) -> content FNV across the whole recording window;
 // suppresses re-recording unchanged memory (menu scenes re-resolve the same
 // textures every frame — per-frame dedup made 61-frame traces ~57MB, cross-
@@ -384,7 +384,7 @@ unsigned long long trace_current_frame() {
 bool trace_open_now() {
     if (g_trace_writer.is_open())
         return true;
-    dolruntime::aurora_recomp::trace::TraceHeader header{};
+    gxruntime::aurora_recomp::trace::TraceHeader header{};
     header.mem1_size = 0x01800000u;
     // Best-effort game id from the disc header the apploader leaves at
     // 0x80000000; the file opens lazily at the first in-window record because
@@ -463,7 +463,7 @@ void trace_close_and_log() {
 void trace_on_present() {
     if (g_trace_armed && trace_should_record()) {
         const AuroraStats* stats = aurora_get_stats();
-        dolruntime::aurora_recomp::trace::PresentStats ps{};
+        gxruntime::aurora_recomp::trace::PresentStats ps{};
         ps.frame_index = static_cast<u32>(trace_current_frame());
         ps.queued_pipelines = stats->queuedPipelines;
         ps.created_pipelines = stats->createdPipelines;
@@ -663,7 +663,7 @@ void shadow_frontend_write(u64 value, u8 size) {
                          ? g_shadow_packet_sink.failure_reason()
                          : "frontend-parse",
                      failed.sequence,
-                     dolruntime::aurora_recomp::trace_event_name(
+                     gxruntime::aurora_recomp::trace_event_name(
                          failed.event.kind),
                      static_cast<unsigned>(failed.event.kind), failed.event.a,
                      failed.event.b, failed.event.c, failed.event.d);
@@ -686,7 +686,7 @@ void log_transform_matrix(const char* label, unsigned index,
 }
 
 void shadow_transform_observer(
-    const dolruntime::aurora_recomp::ConsumedDraw& draw,
+    const gxruntime::aurora_recomp::ConsumedDraw& draw,
     unsigned long long cumulative_draw, void*) {
     const std::size_t frame_draw = g_shadow_transform_next_draw_index++;
     if (!g_shadow_transform_log_enabled ||
@@ -725,7 +725,7 @@ void shadow_transform_observer(
     ++g_shadow_transform_log_count;
     std::uint32_t pn_used_mask = 0u;
     if ((draw.transform_flags &
-         dolruntime::aurora_recomp::kDrawTransformPayloadPnMatrixValid) != 0u &&
+         gxruntime::aurora_recomp::kDrawTransformPayloadPnMatrixValid) != 0u &&
         draw.payload_pn_matrix_mask != 0u) {
         pn_used_mask = draw.payload_pn_matrix_mask;
     } else if (draw.current_pn_matrix < DOL_GX_RECOMP_POSITION_MATRIX_COUNT) {
@@ -749,7 +749,7 @@ void shadow_transform_observer(
                  draw.position_matrix_valid_mask, draw.array_input_count,
                  draw.active_array_mask);
     if ((draw.transform_flags &
-         dolruntime::aurora_recomp::kDrawTransformViewportValid) != 0u) {
+         gxruntime::aurora_recomp::kDrawTransformViewportValid) != 0u) {
         std::fprintf(stderr,
                      "[gfx] draw-transform viewport %.8g %.8g %.8g %.8g "
                      "%.8g %.8g\n",
@@ -759,7 +759,7 @@ void shadow_transform_observer(
         std::fprintf(stderr, "[gfx] draw-transform viewport invalid\n");
     }
     if ((draw.transform_flags &
-         dolruntime::aurora_recomp::kDrawTransformProjectionValid) != 0u) {
+         gxruntime::aurora_recomp::kDrawTransformProjectionValid) != 0u) {
         std::fprintf(stderr,
                      "[gfx] draw-transform projection type=%u %.8g %.8g "
                      "%.8g %.8g %.8g %.8g\n",
@@ -853,7 +853,7 @@ bool dol_aurora_initialize(int argc, char** argv,
         return true;
 
     const AuroraBackendConfig defaults = {
-        .app_name = "DolRuntime",
+        .app_name = "GXRuntime",
         .window_width = 1280,
         .window_height = 960,
         .vsync = true,
@@ -893,7 +893,7 @@ bool dol_aurora_initialize(int argc, char** argv,
     g_graphics_log = backend_config->graphics_logging;
     g_force_untextured = backend_config->force_untextured;
     g_frame_pacing_log = std::getenv("DOL_FRAME_PACING_LOG") != nullptr;
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     g_shadow_light_log_enabled =
         std::getenv("DOL_AURORA_RECOMP_DRAW_LIGHT_LOG") != nullptr;
     g_shadow_light_log_lit_only =
@@ -1058,7 +1058,7 @@ void dol_aurora_shutdown(void) {
         aurora_end_frame();
         g_frame_open = false;
     }
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     trace_close_and_log();
     if (g_gx_core_enabled) {
         std::fprintf(stderr,
@@ -1087,7 +1087,7 @@ bool aurora_backend_should_quit(void) {
 void aurora_backend_present(void) {
     if (!g_initialized)
         return;
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     // gxcore accumulates the frame's draws as their spans complete; the final
     // pending draw is only planned at the frame boundary. Submit it into the
     // still-open Aurora frame before end_frame flushes the command list.
@@ -1102,8 +1102,8 @@ void aurora_backend_present(void) {
         if (s_cutscene_diag < 0)
             s_cutscene_diag = std::getenv("STRIKERS_CUTSCENE_DIAG") != nullptr ? 1 : 0;
         if (s_cutscene_diag) {
-            static dolruntime::gxcore::GapCounters s_prev{};
-            const dolruntime::gxcore::GapCounters& c = g_core_sink.counters();
+            static gxruntime::gxcore::GapCounters s_prev{};
+            const gxruntime::gxcore::GapCounters& c = g_core_sink.counters();
             std::fprintf(stderr,
                 "[cutscene] present=%llu planned=%llu skipped=%llu cull=%llu "
                 "missing_vcd=%llu vtx_fail=%llu\n",
@@ -1139,7 +1139,7 @@ void aurora_backend_present(void) {
                      g_present_count, s->drawCallCount, s->mergedDrawCallCount,
                      s->lastVertSize, s->lastIndexSize, g_fifo_bytes);
     }
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     // Frame scope for trace records emitted during present (the sink's
     // final-draw assembly below resolves guest memory): they belong to the
     // frame that just presented, not the next one.
@@ -1344,7 +1344,7 @@ void aurora_backend_present(void) {
     poll_events();
     if (!g_should_quit) {
         g_frame_open = aurora_begin_frame();
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
         g_shadow_transform_next_draw_index = 0;
 #endif
         if (g_graphics_log && !g_frame_open)
@@ -1366,7 +1366,7 @@ void aurora_backend_mark_gx_begin(void) {
 void aurora_backend_call_display_list(const void* data, u32 size) {
     if (!g_initialized || data == nullptr || size == 0)
         return;
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     // Mirror BEFORE the trace record: the shadow DL parse resolves interior
     // guest references (arrays/textures) and those MEM_UPDATE records must
     // precede this CALL_DL in the trace, same ordering as gx_write.
@@ -1391,7 +1391,7 @@ void aurora_backend_gx_write(u64 value, u8 size) {
     if (!g_initialized)
         return;
     g_fifo_bytes += size;
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     shadow_frontend_write(value, size);
     // Record AFTER the shadow write so MEM_UPDATEs its resolves emitted
     // precede this GX_WRITE in the trace (replay reads them first), and
@@ -1503,7 +1503,7 @@ void aurora_backend_set_array_guest(u32 attr, u32 guest_address,
                                     const void* data, u32 size, u8 stride) {
     if (!g_initialized || data == nullptr)
         return;
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     if (guest_address != 0u)
         shadow_frontend_set_array(attr, guest_address, stride);
 #endif
@@ -1576,7 +1576,7 @@ void aurora_backend_set_guest_address_resolver(
     DolPlatformGuestAddressResolverFn resolve, void* user) {
     g_guest_address_resolver = resolve;
     g_guest_address_resolver_user = user;
-#if DOLRUNTIME_HAS_AURORA_RECOMP
+#if GXRUNTIME_HAS_AURORA_RECOMP
     if (resolve != nullptr) {
         DolGuestAddressResolver frontend_resolver;
         dol_guest_address_resolver_init_callback(

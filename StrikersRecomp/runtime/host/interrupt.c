@@ -1,9 +1,9 @@
 // Faithful VI-retrace external interrupt. See interrupt.h.
 #include "host/interrupt.h"
 #include "host/audio.h"
-#include "dolruntime/interrupts.h"
-#include "dolruntime/si.h"
-#include "dolruntime/vi_clock.h"
+#include "gxruntime/interrupts.h"
+#include "gxruntime/si.h"
+#include "gxruntime/vi_clock.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // ARAM model: a flat 16 MB buffer mapped into a synthetic CPU-addressable
 // window [ARAM_BASE, ARAM_BASE + ARAM_SIZE). See aram.h.
-#include "dolruntime/aram.h"
+#include "gxruntime/aram.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_AUDIO_DMA_H
-#define DOLRUNTIME_AUDIO_DMA_H
+#ifndef GXRUNTIME_AUDIO_DMA_H
+#define GXRUNTIME_AUDIO_DMA_H
 
 #include "core/types.h"
 

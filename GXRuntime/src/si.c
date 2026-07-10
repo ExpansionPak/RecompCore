@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/si.h"
+#include "gxruntime/si.h"
 
 #include <string.h>
 

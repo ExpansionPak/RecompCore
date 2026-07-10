@@ -20,7 +20,7 @@
 #include <span>
 #include <vector>
 
-namespace dolruntime::aurora_recomp::trace {
+namespace gxruntime::aurora_recomp::trace {
 
 constexpr std::uint32_t kMagic = 0x544C4F44u; // "DOLT"
 constexpr std::uint32_t kVersion = 1u;
@@ -137,4 +137,4 @@ bool decode_mem_update(const RecordView& r, std::uint32_t& guest_addr,
                        std::span<const std::uint8_t>& bytes);
 bool decode_present_stats(const RecordView& r, PresentStats& out);
 
-} // namespace dolruntime::aurora_recomp::trace
+} // namespace gxruntime::aurora_recomp::trace

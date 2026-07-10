@@ -16,7 +16,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace dolruntime::gxcore {
+namespace gxruntime::gxcore {
 
 // --- GX register semantics (Dolphin BPMemory.h / XFMemory.h) ---------------
 
@@ -468,4 +468,4 @@ struct EfbCopyCommand {
 // group(1)=dynamic uniform, group(2)=texture+sampler.
 std::string generate_wgsl(const ShaderKey& key);
 
-} // namespace dolruntime::gxcore
+} // namespace gxruntime::gxcore

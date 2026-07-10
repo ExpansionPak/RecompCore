@@ -5,7 +5,7 @@
 // digest line per frame. Gates: --against-stats (the trace's own
 // PRESENT_STATS, steady-state rules) or --digest <golden> (exact lines).
 
-#include "dolruntime/aurora_recomp/replay.hpp"
+#include "gxruntime/aurora_recomp/replay.hpp"
 
 #include "dolgx_replay_pixels.hpp"
 
@@ -297,8 +297,8 @@ int main(int argc, char** argv) {
 #endif
   }
 
-  namespace replay = dolruntime::aurora_recomp::replay;
-  namespace trace = dolruntime::aurora_recomp::trace;
+  namespace replay = gxruntime::aurora_recomp::replay;
+  namespace trace = gxruntime::aurora_recomp::trace;
 
   trace::TraceReader reader;
   if (!reader.open(trace_path)) {

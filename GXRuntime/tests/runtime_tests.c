@@ -1,33 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/cpu.h"
-#include "dolruntime/aram.h"
-#include "dolruntime/audio_dma.h"
-#include "dolruntime/boot.h"
-#include "dolruntime/dvd.h"
-#include "dolruntime/di.h"
-#include "dolruntime/event_clock.h"
-#include "dolruntime/exi.h"
-#include "dolruntime/guest_memory.h"
-#include "dolruntime/gx_recomp.h"
-#include "dolruntime/headless_backend.h"
-#include "dolruntime/interrupts.h"
-#include "dolruntime/loader.h"
-#include "dolruntime/memory_card.h"
-#include "dolruntime/mmio_bus.h"
-#include "dolruntime/platform.h"
-#include "dolruntime/savestate.h"
-#include "dolruntime/si.h"
-#include "dolruntime/vi_clock.h"
+#include "gxruntime/aram.h"
+#include "gxruntime/audio_dma.h"
+#include "gxruntime/boot.h"
+#include "gxruntime/dvd.h"
+#include "gxruntime/di.h"
+#include "gxruntime/event_clock.h"
+#include "gxruntime/exi.h"
+#include "gxruntime/guest_memory.h"
+#include "gxruntime/gx_recomp.h"
+#include "gxruntime/headless_backend.h"
+#include "gxruntime/interrupts.h"
+#include "gxruntime/loader.h"
+#include "gxruntime/memory_card.h"
+#include "gxruntime/mmio_bus.h"
+#include "gxruntime/platform.h"
+#include "gxruntime/savestate.h"
+#include "gxruntime/si.h"
+#include "gxruntime/vi_clock.h"
 
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
-_Static_assert(DOLRUNTIME_CPU_ABI_VERSION == 2u,
+_Static_assert(GXRUNTIME_CPU_ABI_VERSION == 2u,
                "update runtime ABI tests when the CPU ABI changes");
-_Static_assert(DOLRUNTIME_CPU_ABI_DOLRECOMP_PREFIX == 1u,
-               "DolRuntime generated-code prefix must stay explicit");
+_Static_assert(GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX == 1u,
+               "GXRuntime generated-code prefix must stay explicit");
 _Static_assert(offsetof(CPUState, gpr) == 0,
                "generated code expects CPUState.gpr at the ABI prefix start");
 _Static_assert(offsetof(CPUState, fpr) > offsetof(CPUState, gpr),
@@ -41,7 +41,7 @@ _Static_assert(offsetof(CPUState, external_read) > offsetof(CPUState, locked_cac
 _Static_assert(offsetof(CPUState, ram) > offsetof(CPUState, external_user_data),
                "CPUState RAM fields must remain after callbacks");
 _Static_assert(offsetof(CPUState, external_pointer) > offsetof(CPUState, ram_size),
-               "DolRuntime external_pointer must remain a tail extension");
+               "GXRuntime external_pointer must remain a tail extension");
 _Static_assert(offsetof(CPUState, downcount) > offsetof(CPUState, external_pointer),
                "ABI v2 downcount must remain the tail field");
 _Static_assert(sizeof(((CPUState*)0)->downcount) == 8u,
@@ -779,7 +779,7 @@ static void test_mmio_bus(void) {
 }
 
 static void test_loader(void) {
-    const char* path = "dolruntime-loader-test.dol";
+    const char* path = "gxruntime-loader-test.dol";
     remove(path);
 
     u8 dol[DOL_HEADER_SIZE + 8];
@@ -822,7 +822,7 @@ static void test_loader(void) {
 }
 
 static void test_loader_failures(void) {
-    const char* path = "dolruntime-loader-fail.dol";
+    const char* path = "gxruntime-loader-fail.dol";
 
     CPUState cpu;
     assert(cpu_init(&cpu));
@@ -831,8 +831,8 @@ static void test_loader_failures(void) {
     memset(&layout, 0, sizeof(layout));
 
     /* 1) Missing file: fopen returns NULL; load fails cleanly. */
-    remove("dolruntime-loader-missing.dol");
-    assert(!dol_load_into_ram(&cpu, "dolruntime-loader-missing.dol", &layout));
+    remove("gxruntime-loader-missing.dol");
+    assert(!dol_load_into_ram(&cpu, "gxruntime-loader-missing.dol", &layout));
 
     /* 2) Truncated DOL: smaller than DOL_HEADER_SIZE. */
     {
@@ -1048,7 +1048,7 @@ static void write_sparse_block(FILE* file, u32 offset, const u8* bytes, size_t s
 }
 
 static void test_dvd_fst(void) {
-    const char* path = "dolruntime-dvd-test.iso";
+    const char* path = "gxruntime-dvd-test.iso";
     remove(path);
 
     enum {
@@ -1113,7 +1113,7 @@ static void test_dvd_fst(void) {
 }
 
 static void test_dvd_fst_edges(void) {
-    const char* path = "dolruntime-dvd-edges.iso";
+    const char* path = "gxruntime-dvd-edges.iso";
     remove(path);
 
     enum {
@@ -1217,7 +1217,7 @@ static void test_dvd_fst_edges(void) {
 
     /* 8) Wrong magic: open_image rejects. */
     {
-        const char* bad = "dolruntime-dvd-badmagic.iso";
+        const char* bad = "gxruntime-dvd-badmagic.iso";
         remove(bad);
         u8 hdr[0x440];
         memset(hdr, 0xCC, sizeof(hdr));
@@ -1232,7 +1232,7 @@ static void test_dvd_fst_edges(void) {
 
     /* 9) Truncated header: file smaller than 0x440 bytes. */
     {
-        const char* bad = "dolruntime-dvd-truncated.iso";
+        const char* bad = "gxruntime-dvd-truncated.iso";
         remove(bad);
         u8 hdr[0x100];
         memset(hdr, 0, sizeof(hdr));
@@ -2061,7 +2061,7 @@ static void test_memory_card(void) {
 }
 
 static void test_memory_card_persistence(void) {
-    const char* path = "dolruntime-memory-card-test.dolcard";
+    const char* path = "gxruntime-memory-card-test.dolcard";
     remove(path);
 
     DolMemoryCardConfig config =
@@ -2102,7 +2102,7 @@ static void test_memory_card_persistence(void) {
 }
 
 static void test_memory_card_rejects_corruption(void) {
-    const char* path = "dolruntime-memory-card-corrupt.dolcard";
+    const char* path = "gxruntime-memory-card-corrupt.dolcard";
     remove(path);
     FILE* file = fopen(path, "wb");
     assert(file != NULL);
@@ -2146,7 +2146,7 @@ static void test_savestate_roundtrip(void) {
     PPCHostCall saved_host_call = cpu.host_call;
     u8* saved_ram = cpu.ram;
 
-    const char* path = "/tmp/dolruntime_savestate_test.dols";
+    const char* path = "/tmp/gxruntime_savestate_test.dols";
     DolSaveRegion regions[1] = {{"MEM1", cpu.ram, cpu.ram_size}};
     assert(dol_savestate_write(path, &cpu, regions, 1));
 
@@ -2223,6 +2223,6 @@ int main(void) {
     test_memory_card();
     test_memory_card_persistence();
     test_memory_card_rejects_corruption();
-    puts("DolRuntime tests passed");
+    puts("GXRuntime tests passed");
     return 0;
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_AURORA_RECOMP_RETAIL_GX_FRONTEND_C_H
-#define DOLRUNTIME_AURORA_RECOMP_RETAIL_GX_FRONTEND_C_H
+#ifndef GXRUNTIME_AURORA_RECOMP_RETAIL_GX_FRONTEND_C_H
+#define GXRUNTIME_AURORA_RECOMP_RETAIL_GX_FRONTEND_C_H
 
-#include "dolruntime/gx_recomp.h"
+#include "gxruntime/gx_recomp.h"
 
 #include <stdbool.h>
 #include <stddef.h>

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "dolruntime/aurora_recomp/replay.hpp"
+#include "gxruntime/aurora_recomp/replay.hpp"
 
-#include "dolruntime/aurora_recomp/render_sink.hpp"
-#include "dolruntime/aurora_recomp/retail_gx_frontend.hpp"
+#include "gxruntime/aurora_recomp/render_sink.hpp"
+#include "gxruntime/aurora_recomp/retail_gx_frontend.hpp"
 
 #include <cstdio>
 #include <cstring>
 #include <memory>
 
-namespace dolruntime::aurora_recomp::replay {
+namespace gxruntime::aurora_recomp::replay {
 namespace {
 
 constexpr std::uint64_t kFnvBasis = 1469598103934665603ull;
@@ -349,4 +349,4 @@ StatsCompareResult compare_against_stats(const ReplayResult& result) {
   return r;
 }
 
-} // namespace dolruntime::aurora_recomp::replay
+} // namespace gxruntime::aurora_recomp::replay

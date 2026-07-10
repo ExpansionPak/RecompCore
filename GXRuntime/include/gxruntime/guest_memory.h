@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef DOLRUNTIME_GUEST_MEMORY_H
-#define DOLRUNTIME_GUEST_MEMORY_H
+#ifndef GXRUNTIME_GUEST_MEMORY_H
+#define GXRUNTIME_GUEST_MEMORY_H
 
 #include "core/cpu.h"
 

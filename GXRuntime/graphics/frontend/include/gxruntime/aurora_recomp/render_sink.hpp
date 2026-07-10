@@ -5,10 +5,10 @@
 #include <vector>
 
 extern "C" {
-#include "dolruntime/gx_recomp.h"
+#include "gxruntime/gx_recomp.h"
 }
 
-namespace dolruntime::aurora_recomp {
+namespace gxruntime::aurora_recomp {
 
 enum class RenderPacketKind : std::uint32_t {
   TraceEvent = 1,
@@ -507,4 +507,4 @@ RenderPacket make_render_packet(std::uint32_t sequence,
                                 const DolGxRecompTraceEvent& event);
 const char* trace_event_name(DolGxRecompEventKind kind);
 
-} // namespace dolruntime::aurora_recomp
+} // namespace gxruntime::aurora_recomp

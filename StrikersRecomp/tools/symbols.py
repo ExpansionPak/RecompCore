@@ -20,7 +20,7 @@ behind it. The game ships no symbols itself; you supply the decomp's
 `config/G4QE01/symbols.txt`, exactly as you supply the ISO to `generate.py`.
 
 Usage:
-    python3 tools/symbols.py [--decomp ../smstrikers-decomp] [--aurora ../DolRuntime/graphics/aurora]
+    python3 tools/symbols.py [--decomp ../smstrikers-decomp] [--aurora ../GXRuntime/graphics/aurora]
                              [--out generated/sdk_symbols.inc]
 """
 import argparse
@@ -74,7 +74,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--decomp", default=os.path.join(here, "..", "smstrikers-decomp"))
     ap.add_argument("--aurora",
-                    default=os.path.join(here, "..", "DolRuntime", "graphics", "aurora"))
+                    default=os.path.join(here, "..", "GXRuntime", "graphics", "aurora"))
     ap.add_argument("--out", default=os.path.join(here, "generated", "sdk_symbols.inc"))
     args = ap.parse_args()
 

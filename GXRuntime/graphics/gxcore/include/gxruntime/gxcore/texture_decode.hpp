@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace dolruntime::gxcore {
+namespace gxruntime::gxcore {
 
 // GX texture format (GXTexFmt): the raw BP image format nibble.
 enum class TexFormat : std::uint32_t {
@@ -69,4 +69,4 @@ std::vector<std::uint8_t> decode_ci(std::uint32_t format, std::uint32_t width,
                                     const std::uint8_t* tlut_data,
                                     std::size_t tlut_size);
 
-} // namespace dolruntime::gxcore
+} // namespace gxruntime::gxcore

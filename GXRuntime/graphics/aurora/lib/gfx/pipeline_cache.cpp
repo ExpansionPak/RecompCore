@@ -437,7 +437,7 @@ static PipelineRef find_pipeline_impl(ShaderType type, const PipelineConfig& con
                                       std::optional<uint32_t> firstFrameUsedOverride = std::nullopt) {
   ZoneScoped;
 
-  // DolRuntime recomp patch (0006): draws are silently skipped while their
+  // GXRuntime recomp patch (0006): draws are silently skipped while their
   // pipeline compiles (bind_pipeline returns false), which makes cold and
   // warm runs render different frames. AURORA_SYNC_PIPELINES=1 promotes
   // draw-path pipeline creation to the existing Blocking priority so replay

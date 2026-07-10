@@ -105,7 +105,7 @@ releases, and module binaries must not be redistributed.
 - A second title.
 - Periodic upstream rebases (policy in [CHASSIS.md](CHASSIS.md)).
 
-Ecosystem: [DolRuntime](https://github.com/aharonahdoot/DolRuntime) is the
+Ecosystem: [GXRuntime](https://github.com/aharonahdoot/GXRuntime) is the
 standalone native runtime built on the same CPU core and module ABI — the
 lightweight path toward JIT-banned platforms.
 

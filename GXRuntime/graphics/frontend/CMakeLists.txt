@@ -1,55 +1,55 @@
-add_library(dolruntime_aurora_render_sink STATIC
+add_library(gxruntime_aurora_render_sink STATIC
     src/render_sink.cpp
 )
-add_library(DolRuntime::aurora_render_sink ALIAS dolruntime_aurora_render_sink)
+add_library(GXRuntime::aurora_render_sink ALIAS gxruntime_aurora_render_sink)
 
-target_compile_features(dolruntime_aurora_render_sink PUBLIC cxx_std_20)
-target_include_directories(dolruntime_aurora_render_sink
+target_compile_features(gxruntime_aurora_render_sink PUBLIC cxx_std_20)
+target_include_directories(gxruntime_aurora_render_sink
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
 )
-target_link_libraries(dolruntime_aurora_render_sink
+target_link_libraries(gxruntime_aurora_render_sink
     PUBLIC
-        DolRuntime::runtime
+        GXRuntime::runtime
 )
 
-add_library(dolruntime_trace_io STATIC
+add_library(gxruntime_trace_io STATIC
     src/trace_io.cpp
 )
-add_library(DolRuntime::trace_io ALIAS dolruntime_trace_io)
+add_library(GXRuntime::trace_io ALIAS gxruntime_trace_io)
 
-target_compile_features(dolruntime_trace_io PUBLIC cxx_std_20)
-target_include_directories(dolruntime_trace_io
+target_compile_features(gxruntime_trace_io PUBLIC cxx_std_20)
+target_include_directories(gxruntime_trace_io
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
 )
 
-add_library(dolruntime_retail_gx_frontend STATIC
+add_library(gxruntime_retail_gx_frontend STATIC
     src/retail_gx_frontend.cpp
 )
-add_library(DolRuntime::retail_gx_frontend ALIAS dolruntime_retail_gx_frontend)
+add_library(GXRuntime::retail_gx_frontend ALIAS gxruntime_retail_gx_frontend)
 
-target_compile_features(dolruntime_retail_gx_frontend PUBLIC cxx_std_20)
-target_include_directories(dolruntime_retail_gx_frontend
+target_compile_features(gxruntime_retail_gx_frontend PUBLIC cxx_std_20)
+target_include_directories(gxruntime_retail_gx_frontend
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
 )
-target_link_libraries(dolruntime_retail_gx_frontend
+target_link_libraries(gxruntime_retail_gx_frontend
     PUBLIC
-        DolRuntime::runtime
-        DolRuntime::aurora_render_sink
+        GXRuntime::runtime
+        GXRuntime::aurora_render_sink
 )
 
-add_library(dolruntime_replay_core STATIC
+add_library(gxruntime_replay_core STATIC
     src/replay.cpp
 )
-add_library(DolRuntime::replay_core ALIAS dolruntime_replay_core)
+add_library(GXRuntime::replay_core ALIAS gxruntime_replay_core)
 
-target_compile_features(dolruntime_replay_core PUBLIC cxx_std_20)
-target_link_libraries(dolruntime_replay_core
+target_compile_features(gxruntime_replay_core PUBLIC cxx_std_20)
+target_link_libraries(gxruntime_replay_core
     PUBLIC
-        DolRuntime::retail_gx_frontend
-        DolRuntime::trace_io
+        GXRuntime::retail_gx_frontend
+        GXRuntime::trace_io
 )
 
 add_executable(dolgx_replay
@@ -57,18 +57,18 @@ add_executable(dolgx_replay
 )
 target_link_libraries(dolgx_replay
     PRIVATE
-        DolRuntime::replay_core
+        GXRuntime::replay_core
 )
 
-add_library(dolruntime_dff2dolt STATIC
+add_library(gxruntime_dff2dolt STATIC
     src/dff2dolt.cpp
 )
-add_library(DolRuntime::dff2dolt ALIAS dolruntime_dff2dolt)
+add_library(GXRuntime::dff2dolt ALIAS gxruntime_dff2dolt)
 
-target_compile_features(dolruntime_dff2dolt PUBLIC cxx_std_20)
-target_link_libraries(dolruntime_dff2dolt
+target_compile_features(gxruntime_dff2dolt PUBLIC cxx_std_20)
+target_link_libraries(gxruntime_dff2dolt
     PUBLIC
-        DolRuntime::trace_io
+        GXRuntime::trace_io
 )
 
 add_executable(dff2dolt
@@ -76,7 +76,7 @@ add_executable(dff2dolt
 )
 target_link_libraries(dff2dolt
     PRIVATE
-        DolRuntime::dff2dolt
+        GXRuntime::dff2dolt
 )
 
 if(BUILD_TESTING)
@@ -85,7 +85,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(aurora_recomp_frontend_tests
         PRIVATE
-            DolRuntime::retail_gx_frontend
+            GXRuntime::retail_gx_frontend
     )
     add_test(NAME aurora_recomp_frontend_tests
              COMMAND aurora_recomp_frontend_tests)
@@ -95,7 +95,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(trace_io_tests
         PRIVATE
-            DolRuntime::trace_io
+            GXRuntime::trace_io
     )
     add_test(NAME trace_io_tests COMMAND trace_io_tests)
 
@@ -104,7 +104,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(replay_digest_tests
         PRIVATE
-            DolRuntime::replay_core
+            GXRuntime::replay_core
     )
     add_test(NAME replay_digest_tests COMMAND replay_digest_tests)
 
@@ -113,14 +113,14 @@ if(BUILD_TESTING)
     )
     target_link_libraries(dff2dolt_tests
         PRIVATE
-            DolRuntime::dff2dolt
-            DolRuntime::replay_core
+            GXRuntime::dff2dolt
+            GXRuntime::replay_core
     )
     add_test(NAME dff2dolt_tests COMMAND dff2dolt_tests)
 
     # Game-recorded FE menu trace fixture. Trace + golden are game
     # data and live in StrikersRecomp; the test registers only when present,
-    # keeping DolRuntime buildable without game assets.
+    # keeping GXRuntime buildable without game assets.
     set(DOLGX_FE_TRACE_DIR
         "${CMAKE_CURRENT_SOURCE_DIR}/../../../StrikersRecomp/tests/traces"
         CACHE PATH "Directory holding fe_menu.dolt + fe_menu.digest")
