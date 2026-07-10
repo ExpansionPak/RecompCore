@@ -22,6 +22,7 @@
 #include "Common/WorkQueueThread.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/WiiSettings.h"
 #include "Core/Config/WiimoteSettings.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"

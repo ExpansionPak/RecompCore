@@ -27,6 +27,7 @@
 #endif
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/WiiSettings.h"
 #include "Core/Config/WiimoteSettings.h"
 #include "Core/Core.h"
 #include "Core/HW/Wiimote.h"

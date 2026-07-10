@@ -28,7 +28,9 @@
 
 #include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/GraphicsSettings.h"
+#include "Core/Config/CheatSettings.h"
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/WiiSettings.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/IOS/IOS.h"
