@@ -14,7 +14,9 @@
 
 #include "Common/BitField.h"
 #include "Common/CommonTypes.h"
+#include "Common/Swap.h"
 #include "Common/TypeUtils.h"
+#include "Core/PowerPC/Gekko.h"
 
 class PointerWrap;
 
@@ -114,6 +116,58 @@ enum class XCheckTLBFlag
   Opcode,
   OpcodeNoException
 };
+
+static constexpr bool IsOpcodeFlag(XCheckTLBFlag flag)
+{
+  return flag == XCheckTLBFlag::Opcode || flag == XCheckTLBFlag::OpcodeNoException;
+}
+
+static constexpr bool IsNoExceptionFlag(XCheckTLBFlag flag)
+{
+  return flag == XCheckTLBFlag::NoException || flag == XCheckTLBFlag::OpcodeNoException;
+}
+
+inline u8 bswap(u8 val)
+{
+  return val;
+}
+inline s8 bswap(s8 val)
+{
+  return val;
+}
+inline u16 bswap(u16 val)
+{
+  return Common::swap16(val);
+}
+inline s16 bswap(s16 val)
+{
+  return Common::swap16(val);
+}
+inline u32 bswap(u32 val)
+{
+  return Common::swap32(val);
+}
+inline u64 bswap(u64 val)
+{
+  return Common::swap64(val);
+}
+
+u32 EFB_Read(const u32 addr);
+void EFB_Write(u32 data, u32 addr);
+
+enum class TLBLookupResult
+{
+  Found,
+  NotFound,
+  UpdateC
+};
+
+TLBLookupResult LookupTLBPageAddress(PowerPC::PowerPCState& ppc_state,
+                                    const XCheckTLBFlag flag, const u32 vpa, const u32 vsid,
+                                    u32* paddr, bool* wi);
+
+void UpdateTLBEntry(PowerPC::PowerPCState& ppc_state, const XCheckTLBFlag flag, UPTE_Hi pte2,
+                    const u32 address, const u32 vsid);
 
 class MMU
 {

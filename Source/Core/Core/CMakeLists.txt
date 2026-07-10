@@ -589,6 +589,7 @@ add_library(core
   PowerPC/GDBStub.cpp
   PowerPC/GDBStub.h
   PowerPC/MMU.cpp
+  PowerPC/MMU_Tables.cpp
   PowerPC/MMU.h
   PowerPC/MMUDebug.cpp
   PowerPC/MMUBAT.cpp
