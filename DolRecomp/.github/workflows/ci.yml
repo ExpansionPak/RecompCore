@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build
+      - name: Build
+        run: cmake --build build -j3
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure 2>&1 | tee ctest.log
+          grep -q "tests passed, 0 tests failed out of 10" ctest.log

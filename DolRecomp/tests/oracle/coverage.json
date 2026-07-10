@@ -1,0 +1,37 @@
+{
+  "source_probes": 111,
+  "accepted_curated": 103,
+  "accepted_auto_opcodes": 120,
+  "propagation_fuzz": 16,
+  "total_ordinary": 239,
+  "skipped_curated": [
+    {"name": "mfmsr", "reason": "host machine state is not a portable seeded input"},
+    {"name": "mtmsr", "reason": "privileged translation/MSR mutation needs isolated context"},
+    {"name": "mfsr", "reason": "host machine state is not a portable seeded input"},
+    {"name": "mtsr", "reason": "privileged translation/MSR mutation needs isolated context"},
+    {"name": "twi.true", "reason": "trap outcome needs dedicated program-exception vector"},
+    {"name": "twi.false", "reason": "trap outcome needs dedicated program-exception vector"},
+    {"name": "sc", "reason": "system-call exception needs dedicated vector"},
+    {"name": "b.rel", "reason": "direct branch leaves probe sequence"}
+  ],
+  "dedicated_opcodes": [
+    {"name": "bclr", "reason": "branch needs a bounded control-flow fixture"},
+    {"name": "bcctr", "reason": "branch needs a bounded control-flow fixture"},
+    {"name": "tw", "reason": "trap outcome needs dedicated program-exception vector"},
+    {"name": "mfsrin", "reason": "host machine state is not a portable seeded input"},
+    {"name": "mtsrin", "reason": "privileged translation/MSR mutation needs isolated context"},
+    {"name": "dcbst", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "dcbf", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "dcbtst", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "dcbt", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "dcbi", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "icbi", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "tlbsync", "reason": "privileged translation/MSR mutation needs isolated context"},
+    {"name": "rfi", "reason": "exception return changes machine context"},
+    {"name": "mftb", "reason": "time-base result is intentionally nondeterministic"},
+    {"name": "dcbz_l", "reason": "cache operation needs a cache-observable fixture"},
+    {"name": "tlbie", "reason": "privileged translation/MSR mutation needs isolated context"},
+    {"name": "eciwx", "reason": "external-control access needs dedicated hardware setup"},
+    {"name": "ecowx", "reason": "external-control access needs dedicated hardware setup"}
+  ]
+}
