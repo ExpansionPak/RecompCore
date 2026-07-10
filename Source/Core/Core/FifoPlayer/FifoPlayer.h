@@ -90,6 +90,9 @@ struct AnalyzedFrameInfo
   }
 };
 
+void AnalyzeFifoFrames(FifoDataFile* file, std::vector<AnalyzedFrameInfo>& frame_info);
+
+
 class FifoPlayer
 {
 public:
@@ -140,7 +143,20 @@ public:
   bool IsRunningWithFakeVideoInterfaceUpdates() const;
 
 private:
-  class CPUCore;
+  class CPUCore final : public CPUCoreBase
+  {
+  public:
+    explicit CPUCore(FifoPlayer* parent);
+    ~CPUCore() override;
+    void Init() override;
+    void Shutdown() override;
+    void ClearCache() override;
+    void SingleStep() override;
+    const char* GetName() const override;
+    void Run() override;
+  private:
+    FifoPlayer* m_parent;
+  };
   friend class CPUCore;
 
   CPU::State AdvanceFrame();

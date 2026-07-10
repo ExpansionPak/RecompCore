@@ -136,6 +136,8 @@ add_library(core
   FifoPlayer/FifoDataFile.cpp
   FifoPlayer/FifoDataFile.h
   FifoPlayer/FifoPlayer.cpp
+  FifoPlayer/FifoPlaybackAnalyzer.cpp
+  FifoPlayer/FifoPlayerCPUCore.cpp
   FifoPlayer/FifoPlayer.h
   FifoPlayer/FifoRecorder.cpp
   FifoPlayer/FifoRecorder.h

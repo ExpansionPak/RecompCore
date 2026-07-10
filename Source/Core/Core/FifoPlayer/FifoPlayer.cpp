@@ -31,139 +31,6 @@
 // We need to include TextureDecoder.h for the texMem array.
 // TODO: Move texMem somewhere else so this isn't an issue.
 #include "VideoCommon/TextureDecoder.h"
-
-namespace
-{
-class FifoPlaybackAnalyzer : public OpcodeDecoder::Callback
-{
-public:
-  static void AnalyzeFrames(FifoDataFile* file, std::vector<AnalyzedFrameInfo>& frame_info);
-
-  explicit FifoPlaybackAnalyzer(const u32* cpmem) : m_cpmem(cpmem) {}
-
-  OPCODE_CALLBACK(void OnXF(u16 address, u8 count, const u8* data)) {}
-  OPCODE_CALLBACK(void OnCP(u8 command, u32 value)) { GetCPState().LoadCPReg(command, value); }
-  OPCODE_CALLBACK(void OnBP(u8 command, u32 value));
-  OPCODE_CALLBACK(void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size)) {}
-  OPCODE_CALLBACK(void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
-                                          u32 vertex_size, u16 num_vertices,
-                                          const u8* vertex_data));
-  OPCODE_CALLBACK(void OnDisplayList(u32 address, u32 size)) {}
-  OPCODE_CALLBACK(void OnNop(u32 count));
-  OPCODE_CALLBACK(void OnUnknown(u8 opcode, const u8* data)) {}
-
-  OPCODE_CALLBACK(void OnCommand(const u8* data, u32 size));
-
-  OPCODE_CALLBACK(CPState& GetCPState()) { return m_cpmem; }
-
-  bool m_start_of_primitives = false;
-  bool m_end_of_primitives = false;
-  bool m_efb_copy = false;
-  // Internal state, copied to above in OnCommand
-  bool m_was_primitive = false;
-  bool m_is_primitive = false;
-  bool m_is_copy = false;
-  bool m_is_nop = false;
-  CPState m_cpmem;
-};
-
-void FifoPlaybackAnalyzer::AnalyzeFrames(FifoDataFile* file,
-                                         std::vector<AnalyzedFrameInfo>& frame_info)
-{
-  FifoPlaybackAnalyzer analyzer(file->GetCPMem());
-  frame_info.clear();
-  frame_info.resize(file->GetFrameCount());
-
-  for (u32 frame_no = 0; frame_no < file->GetFrameCount(); frame_no++)
-  {
-    const FifoFrameInfo& frame = file->GetFrame(frame_no);
-    AnalyzedFrameInfo& analyzed = frame_info[frame_no];
-
-    u32 offset = 0;
-
-    u32 part_start = 0;
-    CPState cpmem;
-
-    while (offset < frame.fifoData.size())
-    {
-      const u32 cmd_size = OpcodeDecoder::RunCommand(&frame.fifoData[offset],
-                                                     u32(frame.fifoData.size()) - offset, analyzer);
-
-      if (analyzer.m_start_of_primitives)
-      {
-        // Start of primitive data for an object
-        analyzed.AddPart(FramePartType::Commands, part_start, offset, analyzer.m_cpmem);
-        part_start = offset;
-        // Copy cpmem now, because end_of_primitives isn't triggered until the first opcode after
-        // primitive data, and the first opcode might update cpmem
-        static_assert(std::is_trivially_copyable_v<CPState>);
-        std::memcpy(static_cast<void*>(&cpmem), static_cast<const void*>(&analyzer.m_cpmem),
-                    sizeof(CPState));
-      }
-      if (analyzer.m_end_of_primitives)
-      {
-        // End of primitive data for an object, and thus end of the object
-        analyzed.AddPart(FramePartType::PrimitiveData, part_start, offset, cpmem);
-        part_start = offset;
-      }
-
-      offset += cmd_size;
-
-      if (analyzer.m_efb_copy)
-      {
-        // We increase the offset beforehand, so that the trigger EFB copy command is included.
-        analyzed.AddPart(FramePartType::EFBCopy, part_start, offset, analyzer.m_cpmem);
-        part_start = offset;
-      }
-    }
-
-    // The frame should end with an EFB copy, so part_start should have been updated to the end.
-    ASSERT(part_start == frame.fifoData.size());
-    ASSERT(offset == frame.fifoData.size());
-  }
-}
-
-void FifoPlaybackAnalyzer::OnBP(u8 command, u32 value)
-{
-  if (command == BPMEM_TRIGGER_EFB_COPY)
-    m_is_copy = true;
-}
-
-void FifoPlaybackAnalyzer::OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
-                                              u32 vertex_size, u16 num_vertices,
-                                              const u8* vertex_data)
-{
-  m_is_primitive = true;
-}
-
-void FifoPlaybackAnalyzer::OnNop(u32 count)
-{
-  m_is_nop = true;
-}
-
-void FifoPlaybackAnalyzer::OnCommand(const u8* data, u32 size)
-{
-  m_start_of_primitives = false;
-  m_end_of_primitives = false;
-  m_efb_copy = false;
-
-  if (!m_is_nop)
-  {
-    if (m_is_primitive && !m_was_primitive)
-      m_start_of_primitives = true;
-    else if (m_was_primitive && !m_is_primitive)
-      m_end_of_primitives = true;
-    else if (m_is_copy)
-      m_efb_copy = true;
-
-    m_was_primitive = m_is_primitive;
-  }
-  m_is_primitive = false;
-  m_is_copy = false;
-  m_is_nop = false;
-}
-}  // namespace
-
 bool IsPlayingBackFifologWithBrokenEFBCopies = false;
 
 FifoPlayer::FifoPlayer(Core::System& system) : m_system(system)
@@ -185,7 +52,7 @@ bool FifoPlayer::Open(const std::string& filename)
 
   if (m_File)
   {
-    FifoPlaybackAnalyzer::AnalyzeFrames(m_File.get(), m_FrameInfo);
+    AnalyzeFifoFrames(m_File.get(), m_FrameInfo);
 
     m_FrameRangeEnd = m_File->GetFrameCount() - 1;
   }
@@ -209,64 +76,6 @@ bool FifoPlayer::IsPlaying() const
   return GetFile() != nullptr && Core::IsRunning(m_system);
 }
 
-class FifoPlayer::CPUCore final : public CPUCoreBase
-{
-public:
-  explicit CPUCore(FifoPlayer* parent) : m_parent(parent) {}
-  CPUCore(const CPUCore&) = delete;
-  ~CPUCore() override {}
-  CPUCore& operator=(const CPUCore&) = delete;
-
-  void Init() override
-  {
-    IsPlayingBackFifologWithBrokenEFBCopies = m_parent->m_File->HasBrokenEFBCopies();
-    // Without this call, we deadlock in initialization in dual core, as the FIFO is disabled and
-    // thus ClearEfb()'s call to WaitForGPUInactive() never returns
-    m_parent->m_system.GetCPU().SetStepping(false);
-
-    m_parent->m_CurrentFrame = m_parent->m_FrameRangeStart;
-    m_parent->LoadMemory();
-  }
-
-  void Shutdown() override { IsPlayingBackFifologWithBrokenEFBCopies = false; }
-  void ClearCache() override
-  {
-    // Nothing to clear.
-  }
-
-  void SingleStep() override
-  {
-    // NOTE: AdvanceFrame() will get stuck forever in Dual Core because the FIFO
-    //   is disabled by CPU::SetStepping(true) so the frame never gets displayed.
-    PanicAlertFmtT("Cannot SingleStep the FIFO. Use Frame Advance instead.");
-  }
-
-  const char* GetName() const override { return "FifoPlayer"; }
-  void Run() override
-  {
-    auto& cpu = m_parent->m_system.GetCPU();
-    while (cpu.GetState() == CPU::State::Running)
-    {
-      switch (m_parent->AdvanceFrame())
-      {
-      case CPU::State::PowerDown:
-        cpu.Break();
-        Host_Message(HostMessageID::WMUserStop);
-        break;
-
-      case CPU::State::Stepping:
-        cpu.Break();
-        break;
-
-      case CPU::State::Running:
-        break;
-      }
-    }
-  }
-
-private:
-  FifoPlayer* m_parent;
-};
 
 CPU::State FifoPlayer::AdvanceFrame()
 {
