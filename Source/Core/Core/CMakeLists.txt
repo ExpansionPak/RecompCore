@@ -15,6 +15,7 @@ add_library(core
   Boot/Boot_BS2Emu.cpp
   Boot/Boot_WiiWAD.cpp
   Boot/Boot.cpp
+  Boot/BootParameters.cpp
   Boot/Boot.h
   Boot/DolReader.cpp
   Boot/DolReader.h
