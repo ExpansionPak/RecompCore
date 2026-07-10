@@ -2,7 +2,7 @@
 
 DolRecomp is used as-is and must not be modified in place. If a fix to DolRecomp
 itself ever becomes necessary (for example to handle a self-modifying-code range
-that breaks Melee — see `docs/architecture.md` §5), add it here as a `.patch`
+that breaks Strikers — see `docs/architecture.md` §5), add it here as a `.patch`
 file generated with `git diff`/`diff -u` against the DolRecomp checkout, and
 document what it does and why.
 

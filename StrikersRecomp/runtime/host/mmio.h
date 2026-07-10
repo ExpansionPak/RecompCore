@@ -1,5 +1,5 @@
-#ifndef MELEERECOMP_MMIO_H
-#define MELEERECOMP_MMIO_H
+#ifndef STRIKERSRECOMP_MMIO_H
+#define STRIKERSRECOMP_MMIO_H
 
 #include "core/cpu.h"
 
@@ -26,4 +26,4 @@ void* mmio_guest_pointer(CPUState* cpu, u32 address, u32* available);
 // and stores when either side is not a single contiguous host pointer.
 void mmio_guest_copy(CPUState* cpu, u32 dest, u32 src, u32 bytes);
 
-#endif /* MELEERECOMP_MMIO_H */
+#endif /* STRIKERSRECOMP_MMIO_H */

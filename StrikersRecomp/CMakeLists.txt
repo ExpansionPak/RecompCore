@@ -44,7 +44,7 @@ if(NOT EXISTS "${STRIKERSRECOMP_GENERATED_DIR}/generated.h")
     message(FATAL_ERROR
         "Recompiled output not found at ${STRIKERSRECOMP_GENERATED_DIR}.\n"
         "Run the generator first, e.g.:\n"
-        "  python3 tools/generate.py --iso /path/to/melee.iso")
+        "  python3 tools/generate.py --iso /path/to/strikers.iso")
 endif()
 
 file(STRINGS "${STRIKERSRECOMP_GENERATED_DIR}/generated.h"
@@ -67,8 +67,6 @@ add_executable(StrikersRecomp
     runtime/host/audio.c
     runtime/host/interrupt.c
     runtime/host/hle.c
-    runtime/host/hle_dvd.c
-    runtime/host/hle_card.c
     runtime/host/hle_input.c
     runtime/host/hle_physics.c
     runtime/host/sdk_map.c

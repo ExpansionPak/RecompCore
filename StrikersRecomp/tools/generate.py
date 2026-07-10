@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce the recompiled Melee sources from a user-supplied ISO.
+"""Reproduce the recompiled Strikers sources from a user-supplied ISO.
 
 Pipeline:
   1. Build DolRecomp (if its binary is missing).
@@ -70,7 +70,7 @@ def extract_dol(dolrecomp: Path, iso: Path, work: Path) -> Path:
 
 
 def recompile(dolrecomp: Path, dol: Path, output_dir: Path, jobs: int):
-    with tempfile.TemporaryDirectory(prefix="meleerecomp_gen_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="strikersrecomp_gen_") as tmp:
         tmp_out = Path(tmp)
         # --gamecube <dol> <dir> writes <dir>/generated/{generated.c,.h,chunks/}
         run([dolrecomp, "--gamecube", dol, tmp_out, "-j", str(jobs)])
@@ -106,7 +106,7 @@ def main():
 
     dolrecomp = build_dolrecomp(dolrecomp_dir)
 
-    with tempfile.TemporaryDirectory(prefix="meleerecomp_work_") as work_str:
+    with tempfile.TemporaryDirectory(prefix="strikersrecomp_work_") as work_str:
         work = Path(work_str)
         if args.dol:
             dol = args.dol.resolve()
