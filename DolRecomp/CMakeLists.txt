@@ -50,7 +50,12 @@ add_executable(dolrecomp
     src/frontend/rel.c
     src/frontend/rpx.c
     src/frontend/disc_extract.c
+    src/frontend/disc_extract_native.c
+    src/frontend/disc_extract_wit.c
     src/frontend/decoder.c
+    src/frontend/decoder_integer.c
+    src/frontend/decoder_float.c
+    src/frontend/decoder_system.c
     src/frontend/disasm.c
     src/backend/emitter.c
     src/backend/emitter_integer.c
@@ -132,6 +137,9 @@ add_executable(test_pc_reference
     src/frontend/dol.c
     ../GXRuntime/src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
+    ../GXRuntime/src/core/cpu_interpreter_table.c
+    ../GXRuntime/src/core/cpu_interpreter_float.c
+    ../GXRuntime/src/core/cpu_interpreter_integer.c
 )
 target_include_directories(test_pc_reference PRIVATE src)
 if(NOT WIN32)
@@ -195,6 +203,9 @@ add_executable(test_emitted_diff
     ${DIFF_GENERATED}
     ../GXRuntime/src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
+    ../GXRuntime/src/core/cpu_interpreter_table.c
+    ../GXRuntime/src/core/cpu_interpreter_float.c
+    ../GXRuntime/src/core/cpu_interpreter_integer.c
 )
 target_include_directories(test_emitted_diff PRIVATE src tests/diff)
 # Match Gekko IEEE-754 round-once semantics on the host: no fma contraction,
@@ -247,6 +258,9 @@ add_executable(test_dedicated_diff
     ${DEDICATED_GENERATED}
     ../GXRuntime/src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
+    ../GXRuntime/src/core/cpu_interpreter_table.c
+    ../GXRuntime/src/core/cpu_interpreter_float.c
+    ../GXRuntime/src/core/cpu_interpreter_integer.c
 )
 target_include_directories(test_dedicated_diff PRIVATE src tests/oracle)
 if(NOT MSVC)

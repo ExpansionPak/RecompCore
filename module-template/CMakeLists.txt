@@ -51,6 +51,9 @@ add_library(${MODULE_NAME} SHARED
   "${MODULE_TABLES}"
   "${GXRUNTIME_DIR}/src/core/cpu.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter.c"
+  "${GXRUNTIME_DIR}/src/core/cpu_interpreter_table.c"
+  "${GXRUNTIME_DIR}/src/core/cpu_interpreter_float.c"
+  "${GXRUNTIME_DIR}/src/core/cpu_interpreter_integer.c"
   ${CHUNK_SOURCES})
 
 set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD ON)

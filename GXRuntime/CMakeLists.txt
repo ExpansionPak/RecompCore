@@ -9,6 +9,9 @@ include(CTest)
 add_library(gxruntime STATIC
     src/core/cpu.c
     src/core/cpu_interpreter.c
+    src/core/cpu_interpreter_table.c
+    src/core/cpu_interpreter_float.c
+    src/core/cpu_interpreter_integer.c
     src/loader.c
     src/boot.c
     src/aram.c
