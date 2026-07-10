@@ -201,6 +201,8 @@ add_library(core
   HW/DVD/DVDInterfaceDisc.cpp
   HW/DVD/AMMediaboard.cpp
   HW/DVD/AMMediaboard.h
+  HW/DVD/AMMediaboardInternal.h
+  HW/DVD/AMMediaboardSocket.cpp
   HW/DVD/AMMediaboardCard.cpp
   HW/DVD/AMMediaboardHacks.cpp
   HW/DVD/DVDMath.cpp
