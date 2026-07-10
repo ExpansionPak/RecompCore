@@ -200,6 +200,8 @@ add_library(core
   HW/DVD/DVDInterfaceDisc.cpp
   HW/DVD/AMMediaboard.cpp
   HW/DVD/AMMediaboard.h
+  HW/DVD/AMMediaboardCard.cpp
+  HW/DVD/AMMediaboardHacks.cpp
   HW/DVD/DVDMath.cpp
   HW/DVD/DVDMath.h
   HW/DVD/DVDThread.cpp

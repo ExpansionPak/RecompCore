@@ -239,6 +239,9 @@ void FirmwareMap(bool on);
 void InitDIMM(const DiscIO::Volume& volume);
 void InitKeys(u32 key_a, u32 key_b, u32 key_c);
 u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u32 length);
+void DecryptCommand(std::array<u32, 3>& dicmd_buf, Memory::MemoryManager& memory, Core::System& system);
+void ApplyBootHacks(Core::System& system, Memory::MemoryManager& memory);
+void CheckTestModeBootHack(u32 offset, Memory::MemoryManager& memory);
 u32 GetGameType();
 u32 GetMediaType();
 bool GetTestMenu();
@@ -270,5 +273,9 @@ using IPRedirections = std::vector<IPRedirection>;
 IPRedirections GetIPRedirections();
 
 s32 DebuggerGetSocket(u32 triforce_fd);
+
+extern u32 s_gcam_key_a;
+extern u32 s_gcam_key_b;
+extern u32 s_gcam_key_c;
 
 };  // namespace AMMediaboard

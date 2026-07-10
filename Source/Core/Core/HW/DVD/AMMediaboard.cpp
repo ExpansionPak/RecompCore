@@ -145,9 +145,9 @@ static bool s_test_menu = false;
 static std::array<u32, 3> s_timeouts = {20000, 20000, 20000};
 static u32 s_last_error = SSC_SUCCESS;
 
-static u32 s_gcam_key_a = 0;
-static u32 s_gcam_key_b = 0;
-static u32 s_gcam_key_c = 0;
+u32 s_gcam_key_a = 0;
+u32 s_gcam_key_b = 0;
+u32 s_gcam_key_c = 0;
 
 static File::IOFile s_netcfg;
 static File::IOFile s_netctrl;
@@ -410,12 +410,7 @@ void FirmwareMap(bool on)
   s_firmware_map = on;
 }
 
-void InitKeys(u32 key_a, u32 key_b, u32 key_c)
-{
-  s_gcam_key_a = key_a;
-  s_gcam_key_b = key_b;
-  s_gcam_key_c = key_c;
-}
+
 
 static File::IOFile OpenOrCreateFile(const std::string& filename)
 {
@@ -1378,30 +1373,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
   auto& system = Core::System::GetInstance();
   auto& memory = system.GetMemory();
 
-  dicmd_buf[0] ^= s_gcam_key_a;
-  dicmd_buf[1] ^= s_gcam_key_b;
-  dicmd_buf[2] ^= s_gcam_key_c;
-
-  const u32 seed = dicmd_buf[0] >> 16;
-
-  s_gcam_key_a *= seed;
-  s_gcam_key_b *= seed;
-  s_gcam_key_c *= seed;
-
-  // Key setup for Triforce IPL:
-  // These RAM offsets always hold the key for the next command. Since two dummy commands are sent
-  // before any real ones, you can just use the key from RAM without missing a real command.
-
-  if (s_gcam_key_a == 0)
-  {
-    if (memory.Read_U32(0))
-    {
-      HLE::Patch(system, 0x813048B8, "OSReport");
-      HLE::Patch(system, 0x8130095C, "OSReport");  // Apploader
-
-      InitKeys(memory.Read_U32(0), memory.Read_U32(4), memory.Read_U32(8));
-    }
-  }
+  DecryptCommand(dicmd_buf, memory, system);
 
   const u32 command = dicmd_buf[0] << 24;
   const u32 offset = dicmd_buf[1] << 2;
@@ -1410,19 +1382,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
                 "GC-AM: {:08x} {:08x} DMA=addr:{:08x},len:{:08x} Keys: {:08x} {:08x} {:08x}",
                 command, offset, address, length, s_gcam_key_a, s_gcam_key_b, s_gcam_key_c);
 
-  // Test mode
-  if (offset == 0x0002440)
-  {
-    // Set by OSResetSystem
-    if (memory.Read_U32(0x811FFF00) == 1)
-    {
-      // Don't map firmware while in SegaBoot
-      if (memory.Read_U32(0x8006BF70) != 0x0A536567)
-      {
-        s_firmware_map = true;
-      }
-    }
-  }
+  CheckTestModeBootHack(offset, memory);
 
   switch (AMMBDICommand(command >> 24))
   {
