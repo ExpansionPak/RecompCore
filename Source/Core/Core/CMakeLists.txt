@@ -572,6 +572,8 @@ add_library(core
   PowerPC/Expression.h
   PowerPC/Interpreter/ExceptionUtils.h
   PowerPC/Interpreter/Interpreter_Branch.cpp
+  PowerPC/Interpreter/Interpreter_FloatCompare.cpp
+  PowerPC/Interpreter/Interpreter_FloatMisc.cpp
   PowerPC/Interpreter/Interpreter_FloatingPoint.cpp
   PowerPC/Interpreter/Interpreter_FPUtils.h
   PowerPC/Interpreter/Interpreter_Integer.cpp
@@ -604,6 +606,7 @@ add_library(core
   PowerPC/MMUBAT.h
   PowerPC/MMUPageTable.cpp
   PowerPC/PowerPC.cpp
+  PowerPC/PowerPC_Exceptions.cpp
   PowerPC/PowerPC.h
   PowerPC/StaticRecomp/StaticRecompABI.h
   PowerPC/StaticRecomp/StaticRecompCore.cpp
@@ -684,10 +687,13 @@ if(_M_X86_64)
     PowerPC/Jit64/Jit_IntegerArithmetic.cpp
     PowerPC/Jit64/Jit_IntegerMulDiv.cpp
     PowerPC/Jit64/Jit_IntegerLogical.cpp
+    PowerPC/Jit64/Jit_IntegerShiftRotate.cpp
     PowerPC/Jit64/Jit_LoadStore.cpp
     PowerPC/Jit64/Jit_LoadStoreFloating.cpp
     PowerPC/Jit64/Jit_LoadStorePaired.cpp
     PowerPC/Jit64/Jit_Paired.cpp
+    PowerPC/Jit64/Jit_CRRegisters.cpp
+    PowerPC/Jit64/Jit_FPSCRRegisters.cpp
     PowerPC/Jit64/Jit_SystemRegisters.cpp
     PowerPC/Jit64/JitAsm.cpp
     PowerPC/Jit64/JitAsm.h
