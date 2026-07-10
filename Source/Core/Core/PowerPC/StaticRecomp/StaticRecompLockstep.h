@@ -15,14 +15,28 @@
 
 #pragma once
 
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
 #include "Common/CommonTypes.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompABI.h"
+
+namespace PowerPC
+{
+class MMU;
+}
+
+class StaticRecompCore;
 
 namespace StaticRecompLockstep
 {
+bool LsHwAccessInScope(PowerPC::MMU& mmu, u32 ea);
+
 // physical_address is post-translation; data is the raw store value; size in
 // bytes. Installed/cleared by StaticRecompCore around interpreter single-steps.
 using HwWriteSink = void (*)(u32 physical_address, u32 data, u32 size, void* user);
-
 extern HwWriteSink g_hw_write_sink;
 extern void* g_hw_write_sink_user;
 
@@ -87,4 +101,82 @@ extern void* g_lc_write_journal_user;
 using VmemWriteJournal = void (*)(u32 vmem_offset, u32 size, void* user);
 extern VmemWriteJournal g_vmem_write_journal;
 extern void* g_vmem_write_journal_user;
+
+struct LsWrite
+{
+  u32 addr;
+  u32 data;
+  u32 size;
+};
+
+using SetMemJournalFn = void (*)(void (*)(u32, u32, void*), void*);
+
+class StaticRecompLockstepVerifier
+{
+public:
+  friend class ::StaticRecompCore;
+
+  explicit StaticRecompLockstepVerifier(::StaticRecompCore& core);
+  ~StaticRecompLockstepVerifier();
+
+  void Init();
+  bool IsEnabled() const { return m_lockstep; }
+  bool ShouldCheck(u32 address) const;
+  void Prepare(const CPUState& guest);
+  void Verify(const CPUState& guest);
+
+private:
+  static void LsJournalTrampoline(u32 offset, u32 size, void* user);
+  static void LsShadowJournalTrampoline(u32 offset, u32 size, void* user);
+  static void LsNativeLcJournalTrampoline(u32 lc_offset, u32 size, void* user);
+  static void LsShadowLcJournalTrampoline(u32 lc_offset, u32 size, void* user);
+  static void LsNativeVmemJournalTrampoline(u32 vmem_offset, u32 size, void* user);
+  static void LsShadowVmemJournalTrampoline(u32 vmem_offset, u32 size, void* user);
+  static void LsHwWriteTrampoline(u32 physical_address, u32 data, u32 size, void* user);
+  static u32 LsHwReadTrampoline(u32 physical_address, u32 size, void* user);
+
+  void LockstepCheck(u32 entry_pc, u32 end_pc, const CPUState& entry_state);
+  void LoadEntryRegsToPPC(const CPUState& s);
+  bool LockstepWindowOpen() const;
+
+  ::StaticRecompCore& m_core;
+
+  bool m_lockstep = false;
+  u64 m_ls_start = 0;             // begin checking at this native-dispatch index
+  u64 m_ls_limit = 0;            // stop checking after this index (0 = no bound)
+  u64 m_ls_max_report = 0;      // cap divergence reports (0 = unlimited)
+  int m_ls_step_cap = 512;      // interpreter single-steps before giving up on end PC
+  u64 m_ls_checks = 0;          // distinct blocks differentially checked
+  u64 m_ls_reports = 0;         // divergences reported
+  u64 m_ls_skipped_fallback = 0;  // blocks skipped (native used instruction fallback)
+  u64 m_ls_skipped_zero = 0;      // blocks skipped (zero cycle charge: no alignable work)
+  u64 m_ls_undercharges = 0;      // blocks regs-exact but native undercharged downcount (D3)
+  s64 m_ls_max_undercharge = 0;   // worst per-block cycle deficit observed
+  SetMemJournalFn m_set_mem_journal = nullptr;  // resolved from the module
+  std::unordered_set<u32> m_ls_checked;    // entry PCs already checked (dedupe)
+  std::unordered_set<u32> m_ls_whitelist;  // entry PCs never reported (known-benign)
+  u32 m_ls_trace_pc = 0;  // STATICRECOMP_LOCKSTEP_TRACE: per-instr shadow dump for one entry PC
+
+  u32 m_ls_entry = 0;
+  CPUState m_ls_snapshot{};
+
+  // per-check scratch, reused to avoid per-block allocation churn:
+  bool m_ls_journaling = false;      // native journal active (guards trampolines)
+  bool m_ls_fallback_seen = false;   // native took the instruction-fallback path
+  std::unordered_map<u32, u8> m_ls_pre;   // ram offset -> pre-block byte (native writes)
+  std::unordered_map<u32, u8> m_ls_post;  // ram offset -> native post byte
+  std::unordered_map<u32, u8> m_ls_shadow_pre;  // ram offset -> pre-shadow byte (shadow writes)
+  std::unordered_map<u32, u8> m_ls_lc_pre;   // L1Cache offset -> pre-block byte (native LC writes)
+  std::unordered_map<u32, u8> m_ls_lc_post;  // L1Cache offset -> native post byte
+  std::unordered_map<u32, u8> m_ls_lc_shadow_pre;  // L1Cache offset -> pre-shadow byte (shadow LC writes)
+  std::unordered_map<u32, u8> m_ls_vmem_pre;   // Fake-VMEM offset -> pre-block byte (native VM writes)
+  std::unordered_map<u32, u8> m_ls_vmem_post;  // Fake-VMEM offset -> native post byte
+  std::unordered_map<u32, u8> m_ls_vmem_shadow_pre;  // Fake-VMEM offset -> pre-shadow byte (shadow VM writes)
+  std::vector<LsWrite> m_ls_native_mmio;   // native MMIO/gather writes (hooks)
+  std::vector<LsWrite> m_ls_interp_mmio;   // interpreter MMIO/gather writes (sink)
+  std::vector<LsWrite> m_ls_native_reads;  // native MMIO reads (hooks), replayed to the shadow
+  size_t m_ls_read_index = 0;              // replay cursor into m_ls_native_reads
+  bool m_ls_read_overflow = false;         // shadow read more MMIO than native (path split)
+};
+
 }  // namespace StaticRecompLockstep

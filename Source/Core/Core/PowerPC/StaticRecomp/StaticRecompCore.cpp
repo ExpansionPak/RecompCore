@@ -55,11 +55,7 @@ static bool VerboseCounters()
 
 constexpr u32 LOCKED_CACHE_BASE = 0xE0000000u;
 
-// Extra interpreter cycles the lockstep shadow may run past native's charged
-// budget to reach native's true block boundary when native undercharged on a
-// mid-accounting-block dispatch entry (deficit is bounded by one accounting
-// block's cost; max emitted block charge is well under this).
-constexpr s64 LS_UNDERCHARGE_GRACE = 256;
+
 
 // Exception bits the chassis must deliver at a native-burst boundary (raised
 // synchronously by MMU/hooks). External-interrupt-class bits are delivered by
@@ -78,23 +74,7 @@ constexpr const char* MODULE_SUFFIX = ".so";
 #endif
 }  // namespace
 
-namespace StaticRecompLockstep
-{
-// Definitions for the MMU write-suppression hook (declared in the shared
-// header). Null except while an interpreter shadow re-run is in progress.
-HwWriteSink g_hw_write_sink = nullptr;
-void* g_hw_write_sink_user = nullptr;
-HwReadSink g_hw_read_sink = nullptr;
-void* g_hw_read_sink_user = nullptr;
-bool g_tb_override_active = false;
-u64 g_tb_override_value = 0;
-RamWriteJournal g_ram_write_journal = nullptr;
-void* g_ram_write_journal_user = nullptr;
-LcWriteJournal g_lc_write_journal = nullptr;
-void* g_lc_write_journal_user = nullptr;
-VmemWriteJournal g_vmem_write_journal = nullptr;
-void* g_vmem_write_journal_user = nullptr;
-}  // namespace StaticRecompLockstep
+
 
 namespace
 {
@@ -111,15 +91,7 @@ namespace
 // hardware reads). An access that does not translate is treated as physical
 // (untranslated accesses are already physical). Only called on the lockstep
 // journaling path (deduped, first dispatch per block) — not hot.
-bool LsHwAccessInScope(PowerPC::MMU& mmu, u32 ea)
-{
-  u32 phys = ea;
-  if (const std::optional<u32> t = mmu.GetTranslatedAddress(ea))
-    phys = *t;
-  const bool is_gather = (phys & 0xFFFFF000u) == GPFifo::GATHER_PIPE_PHYSICAL_ADDRESS;
-  const bool is_mmio = (phys & 0xF8000000u) == 0x08000000u;
-  return is_gather || is_mmio;
-}
+
 
 // Is `end_pc` a LOOP HEADER — the target of a backward direct branch? The lockstep
 // shadow steps the interpreter for native's charged cycles and stops at end_pc
@@ -140,49 +112,7 @@ bool LsHwAccessInScope(PowerPC::MMU& mmu, u32 ea)
 // scan at the first unconditional branch that leaves the region (loop-body end) or
 // a fixed window. Only used on the deduped journaling path — not hot.
 // See dolphin-chassis.md §Arc-4 loop-align.
-bool LsIsLoopHeader(const u8* ram, u32 ram_size, u32 end_pc)
-{
-  constexpr u32 kBase = 0x80000000u;
-  if (end_pc < kBase)
-    return false;
-  const u32 start_off = end_pc - kBase;
-  // Scan forward for a direct branch back to end_pc. A backward branch (source >
-  // end_pc) whose target IS end_pc is by definition end_pc's own loop back-edge,
-  // so no early break is needed (and breaking at an interior unconditional branch
-  // in the loop body — a common if/else merge — would miss back-edges far past
-  // end_pc, e.g. CalcDesiredTarget's is 116 insns down). If native's end_pc is a
-  // loop header, native reached it via that back-edge (a fall-through into a
-  // leader does not return; bl/indirect arrivals are handled at the boundary
-  // check), so classifying it here is always correct. The window only bounds the
-  // scan for NON-loop-header addresses (which read to the cap and return false).
-  constexpr u32 kWindowInsns = 2048;
-  for (u32 i = 0; i < kWindowInsns; ++i)
-  {
-    const u32 off = start_off + i * 4u;
-    if (off + 4u > ram_size)
-      break;
-    const u32 insn = Common::swap32(&ram[off]);
-    const u32 opcd = insn >> 26;
-    const u32 addr = end_pc + i * 4u;
-    if (addr <= end_pc)
-      continue;
-    if (opcd == 16u && (insn & 0x2u) == 0u)  // bc: B-form, 14-bit signed BD, AA=0
-    {
-      const s32 bd = static_cast<s32>(static_cast<s16>(insn & 0xFFFCu));
-      if (addr + static_cast<u32>(bd) == end_pc)
-        return true;
-    }
-    else if (opcd == 18u && (insn & 0x2u) == 0u)  // b: I-form, 24-bit signed LI, AA=0
-    {
-      s32 li = static_cast<s32>(insn & 0x03FFFFFCu);
-      if (li & 0x02000000)
-        li |= static_cast<s32>(0xFC000000u);
-      if (addr + static_cast<u32>(li) == end_pc)
-        return true;
-    }
-  }
-  return false;
-}
+
 }  // namespace
 
 StaticRecompCore* g_static_recomp_core = nullptr;
@@ -228,7 +158,8 @@ void StaticRecompCore::Init()
   std::fprintf(stderr, "[staticrecomp] core init (chassis built " __DATE__ " " __TIME__ ")\n");
 
   LoadModule();
-  InitLockstep();
+  m_lockstep_verifier = std::make_unique<StaticRecompLockstep::StaticRecompLockstepVerifier>(*this);
+  m_lockstep_verifier->Init();
 
 #ifdef _M_ARM_64
   m_fallback_jit = std::make_unique<JitArm64>(m_system);
@@ -256,18 +187,7 @@ void StaticRecompCore::Shutdown()
                  m_native_dispatches, m_fallback_steps, m_native_exceptions,
                  m_hook_fallback_instructions, m_failed_chunks, m_verifications,
                  m_reverify_events);
-  if (m_lockstep)
-  {
-    std::fprintf(stderr,
-                 "[lockstep] summary: checks=%llu reports=%llu skipped_fallback=%llu "
-                 "skipped_zero=%llu undercharges=%llu max_deficit=%lld distinct_pcs=%zu\n",
-                 (unsigned long long)m_ls_checks, (unsigned long long)m_ls_reports,
-                 (unsigned long long)m_ls_skipped_fallback, (unsigned long long)m_ls_skipped_zero,
-                 (unsigned long long)m_ls_undercharges, (long long)m_ls_max_undercharge,
-                 m_ls_checked.size());
-    if (m_set_mem_journal)
-      m_set_mem_journal(nullptr, nullptr);
-  }
+  m_lockstep_verifier.reset();
   m_block_cache.Shutdown();
   m_module = nullptr;
   if (m_library.IsOpen())
@@ -355,11 +275,7 @@ void StaticRecompCore::LoadModule()
   m_lookup_ram_size = 0;
   m_lookup_exram_size = 0;
   m_chunk_lookup_table.clear();
-  // Optional: the module's DolRuntime cpu.c exports a setter for the RAM-write
-  // journal that the differential ("lockstep") harness relies on. Absent =>
-  // lockstep stays disabled even if requested (warned in InitLockstep).
-  m_set_mem_journal = reinterpret_cast<SetMemJournalFn>(
-      m_library.GetSymbolAddress("ppc_set_mem_write_journal"));
+
   std::fprintf(stderr,
                "[staticrecomp] module loaded: %s entry=0x%08X (chassis built " __DATE__
                " " __TIME__ ")\n",
@@ -660,14 +576,11 @@ u64 StaticRecompCore::HookExternalRead(CPUState* cpu, u32 ea, u8 size)
     ERROR_LOG_FMT(POWERPC, "StaticRecomp: external read of bad size {} at 0x{:08X}", size, ea);
     return 0;
   }
-  // Lockstep: record native's hardware read so the shadow can replay it. Only
-  // true hardware (gather/MMIO) reads — the shadow replays those from
-  // ReadFromHardware; VM/LC reads it serves live from the restored pre-image, so
-  // recording them here would desync the replay index and feed a later hardware
-  // read the wrong value (root cause of the glSetRasterState / nlListAddStart
-  // VM-read divergences). Classify post-translation, matching the write side.
-  if (core->m_ls_journaling && LsHwAccessInScope(mmu, ea))
-    core->m_ls_native_reads.push_back({ea, static_cast<u32>(value), size});
+  if (core->m_lockstep_verifier->m_ls_journaling &&
+      StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
+  {
+    core->m_lockstep_verifier->m_ls_native_reads.push_back({ea, static_cast<u32>(value), size});
+  }
   return value;
 }
 
@@ -682,11 +595,8 @@ void StaticRecompCore::HookExternalWrite(CPUState* cpu, u32 ea, u64 value, u8 si
   // maintains ppc_state.gather_pipe_ptr internally.
   if ((ea & 0xFFFFF000) == 0xCC008000u)
   {
-    // Lockstep: the gather pipe is unambiguously hardware — record it (the shadow
-    // sink captures the interpreter's matching gather write, reconciled by
-    // physical mask in the compare).
-    if (core->m_ls_journaling)
-      core->m_ls_native_mmio.push_back({ea, static_cast<u32>(value), size});
+    if (core->m_lockstep_verifier->m_ls_journaling)
+      core->m_lockstep_verifier->m_ls_native_mmio.push_back({ea, static_cast<u32>(value), size});
     auto& gpfifo = core->m_system.GetGPFifo();
     switch (size)
     {
@@ -711,14 +621,11 @@ void StaticRecompCore::HookExternalWrite(CPUState* cpu, u32 ea, u64 value, u8 si
 
   core->PropagateGuestMSR();
   auto& mmu = core->m_system.GetMMU();
-  // Lockstep: record native's hardware (MMIO) writes so the shadow interpreter's
-  // suppressed writes can be diffed against them. Classify by post-translation
-  // physical (after PropagateGuestMSR so translation uses the guest's MSR): only
-  // writes the shadow sink also captures (gather+MMIO) are comparable; MEM1
-  // (incl. the demand-paged virtual-memory window) and locked cache are memory,
-  // journaled+restored separately, not compared here.
-  if (core->m_ls_journaling && LsHwAccessInScope(mmu, ea))
-    core->m_ls_native_mmio.push_back({ea, static_cast<u32>(value), size});
+  if (core->m_lockstep_verifier->m_ls_journaling &&
+      StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
+  {
+    core->m_lockstep_verifier->m_ls_native_mmio.push_back({ea, static_cast<u32>(value), size});
+  }
   switch (size)
   {
   case 1:
@@ -748,8 +655,11 @@ u32 StaticRecompCore::HookExternalRead32(CPUState* cpu, u32 ea, u8 rid)
   core->PropagateGuestMSR();
   auto& mmu = core->m_system.GetMMU();
   const u32 value = mmu.Read<u32>(ea);
-  if (core->m_ls_journaling && LsHwAccessInScope(mmu, ea))
-    core->m_ls_native_reads.push_back({ea, value, 4});
+  if (core->m_lockstep_verifier->m_ls_journaling &&
+      StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
+  {
+    core->m_lockstep_verifier->m_ls_native_reads.push_back({ea, value, 4});
+  }
   return value;
 }
 
@@ -759,8 +669,11 @@ void StaticRecompCore::HookExternalWrite32(CPUState* cpu, u32 ea, u32 value, u8 
   auto* core = static_cast<StaticRecompCore*>(cpu->external_user_data);
   core->PropagateGuestMSR();
   auto& mmu = core->m_system.GetMMU();
-  if (core->m_ls_journaling && LsHwAccessInScope(mmu, ea))
-    core->m_ls_native_mmio.push_back({ea, value, 4});
+  if (core->m_lockstep_verifier->m_ls_journaling &&
+      StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
+  {
+    core->m_lockstep_verifier->m_ls_native_mmio.push_back({ea, value, 4});
+  }
   mmu.Write<u32>(value, ea);
 }
 
@@ -790,8 +703,8 @@ void StaticRecompCore::HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia)
   // instruction (DMA mtspr, cache op, ...) performed side effects not captured
   // by the RAM journal / MMIO hooks, so re-running it on the shadow would
   // double-issue them. Mark it unsafe to differentially check.
-  if (core->m_ls_journaling)
-    core->m_ls_fallback_seen = true;
+  if (core->m_lockstep_verifier->m_ls_journaling)
+    core->m_lockstep_verifier->m_ls_fallback_seen = true;
 
   auto& system = core->m_system;
   auto& ppc = system.GetPPCState();
@@ -833,650 +746,9 @@ void StaticRecompCore::HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia)
   core->SyncIn();
 }
 
-void StaticRecompCore::InitLockstep()
-{
-  const char* enable = std::getenv("STATICRECOMP_LOCKSTEP");
-  if (!enable || enable[0] == '0' || enable[0] == '\0')
-    return;
-  if (!m_module)
-  {
-    ERROR_LOG_FMT(POWERPC, "StaticRecomp: LOCKSTEP requested but no module loaded; ignored.");
-    return;
-  }
-  if (!m_set_mem_journal)
-  {
-    std::fprintf(stderr, "[lockstep] module lacks ppc_set_mem_write_journal export; "
-                         "lockstep DISABLED (rebuild the module).\n");
-    return;
-  }
 
-  m_lockstep = true;
-  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_START"))
-    m_ls_start = std::strtoull(s, nullptr, 0);
-  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_LIMIT"))
-    m_ls_limit = std::strtoull(s, nullptr, 0);
-  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_MAXREPORT"))
-    m_ls_max_report = std::strtoull(s, nullptr, 0);
-  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_STEPCAP"))
-    m_ls_step_cap = std::atoi(s);
-  // Diagnostic: dump the interpreter shadow's per-instruction pc/op/fpscr/cr/gpr
-  // (+ entry regs and the RAM bytes at r3/r4) for one entry PC, to pin exactly
-  // which op diverges. Off unless STATICRECOMP_LOCKSTEP_TRACE is set.
-  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_TRACE"))
-    m_ls_trace_pc = static_cast<u32>(std::strtoull(s, nullptr, 0));
-  // Comma/space-separated hex entry PCs never reported (known-benign classes,
-  // e.g. mftb-reading blocks whose only divergence is the timebase low bits).
-  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_WHITELIST"))
-  {
-    const char* p = s;
-    while (*p)
-    {
-      char* end = nullptr;
-      const unsigned long long pc = std::strtoull(p, &end, 0);
-      if (end == p)
-        break;
-      m_ls_whitelist.insert(static_cast<u32>(pc));
-      p = end;
-      while (*p == ',' || *p == ' ')
-        ++p;
-    }
-  }
 
-  std::fprintf(
-      stderr,
-      "[lockstep] ENABLED: start=%llu limit=%llu maxreport=%llu stepcap=%d whitelist=%zu\n",
-      (unsigned long long)m_ls_start, (unsigned long long)m_ls_limit,
-      (unsigned long long)m_ls_max_report, m_ls_step_cap, m_ls_whitelist.size());
-}
 
-bool StaticRecompCore::LockstepWindowOpen() const
-{
-  if (m_native_dispatches < m_ls_start)
-    return false;
-  if (m_ls_limit != 0 && m_native_dispatches >= m_ls_limit)
-    return false;
-  return true;
-}
-
-void StaticRecompCore::LoadEntryRegsToPPC(const CPUState& s)
-{
-  auto& power_pc = m_system.GetPowerPC();
-  auto& ppc = power_pc.GetPPCState();
-  std::memcpy(ppc.gpr, s.gpr, sizeof(ppc.gpr));
-  for (int i = 0; i < 32; ++i)
-  {
-    std::memcpy(&ppc.ps[i].ps0, &s.fpr[i], sizeof(u64));
-    std::memcpy(&ppc.ps[i].ps1, &s.ps1[i], sizeof(u64));
-  }
-  ppc.pc = s.pc;
-  ppc.npc = s.pc;
-  ppc.spr[SPR_LR] = s.lr;
-  ppc.spr[SPR_CTR] = s.ctr;
-  ppc.cr.Set(s.cr);
-  ppc.SetXER(UReg_XER{s.xer});
-  ppc.fpscr.Hex = s.fpscr;
-  ppc.spr[SPR_SRR0] = s.srr0;
-  ppc.spr[SPR_SRR1] = s.srr1;
-  ppc.spr[SPR_DAR] = s.dar;
-  ppc.spr[SPR_DSISR] = s.dsisr;
-  ppc.spr[SPR_EAR] = s.ear;
-  ppc.spr[SPR_HID2] = s.hid2;
-  for (int i = 0; i < 16; ++i)
-    ppc.sr[i] = s.sr[i];
-  for (int i = 0; i < 8; ++i)
-    ppc.spr[SPR_GQR0 + i] = s.gqr[i];
-  ppc.reserve_address = s.reserve_addr;
-  ppc.reserve = s.reserve_valid;
-  ppc.Exceptions = 0;
-  ppc.msr.Hex = s.msr;
-  power_pc.MSRUpdated();
-  PowerPC::RoundingModeUpdated(ppc);
-}
-
-void StaticRecompCore::LsJournalTrampoline(u32 offset, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  const u8* ram = core->m_guest.ram;
-  const u32 ram_size = core->m_guest.ram_size;
-  for (u32 i = 0; i < size; ++i)
-  {
-    const u32 off = offset + i;
-    if (off >= ram_size)
-      break;
-    core->m_ls_pre.emplace(off, ram[off]);  // first touch => the pre-block byte
-  }
-}
-
-// Records the interpreter shadow's MEM1 stores so they can be undone after the
-// check (the shadow must be side-effect-free on the canonical native RAM).
-void StaticRecompCore::LsShadowJournalTrampoline(u32 offset, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  const u8* ram = core->m_guest.ram;
-  const u32 ram_size = core->m_guest.ram_size;
-  for (u32 i = 0; i < size; ++i)
-  {
-    const u32 off = offset + i;
-    if (off >= ram_size)
-      break;
-    core->m_ls_shadow_pre.emplace(off, ram[off]);  // first touch => the pre-shadow byte
-  }
-}
-
-// Records NATIVE's locked-cache stores (via HookExternalWrite -> MMU LC branch)
-// during the journaled dispatch, so the block's LC pre-image can be restored
-// before the shadow re-run (correct read-modify-write) and native's LC post-image
-// redone afterward. Native's MMU-path LC writes bypass the generated ctx->ram
-// journal, so without this the shadow would read native's post-LC values.
-void StaticRecompCore::LsNativeLcJournalTrampoline(u32 lc_offset, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  auto& memory = core->m_system.GetMemory();
-  const u8* l1 = memory.GetL1Cache();
-  const u32 l1_size = memory.GetL1CacheSize();
-  if (!l1)
-    return;
-  for (u32 i = 0; i < size; ++i)
-  {
-    const u32 off = lc_offset + i;
-    if (off >= l1_size)
-      break;
-    core->m_ls_lc_pre.emplace(off, l1[off]);  // first touch => the pre-block byte
-  }
-}
-
-// Records the interpreter shadow's locked-cache (L1Cache) stores so they can be
-// undone after the check. Locked cache is memory the shadow commits normally
-// (intra-block RMW must see it), but the canonical run is native, whose LC values
-// were committed before the shadow ran; a leaked shadow LC store would corrupt
-// the locked cache for later native blocks. Offset is the L1Cache byte index.
-void StaticRecompCore::LsShadowLcJournalTrampoline(u32 lc_offset, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  auto& memory = core->m_system.GetMemory();
-  const u8* l1 = memory.GetL1Cache();
-  const u32 l1_size = memory.GetL1CacheSize();
-  if (!l1)
-    return;
-  for (u32 i = 0; i < size; ++i)
-  {
-    const u32 off = lc_offset + i;
-    if (off >= l1_size)
-      break;
-    core->m_ls_lc_shadow_pre.emplace(off, l1[off]);  // first touch => the pre-shadow byte
-  }
-}
-
-// Records native's Fake-VMEM (guest VM window [0x7E000000,0x80000000)) writes so
-// the shadow reads the block pre-image instead of native's committed value. This
-// window maps to a dedicated buffer, not MEM1, so its writes bypass both the
-// generated ctx->ram journal AND the MEM1 MMU journal; without this the shadow
-// reads native's post-write bytes (the glSetRasterState / nlListAddStart stale
-// reads). Offset is the Fake-VMEM byte index (em_address & GetFakeVMemMask()).
-void StaticRecompCore::LsNativeVmemJournalTrampoline(u32 vmem_offset, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  auto& memory = core->m_system.GetMemory();
-  const u8* vmem = memory.GetFakeVMEM();
-  const u32 vmem_size = memory.GetFakeVMemSize();
-  if (!vmem)
-    return;
-  for (u32 i = 0; i < size; ++i)
-  {
-    const u32 off = vmem_offset + i;
-    if (off >= vmem_size)
-      break;
-    core->m_ls_vmem_pre.emplace(off, vmem[off]);  // first touch => the pre-block byte
-  }
-}
-
-// Records the interpreter shadow's Fake-VMEM stores so they can be undone after
-// the check (like MEM1/LC): the shadow commits normally for intra-block RMW, but
-// the canonical run is native, whose VM-window values were committed before the
-// shadow; a leaked shadow store would corrupt the window for later native blocks.
-void StaticRecompCore::LsShadowVmemJournalTrampoline(u32 vmem_offset, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  auto& memory = core->m_system.GetMemory();
-  const u8* vmem = memory.GetFakeVMEM();
-  const u32 vmem_size = memory.GetFakeVMemSize();
-  if (!vmem)
-    return;
-  for (u32 i = 0; i < size; ++i)
-  {
-    const u32 off = vmem_offset + i;
-    if (off >= vmem_size)
-      break;
-    core->m_ls_vmem_shadow_pre.emplace(off, vmem[off]);  // first touch => the pre-shadow byte
-  }
-}
-
-void StaticRecompCore::LsHwWriteTrampoline(u32 physical_address, u32 data, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  core->m_ls_interp_mmio.push_back({physical_address, data, size});
-}
-
-u32 StaticRecompCore::LsHwReadTrampoline(u32 physical_address, u32 size, void* user)
-{
-  auto* core = static_cast<StaticRecompCore*>(user);
-  if (core->m_ls_read_index < core->m_ls_native_reads.size())
-  {
-    const LsWrite& rec = core->m_ls_native_reads[core->m_ls_read_index++];
-    // Native effective vs shadow physical: a mismatch means the shadow diverged
-    // from native's read sequence (a genuine control-flow split, not drift).
-    if ((rec.addr & 0x0FFFFFFFu) != (physical_address & 0x0FFFFFFFu))
-      core->m_ls_read_overflow = true;
-    return rec.data;
-  }
-  core->m_ls_read_overflow = true;  // shadow issued more MMIO reads than native
-  return 0;
-}
-
-// Re-run the just-executed native block on Dolphin's interpreter from the same
-// entry snapshot and report any architectural / memory-write divergence. On
-// entry m_guest holds the native result (N) and its pc is the block end PC; the
-// RAM journal (m_ls_pre) holds pre-images of every byte native wrote.
-void StaticRecompCore::LockstepCheck(u32 entry_pc, u32 end_pc, const CPUState& entry_state)
-{
-  ++m_ls_checks;
-
-  // Blocks whose native run used the instruction fallback performed side
-  // effects (DMA, decrementer reschedule, icache invalidation) the shadow would
-  // double-issue; they are unsafe to re-run. Leave RAM as native committed it.
-  if (m_ls_fallback_seen)
-  {
-    ++m_ls_skipped_fallback;
-    return;
-  }
-
-  auto& power_pc = m_system.GetPowerPC();
-  auto& ppc = power_pc.GetPPCState();
-  auto& interp = m_system.GetInterpreter();
-  auto& memory = m_system.GetMemory();
-  u8* ram = m_guest.ram;
-  const u32 ram_size = m_guest.ram_size;
-  u8* const l1 = memory.GetL1Cache();
-  const u32 l1_size = memory.GetL1CacheSize();
-  u8* const vmem = memory.GetFakeVMEM();
-  const u32 vmem_size = memory.GetFakeVMemSize();
-
-  // Cycle budget native charged for this dispatch: native subtracts each basic
-  // block's Dolphin-PPCTables cost into ctx->downcount before executing it, so
-  // this equals the summed cost of every instruction native ran. A zero-charge
-  // dispatch (embedded data / degenerate segment) has no alignable work; skip.
-  const s64 native_charge = -m_guest.downcount;
-  if (native_charge <= 0)
-  {
-    ++m_ls_skipped_zero;
-    return;
-  }
-
-  // Native's post-images: realRAM currently holds native's committed writes.
-  m_ls_post.clear();
-  for (const auto& [off, pre] : m_ls_pre)
-    m_ls_post.emplace(off, off < ram_size ? ram[off] : pre);
-  // Undo native's RAM writes so the interpreter shadow reads the block's
-  // pre-image (correct read-modify-write comparison).
-  for (const auto& [off, pre] : m_ls_pre)
-    if (off < ram_size)
-      ram[off] = pre;
-
-  // Same for native's locked-cache writes (MMU-path, journaled in m_ls_lc_pre).
-  m_ls_lc_post.clear();
-  if (l1)
-  {
-    for (const auto& [off, pre] : m_ls_lc_pre)
-      m_ls_lc_post.emplace(off, off < l1_size ? l1[off] : pre);
-    for (const auto& [off, pre] : m_ls_lc_pre)
-      if (off < l1_size)
-        l1[off] = pre;
-  }
-
-  // Same for native's Fake-VMEM writes (guest VM window, journaled in m_ls_vmem_pre).
-  m_ls_vmem_post.clear();
-  if (vmem)
-  {
-    for (const auto& [off, pre] : m_ls_vmem_pre)
-      m_ls_vmem_post.emplace(off, off < vmem_size ? vmem[off] : pre);
-    for (const auto& [off, pre] : m_ls_vmem_pre)
-      if (off < vmem_size)
-        vmem[off] = pre;
-  }
-
-  // Load the block-entry registers and single-step to the native end PC with
-  // hardware writes captured + suppressed. Save ONLY the burst-visible scratch
-  // the shadow perturbs: PowerPCState owns non-trivial caches (iCache/dCache),
-  // so bulk-copying it would double-free their heap storage. All register
-  // fields are stale during a native burst (native runs on m_guest; ppc is
-  // rebuilt at SyncOut / resynced by PropagateGuestMSR), so they need no
-  // save/restore here.
-  const u64 saved_msr = ppc.msr.Hex;
-  const int saved_downcount = ppc.downcount;
-  const u32 saved_exceptions = ppc.Exceptions;
-  LoadEntryRegsToPPC(entry_state);
-
-  m_ls_interp_mmio.clear();
-  m_ls_shadow_pre.clear();
-  m_ls_lc_shadow_pre.clear();
-  m_ls_vmem_shadow_pre.clear();
-  m_ls_read_index = 0;
-  m_ls_read_overflow = false;
-  StaticRecompLockstep::g_hw_write_sink = &StaticRecompCore::LsHwWriteTrampoline;
-  StaticRecompLockstep::g_hw_write_sink_user = this;
-  StaticRecompLockstep::g_hw_read_sink = &StaticRecompCore::LsHwReadTrampoline;
-  StaticRecompLockstep::g_hw_read_sink_user = this;
-  // Journal the shadow's MEM1 stores so they can be undone (shadow must not
-  // mutate the canonical native RAM).
-  StaticRecompLockstep::g_ram_write_journal = &StaticRecompCore::LsShadowJournalTrampoline;
-  StaticRecompLockstep::g_ram_write_journal_user = this;
-  // Same for the shadow's locked-cache (L1Cache) stores.
-  StaticRecompLockstep::g_lc_write_journal = &StaticRecompCore::LsShadowLcJournalTrampoline;
-  StaticRecompLockstep::g_lc_write_journal_user = this;
-  // Same for the shadow's Fake-VMEM (guest VM window) stores.
-  StaticRecompLockstep::g_vmem_write_journal = &StaticRecompCore::LsShadowVmemJournalTrampoline;
-  StaticRecompLockstep::g_vmem_write_journal_user = this;
-  // Feed the shadow the same timebase native's mftb observed (cached per burst).
-  StaticRecompLockstep::g_tb_override_active = true;
-  StaticRecompLockstep::g_tb_override_value = entry_state.timebase;
-
-  // Step the interpreter for exactly native's charged cycles. This reproduces
-  // native's instruction count precisely regardless of how end_pc is reached
-  // (a loop body may pass through end_pc sequentially before native's real
-  // boundary at the back-edge; a segment may end on a straight-line fall-
-  // through). Crucially it BOUNDS the shadow to native's work, so it can never
-  // overshoot into data / unknown instructions. A clean alignment lands exactly
-  // on native's charge with pc == end_pc; anything else is a real divergence.
-  if (m_ls_trace_pc != 0 && entry_pc == m_ls_trace_pc)
-  {
-    const auto dump = [&](const char* tag, u32 gaddr) {
-      const u32 o = gaddr - 0x80000000u;
-      std::fprintf(stderr, "[ls-trace] entry %s=0x%08X bytes:", tag, gaddr);
-      for (u32 k = 0; k < 20 && o + k < ram_size; ++k)
-        std::fprintf(stderr, " %02X", ram[o + k]);
-      std::fprintf(stderr, "\n");
-    };
-    std::fprintf(stderr, "[ls-trace] ENTRY r3=0x%08X r4=0x%08X r5=0x%08X charge=%lld\n",
-                 entry_state.gpr[3], entry_state.gpr[4], entry_state.gpr[5],
-                 (long long)native_charge);
-    if ((entry_state.gpr[3] >> 28) == 8)
-      dump("r3", entry_state.gpr[3]);
-    if ((entry_state.gpr[4] >> 28) == 8)
-      dump("r4", entry_state.gpr[4]);
-  }
-  int steps = 0;
-  s64 interp_cycles = 0;
-  // If end_pc is a loop header (native returned at the back-edge), the shadow
-  // reaches it FIRST by sequential fall-through into the body; the cycle-budget
-  // stop must ignore that arrival and wait for the back-edge (a non-sequential
-  // arrival, caught above), or it stops one iteration short. Computed once.
-  const bool end_is_loop_header = LsIsLoopHeader(ram, ram_size, end_pc);
-  while (steps < m_ls_step_cap)
-  {
-    const u32 before = ppc.pc;
-    interp_cycles += interp.SingleStepInner();
-    ++steps;
-    // Diagnostic (STATICRECOMP_LOCKSTEP_TRACE): per-instruction shadow evolution
-    // for one entry PC — pins which op diverges (fpscr/cr for FP, gpr for data).
-    if (m_ls_trace_pc != 0 && entry_pc == m_ls_trace_pc)
-    {
-      u32 op = 0;
-      const u32 boff = before - 0x80000000u;
-      if (boff + 4 <= ram_size)
-        op = Common::swap32(&ram[boff]);
-      const u32 fx = ppc.fpscr.Hex;
-      std::fprintf(stderr,
-                   "[ls-trace] %3d pc=0x%08X op=0x%08X (op0=%2u xo=%4u) fpscr=0x%08X "
-                   "FG=%u FR=%u FI=%u FPRF=0x%02X cr=0x%08X r0=0x%08X r3=0x%08X r4=0x%08X r5=0x%08X\n",
-                   steps, before, op, op >> 26, (op >> 1) & 0x3FF, fx, (fx >> 14) & 1,
-                   (fx >> 17) & 1, (fx >> 16) & 1, (fx >> 12) & 0x1F, ppc.cr.Get(), ppc.gpr[0],
-                   ppc.gpr[3], ppc.gpr[4], ppc.gpr[5]);
-    }
-    // Native ends a dispatch only at a control transfer, so a NON-sequential
-    // arrival at end_pc (branch, loop back-edge, indirect return, exception
-    // vector) is native's boundary — stop there even if native over-charged (a
-    // mid-block lazy-FP/sc fault exits before the block's full static charge).
-    //
-    // Loop-header exception: when end_pc is a loop header, the emitter emits the
-    // back-edge as a dispatcher round-trip (native's real boundary) but the
-    // forward branch that ENTERS the loop from the prologue stays a local `goto`
-    // native does NOT return from. So the shadow reaches end_pc non-sequentially
-    // first at the loop ENTRY (a forward, non-linking, same-chunk branch), then
-    // at the back-edge; native ran one body iteration and returned at the back-
-    // edge. Skip only that local forward entry. A forward arrival that LINKS (bl/
-    // bcl call), is INDIRECT (blr/bctr), or CROSSES a chunk is a dispatcher round-
-    // trip the emitter DID return from — a real boundary (e.g. a `bl` to a
-    // function whose own entry is a loop header, GetLinearVelocity/AngularVelocity
-    // in Strikers) — so keep it.
-    if (ppc.pc == end_pc && ppc.pc != before + 4)
-    {
-      bool is_boundary = true;
-      if (end_is_loop_header && before < end_pc)
-      {
-        const u32 boff = before - 0x80000000u;
-        const u32 binsn = (boff + 4u <= ram_size) ? Common::swap32(&ram[boff]) : 0u;
-        const u32 opcd = binsn >> 26;
-        const bool links = (opcd == 16u || opcd == 18u) && (binsn & 1u);  // bcl / bl
-        const bool indirect = (opcd == 19u);                              // bclr / bcctr
-        const bool cross_chunk = ChunkIndexOf(before) != ChunkIndexOf(end_pc);
-        if (!links && !indirect && !cross_chunk)
-          is_boundary = false;  // local forward goto into the loop body, not a return
-      }
-      if (is_boundary)
-        break;
-    }
-    if (interp_cycles >= native_charge)
-    {
-      // Native's static charge is consumed. At end_pc now => a clean straight-
-      // line segment boundary; stop — UNLESS end_pc is a loop header, where this
-      // first arrival is the sequential fall-through into the body and native's
-      // real boundary is the later back-edge (caught non-sequentially above); in
-      // that case step on. Otherwise native UNDERCHARGED: it was dispatched into
-      // an address past an accounting block's `downcount -=` charge (mid-
-      // accounting-block entry: a cross-function / indirect / jump-table target
-      // that is not an accounting leader), so native_charge is short of the
-      // block's true cost. Rather than stop here and misreport a charge-only
-      // deficit as a control-flow divergence, step on toward native's real
-      // boundary (end_pc, which native provably reached) for a bounded grace,
-      // then compare registers. A genuine split would fail to reach end_pc within
-      // the grace and still report CTRLFLOW. The loop-header undercharge (the
-      // prologue native skipped) is a handful of cycles, far under the grace, so
-      // the back-edge is always reached in-window. (The D3 mid-accounting-block-
-      // entry undercharge itself is a separate downcount item; see
-      // dolphin-chassis.md.)
-      if (ppc.pc == end_pc && !end_is_loop_header)
-        break;
-      if (interp_cycles >= native_charge + LS_UNDERCHARGE_GRACE)
-        break;
-    }
-  }
-  const bool reached = (ppc.pc == end_pc);
-  const bool undercharged = reached && interp_cycles > native_charge;
-
-  StaticRecompLockstep::g_hw_write_sink = nullptr;
-  StaticRecompLockstep::g_hw_write_sink_user = nullptr;
-  StaticRecompLockstep::g_hw_read_sink = nullptr;
-  StaticRecompLockstep::g_hw_read_sink_user = nullptr;
-  StaticRecompLockstep::g_tb_override_active = false;
-  StaticRecompLockstep::g_ram_write_journal = nullptr;
-  StaticRecompLockstep::g_ram_write_journal_user = nullptr;
-  StaticRecompLockstep::g_lc_write_journal = nullptr;
-  StaticRecompLockstep::g_lc_write_journal_user = nullptr;
-  StaticRecompLockstep::g_vmem_write_journal = nullptr;
-  StaticRecompLockstep::g_vmem_write_journal_user = nullptr;
-
-  // ---- Compare native (N = m_guest) vs interpreter (I = ppc) ---------------
-  std::string diff;
-  const auto addu = [&](const std::string& name, u64 n, u64 i) {
-    if (n != i)
-      diff += fmt::format(" {}:N={:#x},I={:#x}", name, n, i);
-  };
-
-  if (!reached)
-  {
-    diff += fmt::format(" CTRLFLOW:N_end={:#010x},I_pc={:#010x},steps={},N_cyc={},I_cyc={}", end_pc,
-                        ppc.pc, steps, native_charge, interp_cycles);
-  }
-  else
-  {
-    for (int r = 0; r < 32; ++r)
-      addu(fmt::format("r{}", r), m_guest.gpr[r], ppc.gpr[r]);
-    for (int r = 0; r < 32; ++r)
-    {
-      u64 n, i;
-      std::memcpy(&n, &m_guest.fpr[r], sizeof(u64));
-      std::memcpy(&i, &ppc.ps[r].ps0, sizeof(u64));
-      addu(fmt::format("f{}", r), n, i);
-      std::memcpy(&n, &m_guest.ps1[r], sizeof(u64));
-      std::memcpy(&i, &ppc.ps[r].ps1, sizeof(u64));
-      addu(fmt::format("ps1_{}", r), n, i);
-    }
-    addu("lr", m_guest.lr, ppc.spr[SPR_LR]);
-    addu("ctr", m_guest.ctr, ppc.spr[SPR_CTR]);
-    addu("cr", m_guest.cr, ppc.cr.Get());
-    addu("xer", m_guest.xer, ppc.GetXER().Hex);
-    addu("fpscr", m_guest.fpscr, ppc.fpscr.Hex);
-    addu("msr", m_guest.msr, ppc.msr.Hex);
-    addu("srr0", m_guest.srr0, ppc.spr[SPR_SRR0]);
-    addu("srr1", m_guest.srr1, ppc.spr[SPR_SRR1]);
-    addu("pc", m_guest.pc, ppc.pc);
-
-    // RAM writes: native's committed value (post) vs the interpreter's value
-    // now in realRAM (it committed onto the restored pre-image).
-    for (const auto& [off, post] : m_ls_post)
-    {
-      const u8 iv = (off < ram_size) ? ram[off] : post;
-      if (iv != post)
-        diff += fmt::format(" mem[{:#010x}]:N={:#04x},I={:#04x}", 0x80000000u + off, post, iv);
-    }
-
-    // Locked-cache writes: same comparison against L1Cache.
-    if (l1)
-    {
-      for (const auto& [off, post] : m_ls_lc_post)
-      {
-        const u8 iv = (off < l1_size) ? l1[off] : post;
-        if (iv != post)
-          diff += fmt::format(" lc[{:#010x}]:N={:#04x},I={:#04x}", 0xE0000000u + off, post, iv);
-      }
-    }
-
-    // Fake-VMEM writes: same comparison against the guest VM window buffer.
-    if (vmem)
-    {
-      for (const auto& [off, post] : m_ls_vmem_post)
-      {
-        const u8 iv = (off < vmem_size) ? vmem[off] : post;
-        if (iv != post)
-          diff += fmt::format(" vmem[{:#08x}]:N={:#04x},I={:#04x}", off, post, iv);
-      }
-    }
-
-    // MMIO / gather-pipe writes: native (hooks) vs interpreter (suppressed
-    // sink). Compare only the low `size` bytes — native's hook value is already
-    // width-masked, but the interpreter's sink captures the raw store register.
-    // Normalise the address to physical (strip cache/segment bits).
-    const auto low = [](u32 v, u32 sz) { return sz >= 4 ? v : (v & ((1u << (sz * 8)) - 1)); };
-    if (m_ls_native_mmio.size() != m_ls_interp_mmio.size())
-    {
-      diff += fmt::format(" mmio#:N={},I={}", m_ls_native_mmio.size(), m_ls_interp_mmio.size());
-      // List each side's addresses so a residual count mismatch is diagnosable
-      // (which region/path split), not just a bare count.
-      for (const LsWrite& w : m_ls_native_mmio)
-        diff += fmt::format(" N@{:#010x}/{}", w.addr, w.size);
-      for (const LsWrite& w : m_ls_interp_mmio)
-        diff += fmt::format(" I@{:#010x}/{}", w.addr, w.size);
-    }
-    else
-    {
-      for (size_t k = 0; k < m_ls_native_mmio.size(); ++k)
-      {
-        const LsWrite& a = m_ls_native_mmio[k];
-        const LsWrite& b = m_ls_interp_mmio[k];
-        if ((a.addr & 0x0FFFFFFFu) != (b.addr & 0x0FFFFFFFu) || a.size != b.size ||
-            low(a.data, a.size) != low(b.data, b.size))
-        {
-          diff += fmt::format(" mmio[{}]:N={:#x}={:#x}/{},I={:#x}={:#x}/{}", k, a.addr,
-                              low(a.data, a.size), a.size, b.addr, low(b.data, b.size), b.size);
-        }
-      }
-    }
-    if (m_ls_read_overflow)
-      diff += " mmio-read-seq-divergence";
-  }
-
-  if (!diff.empty() && m_ls_whitelist.find(entry_pc) == m_ls_whitelist.end())
-  {
-    ++m_ls_reports;
-    if (m_ls_max_report == 0 || m_ls_reports <= m_ls_max_report)
-    {
-      std::fprintf(stderr, "[lockstep] DIVERGE #%llu entry=0x%08X end=0x%08X:%s\n",
-                   (unsigned long long)m_ls_reports, entry_pc, end_pc, diff.c_str());
-    }
-  }
-  else if (undercharged)
-  {
-    // Register/memory/MMIO all matched at native's true boundary, but native
-    // charged fewer cycles than the interpreter needed to reach it: a D3
-    // downcount undercharge from mid-accounting-block dispatch entry. Not an
-    // architectural divergence — quantify it separately (deficit in cycles).
-    ++m_ls_undercharges;
-    const s64 deficit = interp_cycles - native_charge;
-    if (deficit > m_ls_max_undercharge)
-      m_ls_max_undercharge = deficit;
-    if (m_ls_undercharges <= 64)
-    {
-      std::fprintf(stderr,
-                   "[lockstep] UNDERCHARGE #%llu entry=0x%08X end=0x%08X: "
-                   "N_cyc=%lld I_cyc=%lld deficit=%lld (regs/mem exact)\n",
-                   (unsigned long long)m_ls_undercharges, entry_pc, end_pc,
-                   (long long)native_charge, (long long)interp_cycles, (long long)deficit);
-    }
-  }
-
-  // Undo the shadow's MEM1 stores (back to the block pre-image), then redo
-  // native's writes so RAM is canonical for continued native execution. Undo
-  // first: the shadow may have written offsets native did not (e.g. a hardware
-  // block whose interpreter path stores to RAM where native's hook routed the
-  // write elsewhere); those are absent from m_ls_post and would otherwise leak.
-  for (const auto& [off, pre] : m_ls_shadow_pre)
-    if (off < ram_size)
-      ram[off] = pre;
-  for (const auto& [off, post] : m_ls_post)
-    if (off < ram_size)
-      ram[off] = post;
-  // Same for locked cache: undo the shadow's LC stores back to the block
-  // pre-image, then redo native's committed LC writes so canonical LC is correct
-  // for continued native execution.
-  if (l1)
-  {
-    for (const auto& [off, pre] : m_ls_lc_shadow_pre)
-      if (off < l1_size)
-        l1[off] = pre;
-    for (const auto& [off, post] : m_ls_lc_post)
-      if (off < l1_size)
-        l1[off] = post;
-  }
-  // Same for the Fake-VMEM guest VM window: undo the shadow's stores, then redo
-  // native's committed writes so the window is canonical for continued native.
-  if (vmem)
-  {
-    for (const auto& [off, pre] : m_ls_vmem_shadow_pre)
-      if (off < vmem_size)
-        vmem[off] = pre;
-    for (const auto& [off, post] : m_ls_vmem_post)
-      if (off < vmem_size)
-        vmem[off] = post;
-  }
-  // Restore burst scratch (feature flags from msr, downcount, exceptions) and
-  // re-arm the host FP mode for continued native execution off m_guest.
-  ppc.msr.Hex = saved_msr;
-  power_pc.MSRUpdated();
-  ppc.downcount = saved_downcount;
-  ppc.Exceptions = saved_exceptions;
-  if (m_module->on_state_loaded)
-    m_module->on_state_loaded(&m_guest);
-}
 
 void StaticRecompCore::Run()
 {
@@ -1518,37 +790,10 @@ void StaticRecompCore::Run()
         ++m_bursts;
         do
         {
-          // Lockstep differential: for the first native dispatch of each
-          // distinct entry PC (deduped), journal native's RAM writes so the
-          // block can be re-run on the interpreter and compared. Inert unless
-          // STATICRECOMP_LOCKSTEP is set (m_lockstep short-circuits first).
-          const u32 ls_entry = m_guest.pc;
-          const bool do_ls = m_lockstep && LockstepWindowOpen() &&
-                             m_ls_checked.find(ls_entry) == m_ls_checked.end();
-          CPUState ls_snapshot;
+          const bool do_ls = m_lockstep_verifier->ShouldCheck(m_guest.pc);
           if (do_ls)
           {
-            ls_snapshot = m_guest;
-            m_ls_pre.clear();
-            m_ls_lc_pre.clear();
-            m_ls_vmem_pre.clear();
-            m_ls_native_mmio.clear();
-            m_ls_native_reads.clear();
-            m_ls_fallback_seen = false;
-            m_ls_journaling = true;
-            // Generated flat-RAM (ctx->ram) writes journal through the module hook.
-            m_set_mem_journal(&StaticRecompCore::LsJournalTrampoline, this);
-            // Native's MMU-path writes (MEM1, locked cache, and the guest VM
-            // window's Fake-VMEM buffer) bypass that hook — capture their pre-
-            // images here too so the shadow re-run reads the block pre-image
-            // (correct RMW), not native's committed values. The same trampoline
-            // funnels MEM1 writes into m_ls_pre; LC and Fake-VMEM have their own.
-            StaticRecompLockstep::g_ram_write_journal = &StaticRecompCore::LsJournalTrampoline;
-            StaticRecompLockstep::g_ram_write_journal_user = this;
-            StaticRecompLockstep::g_lc_write_journal = &StaticRecompCore::LsNativeLcJournalTrampoline;
-            StaticRecompLockstep::g_lc_write_journal_user = this;
-            StaticRecompLockstep::g_vmem_write_journal = &StaticRecompCore::LsNativeVmemJournalTrampoline;
-            StaticRecompLockstep::g_vmem_write_journal_user = this;
+            m_lockstep_verifier->Prepare(m_guest);
           }
 
           m_module->dispatch(&m_guest, m_guest.pc);
@@ -1556,16 +801,7 @@ void StaticRecompCore::Run()
 
           if (do_ls)
           {
-            m_ls_journaling = false;
-            m_set_mem_journal(nullptr, nullptr);
-            StaticRecompLockstep::g_ram_write_journal = nullptr;
-            StaticRecompLockstep::g_ram_write_journal_user = nullptr;
-            StaticRecompLockstep::g_lc_write_journal = nullptr;
-            StaticRecompLockstep::g_lc_write_journal_user = nullptr;
-            StaticRecompLockstep::g_vmem_write_journal = nullptr;
-            StaticRecompLockstep::g_vmem_write_journal_user = nullptr;
-            m_ls_checked.insert(ls_entry);
-            LockstepCheck(ls_entry, m_guest.pc, ls_snapshot);
+            m_lockstep_verifier->Verify(m_guest);
           }
           /*
           if (VerboseCounters() && (m_native_dispatches & 0x3FFFFFu) == 1u)

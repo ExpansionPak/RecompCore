@@ -19,12 +19,19 @@ namespace Core
 class System;
 }
 
+namespace StaticRecompLockstep
+{
+class StaticRecompLockstepVerifier;
+}
+
 // Executes statically recompiled per-game native code when the PC is covered by
 // a loaded module; falls back to Dolphin's interpreter for everything else.
 // With no module loaded this core is exactly an interpreter loop.
 class StaticRecompCore : public JitBase
 {
 public:
+  friend class StaticRecompLockstep::StaticRecompLockstepVerifier;
+
   explicit StaticRecompCore(Core::System& system);
   StaticRecompCore(const StaticRecompCore&) = delete;
   StaticRecompCore(StaticRecompCore&&) = delete;
@@ -117,69 +124,7 @@ private:
   // with the guest MSR before any MMU access or exception delivery.
   void PropagateGuestMSR();
 
-  // --- Lockstep differential (STATICRECOMP_LOCKSTEP) -------------------------
-  // For the first native dispatch of each distinct entry PC (deduped), re-run
-  // the same basic block on Dolphin's interpreter from an identical snapshot
-  // and compare every architectural field + memory writes. Native remains the
-  // canonical run; the interpreter is a shadow whose hardware writes are
-  // suppressed and whose RAM view is the block's pre-image (so read-modify-
-  // write compares correctly). Divergences dump the entry PC and differing
-  // fields. Entirely inert unless enabled (zero behaviour change when off).
-  void InitLockstep();
-  bool LockstepWindowOpen() const;
-  void LockstepCheck(u32 entry_pc, u32 end_pc, const CPUState& entry_state);
-  void LoadEntryRegsToPPC(const CPUState& s);  // CPUState -> PowerPCState (regs only)
-  static void LsJournalTrampoline(u32 offset, u32 size, void* user);
-  static void LsShadowJournalTrampoline(u32 offset, u32 size, void* user);
-  static void LsNativeLcJournalTrampoline(u32 lc_offset, u32 size, void* user);
-  static void LsShadowLcJournalTrampoline(u32 lc_offset, u32 size, void* user);
-  static void LsNativeVmemJournalTrampoline(u32 vmem_offset, u32 size, void* user);
-  static void LsShadowVmemJournalTrampoline(u32 vmem_offset, u32 size, void* user);
-  static void LsHwWriteTrampoline(u32 physical_address, u32 data, u32 size, void* user);
-  static u32 LsHwReadTrampoline(u32 physical_address, u32 size, void* user);
-
-  using SetMemJournalFn = void (*)(void (*)(u32, u32, void*), void*);
-
-  struct LsWrite
-  {
-    u32 addr;
-    u32 data;
-    u32 size;
-  };
-
-  bool m_lockstep = false;
-  u64 m_ls_start = 0;             // begin checking at this native-dispatch index
-  u64 m_ls_limit = 0;            // stop checking after this index (0 = no bound)
-  u64 m_ls_max_report = 0;      // cap divergence reports (0 = unlimited)
-  int m_ls_step_cap = 512;      // interpreter single-steps before giving up on end PC
-  u64 m_ls_checks = 0;          // distinct blocks differentially checked
-  u64 m_ls_reports = 0;         // divergences reported
-  u64 m_ls_skipped_fallback = 0;  // blocks skipped (native used instruction fallback)
-  u64 m_ls_skipped_zero = 0;      // blocks skipped (zero cycle charge: no alignable work)
-  u64 m_ls_undercharges = 0;      // blocks regs-exact but native undercharged downcount (D3)
-  s64 m_ls_max_undercharge = 0;   // worst per-block cycle deficit observed
-  SetMemJournalFn m_set_mem_journal = nullptr;  // resolved from the module
-  std::unordered_set<u32> m_ls_checked;    // entry PCs already checked (dedupe)
-  std::unordered_set<u32> m_ls_whitelist;  // entry PCs never reported (known-benign)
-  u32 m_ls_trace_pc = 0;  // STATICRECOMP_LOCKSTEP_TRACE: per-instr shadow dump for one entry PC
-
-  // per-check scratch, reused to avoid per-block allocation churn:
-  bool m_ls_journaling = false;      // native journal active (guards trampolines)
-  bool m_ls_fallback_seen = false;   // native took the instruction-fallback path
-  std::unordered_map<u32, u8> m_ls_pre;   // ram offset -> pre-block byte (native writes)
-  std::unordered_map<u32, u8> m_ls_post;  // ram offset -> native post byte
-  std::unordered_map<u32, u8> m_ls_shadow_pre;  // ram offset -> pre-shadow byte (shadow writes)
-  std::unordered_map<u32, u8> m_ls_lc_pre;   // L1Cache offset -> pre-block byte (native LC writes)
-  std::unordered_map<u32, u8> m_ls_lc_post;  // L1Cache offset -> native post byte
-  std::unordered_map<u32, u8> m_ls_lc_shadow_pre;  // L1Cache offset -> pre-shadow byte (shadow LC writes)
-  std::unordered_map<u32, u8> m_ls_vmem_pre;   // Fake-VMEM offset -> pre-block byte (native VM writes)
-  std::unordered_map<u32, u8> m_ls_vmem_post;  // Fake-VMEM offset -> native post byte
-  std::unordered_map<u32, u8> m_ls_vmem_shadow_pre;  // Fake-VMEM offset -> pre-shadow byte (shadow VM writes)
-  std::vector<LsWrite> m_ls_native_mmio;   // native MMIO/gather writes (hooks)
-  std::vector<LsWrite> m_ls_interp_mmio;   // interpreter MMIO/gather writes (sink)
-  std::vector<LsWrite> m_ls_native_reads;  // native MMIO reads (hooks), replayed to the shadow
-  size_t m_ls_read_index = 0;              // replay cursor into m_ls_native_reads
-  bool m_ls_read_overflow = false;         // shadow read more MMIO than native (path split)
+  std::unique_ptr<StaticRecompLockstep::StaticRecompLockstepVerifier> m_lockstep_verifier;
 
   EmptyBlockCache m_block_cache{*this};
 
