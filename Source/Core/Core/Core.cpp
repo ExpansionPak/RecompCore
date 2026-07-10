@@ -107,28 +107,17 @@ static std::atomic<bool> s_stop_frame_step;
 // Threads other than the CPU thread must hold this when taking on the role of the CPU thread.
 // The CPU thread is not required to hold this when doing normal work, but must hold it if writing
 // to s_state.
-static std::recursive_mutex s_core_mutex;
+std::recursive_mutex s_core_mutex;
 
 // The value Paused is never stored in this variable. The core is considered to be in
 // the Paused state if this variable is Running and the CPU reports that it's stepping.
-static std::atomic<State> s_state = State::Uninitialized;
+std::atomic<State> s_state = State::Uninitialized;
 
 #ifdef USE_MEMORYWATCHER
 static std::unique_ptr<MemoryWatcher> s_memory_watcher;
 #endif
 
 static void Callback_FramePresented(const PresentInfo& present_info);
-
-struct HostJob
-{
-  std::function<void(Core::System&)> job;
-  bool run_after_stop;
-};
-static std::mutex s_host_jobs_lock;
-static std::queue<HostJob> s_host_jobs_queue;
-
-static thread_local bool tls_is_cpu_thread = false;
-static thread_local bool tls_is_gpu_thread = false;
 
 static void EmuThread(Core::System& system, std::unique_ptr<BootParameters> boot,
                       WindowSystemInfo wsi);
@@ -199,15 +188,7 @@ bool IsUninitialized(Core::System& system)
   return s_state.load() == State::Uninitialized;
 }
 
-bool IsCPUThread()
-{
-  return tls_is_cpu_thread;
-}
 
-bool IsGPUThread()
-{
-  return tls_is_gpu_thread;
-}
 
 bool WantsDeterminism()
 {
@@ -291,25 +272,7 @@ void Stop(Core::System& system)  // - Hammertime!
   system.GetCPU().Stop();
 }
 
-void DeclareAsCPUThread()
-{
-  tls_is_cpu_thread = true;
-}
 
-void UndeclareAsCPUThread()
-{
-  tls_is_cpu_thread = false;
-}
-
-void DeclareAsGPUThread()
-{
-  tls_is_gpu_thread = true;
-}
-
-void UndeclareAsGPUThread()
-{
-  tls_is_gpu_thread = false;
-}
 
 // For the CPU Thread only.
 static void CPUSetInitialExecutionState(Core::System& system, bool force_paused = false)
@@ -733,58 +696,8 @@ State GetState(Core::System& system)
     return state;
 }
 
-static std::string GenerateScreenshotFolderPath()
-{
-  const std::string& gameId = SConfig::GetInstance().GetGameID();
-  std::string path = File::GetUserPath(D_SCREENSHOTS_IDX) + gameId + DIR_SEP_CHR;
 
-  if (!File::CreateFullPath(path))
-  {
-    // fallback to old-style screenshots, without folder.
-    path = File::GetUserPath(D_SCREENSHOTS_IDX);
-  }
-
-  return path;
-}
-
-static std::optional<std::string> GenerateScreenshotName()
-{
-  // append gameId, path only contains the folder here.
-  const std::string path_prefix =
-      GenerateScreenshotFolderPath() + SConfig::GetInstance().GetGameID();
-
-  const std::time_t cur_time = std::time(nullptr);
-  const auto local_time = Common::LocalTime(cur_time);
-  if (!local_time)
-    return std::nullopt;
-  const std::string base_name = fmt::format("{}_{:%Y-%m-%d_%H-%M-%S}", path_prefix, *local_time);
-
-  // First try a filename without any suffixes, if already exists then append increasing numbers
-  std::string name = fmt::format("{}.png", base_name);
-  if (File::Exists(name))
-  {
-    for (u32 i = 1; File::Exists(name = fmt::format("{}_{}.png", base_name, i)); ++i)
-      ;
-  }
-
-  return name;
-}
-
-void SaveScreenShot()
-{
-  const Core::CPUThreadGuard guard(Core::System::GetInstance());
-  std::optional<std::string> name = GenerateScreenshotName();
-  if (name)
-    g_frame_dumper->SaveScreenshot(*name);
-}
-
-void SaveScreenShot(std::string_view name)
-{
-  const Core::CPUThreadGuard guard(Core::System::GetInstance());
-  g_frame_dumper->SaveScreenshot(fmt::format("{}{}.png", GenerateScreenshotFolderPath(), name));
-}
-
-static bool PauseAndLock(Core::System& system)
+bool PauseAndLock(Core::System& system)
 {
   s_core_mutex.lock();
 
@@ -807,7 +720,7 @@ static bool PauseAndLock(Core::System& system)
   return was_unpaused;
 }
 
-static void RestoreStateAndUnlock(Core::System& system, const bool unpause_on_unlock)
+void RestoreStateAndUnlock(Core::System& system, const bool unpause_on_unlock)
 {
   Common::ScopeGuard scope_guard([] { s_core_mutex.unlock(); });
 
@@ -961,45 +874,7 @@ void UpdateWantDeterminism(Core::System& system, bool initial)
   }
 }
 
-void QueueHostJob(std::function<void(Core::System&)> job, bool run_during_stop)
-{
-  if (!job)
-    return;
 
-  bool send_message = false;
-  {
-    std::lock_guard guard(s_host_jobs_lock);
-    send_message = s_host_jobs_queue.empty();
-    s_host_jobs_queue.emplace(HostJob{std::move(job), run_during_stop});
-  }
-  // If the the queue was empty then kick the Host to come and get this job.
-  if (send_message)
-    Host_Message(HostMessageID::WMUserJobDispatch);
-}
-
-void HostDispatchJobs(Core::System& system)
-{
-  // WARNING: This should only run on the Host Thread.
-  // NOTE: This function is potentially re-entrant. If a job calls
-  //   Core::Stop for instance then we'll enter this a second time.
-  std::unique_lock guard(s_host_jobs_lock);
-  while (!s_host_jobs_queue.empty())
-  {
-    HostJob job = std::move(s_host_jobs_queue.front());
-    s_host_jobs_queue.pop();
-
-    if (!job.run_after_stop)
-    {
-      const State state = s_state.load();
-      if (state == State::Stopping || state == State::Uninitialized)
-        continue;
-    }
-
-    guard.unlock();
-    job.job(system);
-    guard.lock();
-  }
-}
 
 // NOTE: Host Thread
 void DoFrameStep(Core::System& system)
@@ -1038,17 +913,6 @@ void UpdateInputGate(bool require_focus, bool require_full_focus)
   ControlReference::SetInputGate(focus_passes && full_focus_passes);
 }
 
-CPUThreadGuard::CPUThreadGuard(Core::System& system)
-    : m_system(system), m_was_cpu_thread(IsCPUThread())
-{
-  if (!m_was_cpu_thread)
-    m_was_unpaused = PauseAndLock(system);
-}
 
-CPUThreadGuard::~CPUThreadGuard()
-{
-  if (!m_was_cpu_thread)
-    RestoreStateAndUnlock(m_system, m_was_unpaused);
-}
 
 }  // namespace Core

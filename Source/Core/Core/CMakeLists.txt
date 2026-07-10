@@ -66,6 +66,9 @@ add_library(core
   Config/ConfigManager.h
   Core.cpp
   Core.h
+  CoreJobs.cpp
+  CoreScreenshot.cpp
+  CoreThreads.cpp
   CoreTiming.cpp
   CoreTiming.h
   CPUThreadConfigCallback.cpp
@@ -563,6 +566,7 @@ add_library(core
   PowerPC/GDBStub.h
   PowerPC/MMU.cpp
   PowerPC/MMU.h
+  PowerPC/MMUDebug.cpp
   PowerPC/MMUBAT.cpp
   PowerPC/MMUBAT.h
   PowerPC/MMUPageTable.cpp
@@ -597,6 +601,8 @@ add_library(core
   PowerPC/SignatureDB/SignatureDB.h
   State.cpp
   State.h
+  StateFile.cpp
+  StateFile.h
   SyncIdentifier.h
   Wii/SysConf.cpp
   Wii/SysConf.h
