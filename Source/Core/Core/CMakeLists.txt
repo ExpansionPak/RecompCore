@@ -466,6 +466,8 @@ add_library(core
   IOS/USB/Bluetooth/BTBase.h
   IOS/USB/Bluetooth/BTEmu.cpp
   IOS/USB/Bluetooth/BTEmu.h
+  IOS/USB/Bluetooth/BTEmuDevices.cpp
+  IOS/USB/Bluetooth/BTEmuHCI.cpp
   IOS/USB/Bluetooth/BTStub.cpp
   IOS/USB/Bluetooth/BTStub.h
   IOS/USB/Bluetooth/hci.h
