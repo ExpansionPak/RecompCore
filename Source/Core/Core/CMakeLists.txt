@@ -1,6 +1,9 @@
 add_library(core
   Achievements/AchievementApprovedHash.h
   Achievements/AchievementManager.cpp
+  Achievements/AchievementFilter.cpp
+  Achievements/AchievementHash.cpp
+  Achievements/AchievementOSD.cpp
   Achievements/AchievementManager.h
   Achievements/AchievementBadgeDownloader.cpp
   Achievements/AchievementIntegrationWin.cpp
@@ -513,6 +516,7 @@ add_library(core
   MemTools.h
   Movie.cpp
   Movie.h
+  MovieConfig.cpp
   MovieFile.cpp
   MovieFile.h
   NetPlay/NetPlayClient.cpp
