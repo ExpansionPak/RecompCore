@@ -620,10 +620,12 @@ add_library(core
   PowerPC/StaticRecomp/StaticRecompLockstep_Trampolines.cpp
   PowerPC/StaticRecomp/StaticRecompLockstep_Check.cpp
   PowerPC/PPCAnalyst.cpp
+  PowerPC/PPCAnalyst_Reorder.cpp
   PowerPC/PPCAnalyst.h
   PowerPC/PPCCache.cpp
   PowerPC/PPCCache.h
   PowerPC/PPCSymbolDB.cpp
+  PowerPC/PPCSymbolDB_IO.cpp
   PowerPC/PPCSymbolDB.h
   PowerPC/PPCTables.cpp
   PowerPC/PPCTables.h
