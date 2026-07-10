@@ -22,7 +22,7 @@ set(GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated" CACHE PATH "DolRecomp 
 if(NOT EXISTS "${GENERATED_DIR}")
   message(FATAL_ERROR "Generated directory not found at ${GENERATED_DIR}. Set -DGENERATED_DIR=<path to DolRecomp output>")
 endif()
-set(DOLRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/DolRuntime" CACHE PATH "DolRuntime checkout")
+set(DOLRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../DolRuntime" CACHE PATH "DolRuntime checkout")
 if(NOT EXISTS "${DOLRUNTIME_DIR}")
   message(FATAL_ERROR "DolRuntime not found at ${DOLRUNTIME_DIR}. Set -DDOLRUNTIME_DIR=<path to DolRuntime>")
 endif()
