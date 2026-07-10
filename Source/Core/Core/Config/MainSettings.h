@@ -55,10 +55,8 @@ namespace Config
 
 extern const Info<bool> MAIN_SKIP_IPL;
 extern const Info<PowerPC::CPUCore> MAIN_CPU_CORE;
-// dolphin-chassis: when the StaticRecomp core is selected, load the per-game
-// native module (true) or run interpreter-only (false = the PRIME INVARIANT
-// path, without moving the module file). Ignored by every other core.
 extern const Info<bool> MAIN_STATICRECOMP_MODULE;
+extern const Info<u32> MAIN_STATICRECOMP_IDLE_PC;
 extern const Info<bool> MAIN_JIT_FOLLOW_BRANCH;
 extern const Info<bool> MAIN_FASTMEM;
 extern const Info<bool> MAIN_PAGE_TABLE_FASTMEM;

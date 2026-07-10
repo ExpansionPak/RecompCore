@@ -181,11 +181,7 @@ void StaticRecompLockstepVerifier::Prepare(const CPUState& guest)
 {
   m_ls_entry = guest.pc;
   m_ls_snapshot = guest;
-  m_ls_pre.clear();
-  m_ls_lc_pre.clear();
-  m_ls_vmem_pre.clear();
-  m_ls_native_mmio.clear();
-  m_ls_native_reads.clear();
+  m_journal.Clear();
   m_ls_fallback_seen = false;
   m_ls_journaling = true;
   m_set_mem_journal(&StaticRecompLockstepVerifier::LsJournalTrampoline, this);
@@ -215,31 +211,7 @@ void StaticRecompLockstepVerifier::LoadEntryRegsToPPC(const CPUState& s)
 {
   auto& power_pc = m_core.m_system.GetPowerPC();
   auto& ppc = power_pc.GetPPCState();
-  std::memcpy(ppc.gpr, s.gpr, sizeof(ppc.gpr));
-  for (int i = 0; i < 32; ++i)
-  {
-    std::memcpy(&ppc.ps[i].ps0, &s.fpr[i], sizeof(u64));
-    std::memcpy(&ppc.ps[i].ps1, &s.ps1[i], sizeof(u64));
-  }
-  ppc.pc = s.pc;
-  ppc.npc = s.pc;
-  ppc.spr[SPR_LR] = s.lr;
-  ppc.spr[SPR_CTR] = s.ctr;
-  ppc.cr.Set(s.cr);
-  ppc.SetXER(UReg_XER{s.xer});
-  ppc.fpscr.Hex = s.fpscr;
-  ppc.spr[SPR_SRR0] = s.srr0;
-  ppc.spr[SPR_SRR1] = s.srr1;
-  ppc.spr[SPR_DAR] = s.dar;
-  ppc.spr[SPR_DSISR] = s.dsisr;
-  ppc.spr[SPR_EAR] = s.ear;
-  ppc.spr[SPR_HID2] = s.hid2;
-  for (int i = 0; i < 16; ++i)
-    ppc.sr[i] = s.sr[i];
-  for (int i = 0; i < 8; ++i)
-    ppc.spr[SPR_GQR0 + i] = s.gqr[i];
-  ppc.reserve_address = s.reserve_addr;
-  ppc.reserve = s.reserve_valid;
+  StaticRecompCore::SetPPCStateFromGuestState(s, ppc);
   ppc.Exceptions = 0;
   ppc.msr.Hex = s.msr;
   power_pc.MSRUpdated();
@@ -256,7 +228,7 @@ void StaticRecompLockstepVerifier::LsJournalTrampoline(u32 offset, u32 size, voi
     const u32 off = offset + i;
     if (off >= ram_size)
       break;
-    verifier->m_ls_pre.emplace(off, ram[off]);
+    verifier->m_journal.ram_pre.emplace(off, ram[off]);
   }
 }
 
@@ -270,7 +242,7 @@ void StaticRecompLockstepVerifier::LsShadowJournalTrampoline(u32 offset, u32 siz
     const u32 off = offset + i;
     if (off >= ram_size)
       break;
-    verifier->m_ls_shadow_pre.emplace(off, ram[off]);
+    verifier->m_journal.ram_shadow_pre.emplace(off, ram[off]);
   }
 }
 
@@ -287,7 +259,7 @@ void StaticRecompLockstepVerifier::LsNativeLcJournalTrampoline(u32 lc_offset, u3
     const u32 off = lc_offset + i;
     if (off >= l1_size)
       break;
-    verifier->m_ls_lc_pre.emplace(off, l1[off]);
+    verifier->m_journal.lc_pre.emplace(off, l1[off]);
   }
 }
 
@@ -304,7 +276,7 @@ void StaticRecompLockstepVerifier::LsShadowLcJournalTrampoline(u32 lc_offset, u3
     const u32 off = lc_offset + i;
     if (off >= l1_size)
       break;
-    verifier->m_ls_lc_shadow_pre.emplace(off, l1[off]);
+    verifier->m_journal.lc_shadow_pre.emplace(off, l1[off]);
   }
 }
 
@@ -321,7 +293,7 @@ void StaticRecompLockstepVerifier::LsNativeVmemJournalTrampoline(u32 vmem_offset
     const u32 off = vmem_offset + i;
     if (off >= vmem_size)
       break;
-    verifier->m_ls_vmem_pre.emplace(off, vmem[off]);
+    verifier->m_journal.vmem_pre.emplace(off, vmem[off]);
   }
 }
 
@@ -338,22 +310,22 @@ void StaticRecompLockstepVerifier::LsShadowVmemJournalTrampoline(u32 vmem_offset
     const u32 off = vmem_offset + i;
     if (off >= vmem_size)
       break;
-    verifier->m_ls_vmem_shadow_pre.emplace(off, vmem[off]);
+    verifier->m_journal.vmem_shadow_pre.emplace(off, vmem[off]);
   }
 }
 
 void StaticRecompLockstepVerifier::LsHwWriteTrampoline(u32 physical_address, u32 data, u32 size, void* user)
 {
   auto* verifier = static_cast<StaticRecompLockstepVerifier*>(user);
-  verifier->m_ls_interp_mmio.push_back({physical_address, data, size});
+  verifier->m_journal.interp_mmio.push_back({physical_address, data, size});
 }
 
 u32 StaticRecompLockstepVerifier::LsHwReadTrampoline(u32 physical_address, u32 size, void* user)
 {
   auto* verifier = static_cast<StaticRecompLockstepVerifier*>(user);
-  if (verifier->m_ls_read_index < verifier->m_ls_native_reads.size())
+  if (verifier->m_ls_read_index < verifier->m_journal.native_reads.size())
   {
-    const LsWrite& rec = verifier->m_ls_native_reads[verifier->m_ls_read_index++];
+    const LsWrite& rec = verifier->m_journal.native_reads[verifier->m_ls_read_index++];
     if ((rec.addr & 0x0FFFFFFFu) != (physical_address & 0x0FFFFFFFu))
       verifier->m_ls_read_overflow = true;
     return rec.data;
@@ -390,29 +362,29 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
     return;
   }
 
-  m_ls_post.clear();
-  for (const auto& [off, pre] : m_ls_pre)
-    m_ls_post.emplace(off, off < ram_size ? ram[off] : pre);
-  for (const auto& [off, pre] : m_ls_pre)
+  m_journal.ram_post.clear();
+  for (const auto& [off, pre] : m_journal.ram_pre)
+    m_journal.ram_post.emplace(off, off < ram_size ? ram[off] : pre);
+  for (const auto& [off, pre] : m_journal.ram_pre)
     if (off < ram_size)
       ram[off] = pre;
 
-  m_ls_lc_post.clear();
+  m_journal.lc_post.clear();
   if (l1)
   {
-    for (const auto& [off, pre] : m_ls_lc_pre)
-      m_ls_lc_post.emplace(off, off < l1_size ? l1[off] : pre);
-    for (const auto& [off, pre] : m_ls_lc_pre)
+    for (const auto& [off, pre] : m_journal.lc_pre)
+      m_journal.lc_post.emplace(off, off < l1_size ? l1[off] : pre);
+    for (const auto& [off, pre] : m_journal.lc_pre)
       if (off < l1_size)
         l1[off] = pre;
   }
 
-  m_ls_vmem_post.clear();
+  m_journal.vmem_post.clear();
   if (vmem)
   {
-    for (const auto& [off, pre] : m_ls_vmem_pre)
-      m_ls_vmem_post.emplace(off, off < vmem_size ? vmem[off] : pre);
-    for (const auto& [off, pre] : m_ls_vmem_pre)
+    for (const auto& [off, pre] : m_journal.vmem_pre)
+      m_journal.vmem_post.emplace(off, off < vmem_size ? vmem[off] : pre);
+    for (const auto& [off, pre] : m_journal.vmem_pre)
       if (off < vmem_size)
         vmem[off] = pre;
   }
@@ -422,10 +394,6 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
   const u32 saved_exceptions = ppc.Exceptions;
   LoadEntryRegsToPPC(entry_state);
 
-  m_ls_interp_mmio.clear();
-  m_ls_shadow_pre.clear();
-  m_ls_lc_shadow_pre.clear();
-  m_ls_vmem_shadow_pre.clear();
   m_ls_read_index = 0;
   m_ls_read_overflow = false;
   StaticRecompLockstep::g_hw_write_sink = &StaticRecompLockstepVerifier::LsHwWriteTrampoline;
@@ -555,7 +523,7 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
     addu("srr1", m_core.m_guest.srr1, ppc.spr[SPR_SRR1]);
     addu("pc", m_core.m_guest.pc, ppc.pc);
 
-    for (const auto& [off, post] : m_ls_post)
+    for (const auto& [off, post] : m_journal.ram_post)
     {
       const u8 iv = (off < ram_size) ? ram[off] : post;
       if (iv != post)
@@ -564,7 +532,7 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
 
     if (l1)
     {
-      for (const auto& [off, post] : m_ls_lc_post)
+      for (const auto& [off, post] : m_journal.lc_post)
       {
         const u8 iv = (off < l1_size) ? l1[off] : post;
         if (iv != post)
@@ -574,7 +542,7 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
 
     if (vmem)
     {
-      for (const auto& [off, post] : m_ls_vmem_post)
+      for (const auto& [off, post] : m_journal.vmem_post)
       {
         const u8 iv = (off < vmem_size) ? vmem[off] : post;
         if (iv != post)
@@ -583,20 +551,20 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
     }
 
     const auto low = [](u32 v, u32 sz) { return sz >= 4 ? v : (v & ((1u << (sz * 8)) - 1)); };
-    if (m_ls_native_mmio.size() != m_ls_interp_mmio.size())
+    if (m_journal.native_mmio.size() != m_journal.interp_mmio.size())
     {
-      diff += fmt::format(" mmio#:N={},I={}", m_ls_native_mmio.size(), m_ls_interp_mmio.size());
-      for (const LsWrite& w : m_ls_native_mmio)
+      diff += fmt::format(" mmio#:N={},I={}", m_journal.native_mmio.size(), m_journal.interp_mmio.size());
+      for (const LsWrite& w : m_journal.native_mmio)
         diff += fmt::format(" N@{:#010x}/{}", w.addr, w.size);
-      for (const LsWrite& w : m_ls_interp_mmio)
+      for (const LsWrite& w : m_journal.interp_mmio)
         diff += fmt::format(" I@{:#010x}/{}", w.addr, w.size);
     }
     else
     {
-      for (size_t k = 0; k < m_ls_native_mmio.size(); ++k)
+      for (size_t k = 0; k < m_journal.native_mmio.size(); ++k)
       {
-        const LsWrite& a = m_ls_native_mmio[k];
-        const LsWrite& b = m_ls_interp_mmio[k];
+        const LsWrite& a = m_journal.native_mmio[k];
+        const LsWrite& b = m_journal.interp_mmio[k];
         if ((a.addr & 0x0FFFFFFFu) != (b.addr & 0x0FFFFFFFu) || a.size != b.size ||
             low(a.data, a.size) != low(b.data, b.size))
         {
@@ -634,29 +602,29 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
     }
   }
 
-  for (const auto& [off, pre] : m_ls_shadow_pre)
+  for (const auto& [off, pre] : m_journal.ram_shadow_pre)
     if (off < ram_size)
       ram[off] = pre;
-  for (const auto& [off, post] : m_ls_post)
+  for (const auto& [off, post] : m_journal.ram_post)
     if (off < ram_size)
       ram[off] = post;
 
   if (l1)
   {
-    for (const auto& [off, pre] : m_ls_lc_shadow_pre)
+    for (const auto& [off, pre] : m_journal.lc_shadow_pre)
       if (off < l1_size)
         l1[off] = pre;
-    for (const auto& [off, post] : m_ls_lc_post)
+    for (const auto& [off, post] : m_journal.lc_post)
       if (off < l1_size)
         l1[off] = post;
   }
 
   if (vmem)
   {
-    for (const auto& [off, pre] : m_ls_vmem_shadow_pre)
+    for (const auto& [off, pre] : m_journal.vmem_shadow_pre)
       if (off < vmem_size)
         vmem[off] = pre;
-    for (const auto& [off, post] : m_ls_vmem_post)
+    for (const auto& [off, post] : m_journal.vmem_post)
       if (off < vmem_size)
         vmem[off] = post;
   }

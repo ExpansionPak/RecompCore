@@ -19,6 +19,11 @@ namespace Core
 class System;
 }
 
+namespace PowerPC
+{
+struct PowerPCState;
+}
+
 namespace StaticRecompLockstep
 {
 class StaticRecompLockstepVerifier;
@@ -106,6 +111,8 @@ private:
   int ChunkIndexOf(u32 address) const;
   void VerifyChunk(u32 index);
 
+  static void SetPPCStateFromGuestState(const CPUState& s, PowerPC::PowerPCState& ppc);
+
   // D1 state residency: registers live in m_guest while native code runs;
   // full sync at every native-burst boundary.
   void SyncIn();   // Dolphin PowerPCState -> m_guest
@@ -157,6 +164,9 @@ private:
   // Dispatch locality: most control transfers stay inside one chunk, so the
   // last hit short-circuits the chunk binary search on the hot path.
   mutable u32 m_last_chunk_index = 0;
+
+  u32 m_idle_pc = 0;
 };
 
 extern StaticRecompCore* g_static_recomp_core;
+

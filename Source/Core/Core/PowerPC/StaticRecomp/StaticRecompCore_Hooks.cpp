@@ -43,7 +43,7 @@ u64 StaticRecompCore::HookExternalRead(CPUState* cpu, u32 ea, u8 size)
   if (core->m_lockstep_verifier->m_ls_journaling &&
       StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
   {
-    core->m_lockstep_verifier->m_ls_native_reads.push_back({ea, static_cast<u32>(value), size});
+    core->m_lockstep_verifier->m_journal.native_reads.push_back({ea, static_cast<u32>(value), size});
   }
   return value;
 }
@@ -60,7 +60,7 @@ void StaticRecompCore::HookExternalWrite(CPUState* cpu, u32 ea, u64 value, u8 si
   if ((ea & 0xFFFFF000) == 0xCC008000u)
   {
     if (core->m_lockstep_verifier->m_ls_journaling)
-      core->m_lockstep_verifier->m_ls_native_mmio.push_back({ea, static_cast<u32>(value), size});
+      core->m_lockstep_verifier->m_journal.native_mmio.push_back({ea, static_cast<u32>(value), size});
     auto& gpfifo = core->m_system.GetGPFifo();
     switch (size)
     {
@@ -88,7 +88,7 @@ void StaticRecompCore::HookExternalWrite(CPUState* cpu, u32 ea, u64 value, u8 si
   if (core->m_lockstep_verifier->m_ls_journaling &&
       StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
   {
-    core->m_lockstep_verifier->m_ls_native_mmio.push_back({ea, static_cast<u32>(value), size});
+    core->m_lockstep_verifier->m_journal.native_mmio.push_back({ea, static_cast<u32>(value), size});
   }
   switch (size)
   {
@@ -122,7 +122,7 @@ u32 StaticRecompCore::HookExternalRead32(CPUState* cpu, u32 ea, u8 rid)
   if (core->m_lockstep_verifier->m_ls_journaling &&
       StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
   {
-    core->m_lockstep_verifier->m_ls_native_reads.push_back({ea, value, 4});
+    core->m_lockstep_verifier->m_journal.native_reads.push_back({ea, value, 4});
   }
   return value;
 }
@@ -136,7 +136,7 @@ void StaticRecompCore::HookExternalWrite32(CPUState* cpu, u32 ea, u32 value, u8 
   if (core->m_lockstep_verifier->m_ls_journaling &&
       StaticRecompLockstep::LsHwAccessInScope(mmu, ea))
   {
-    core->m_lockstep_verifier->m_ls_native_mmio.push_back({ea, value, 4});
+    core->m_lockstep_verifier->m_journal.native_mmio.push_back({ea, value, 4});
   }
   mmu.Write<u32>(value, ea);
 }

@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "Common/Config/Config.h"
+#include "Common/DynamicLibrary.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Core/Config/MainSettings.h"
@@ -22,16 +23,6 @@
 #include "Core/PowerPC/JitArm64/Jit.h"
 #endif
 
-namespace
-{
-#ifdef __APPLE__
-constexpr const char* MODULE_SUFFIX = ".dylib";
-#elif defined(_WIN32)
-constexpr const char* MODULE_SUFFIX = ".dll";
-#else
-constexpr const char* MODULE_SUFFIX = ".so";
-#endif
-}  // namespace
 
 StaticRecompCore* g_static_recomp_core = nullptr;
 
@@ -69,6 +60,7 @@ void StaticRecompCore::Init()
   std::fprintf(stderr, "[staticrecomp] core init (chassis built " __DATE__ " " __TIME__ ")\n");
 
   LoadModule();
+  m_idle_pc = Config::Get(Config::MAIN_STATICRECOMP_IDLE_PC);
   m_lockstep_verifier = std::make_unique<StaticRecompLockstep::StaticRecompLockstepVerifier>(*this);
   m_lockstep_verifier->Init();
 
@@ -130,8 +122,8 @@ void StaticRecompCore::LoadModule()
   }
   else if (!game_id.empty())
   {
-    path = File::GetUserPath(D_USER_IDX) + "StaticRecompModules/g" + game_id + "_recomp" +
-           MODULE_SUFFIX;
+    path = Common::DynamicLibrary::GetUnprefixedFilename(
+        (File::GetUserPath(D_USER_IDX) + "StaticRecompModules/g" + game_id + "_recomp").c_str());
   }
 
   if (path.empty() || !File::Exists(path))

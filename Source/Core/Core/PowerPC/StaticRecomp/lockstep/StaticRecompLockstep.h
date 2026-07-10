@@ -160,22 +160,43 @@ private:
   u32 m_ls_entry = 0;
   CPUState m_ls_snapshot{};
 
+  struct LockstepJournalState
+  {
+    std::unordered_map<u32, u8> ram_pre;
+    std::unordered_map<u32, u8> ram_post;
+    std::unordered_map<u32, u8> ram_shadow_pre;
+    std::unordered_map<u32, u8> lc_pre;
+    std::unordered_map<u32, u8> lc_post;
+    std::unordered_map<u32, u8> lc_shadow_pre;
+    std::unordered_map<u32, u8> vmem_pre;
+    std::unordered_map<u32, u8> vmem_post;
+    std::unordered_map<u32, u8> vmem_shadow_pre;
+    std::vector<LsWrite> native_mmio;
+    std::vector<LsWrite> interp_mmio;
+    std::vector<LsWrite> native_reads;
+
+    void Clear()
+    {
+      ram_pre.clear();
+      ram_post.clear();
+      ram_shadow_pre.clear();
+      lc_pre.clear();
+      lc_post.clear();
+      lc_shadow_pre.clear();
+      vmem_pre.clear();
+      vmem_post.clear();
+      vmem_shadow_pre.clear();
+      native_mmio.clear();
+      interp_mmio.clear();
+      native_reads.clear();
+    }
+  };
+
   // per-check scratch, reused to avoid per-block allocation churn:
   bool m_ls_journaling = false;      // native journal active (guards trampolines)
   bool m_ls_fallback_seen = false;   // native took the instruction-fallback path
-  std::unordered_map<u32, u8> m_ls_pre;   // ram offset -> pre-block byte (native writes)
-  std::unordered_map<u32, u8> m_ls_post;  // ram offset -> native post byte
-  std::unordered_map<u32, u8> m_ls_shadow_pre;  // ram offset -> pre-shadow byte (shadow writes)
-  std::unordered_map<u32, u8> m_ls_lc_pre;   // L1Cache offset -> pre-block byte (native LC writes)
-  std::unordered_map<u32, u8> m_ls_lc_post;  // L1Cache offset -> native post byte
-  std::unordered_map<u32, u8> m_ls_lc_shadow_pre;  // L1Cache offset -> pre-shadow byte (shadow LC writes)
-  std::unordered_map<u32, u8> m_ls_vmem_pre;   // Fake-VMEM offset -> pre-block byte (native VM writes)
-  std::unordered_map<u32, u8> m_ls_vmem_post;  // Fake-VMEM offset -> native post byte
-  std::unordered_map<u32, u8> m_ls_vmem_shadow_pre;  // Fake-VMEM offset -> pre-shadow byte (shadow VM writes)
-  std::vector<LsWrite> m_ls_native_mmio;   // native MMIO/gather writes (hooks)
-  std::vector<LsWrite> m_ls_interp_mmio;   // interpreter MMIO/gather writes (sink)
-  std::vector<LsWrite> m_ls_native_reads;  // native MMIO reads (hooks), replayed to the shadow
-  size_t m_ls_read_index = 0;              // replay cursor into m_ls_native_reads
+  LockstepJournalState m_journal;
+  size_t m_ls_read_index = 0;              // replay cursor into m_journal.native_reads
   bool m_ls_read_overflow = false;         // shadow read more MMIO than native (path split)
 };
 

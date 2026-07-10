@@ -85,8 +85,8 @@ void StaticRecompCore::Run()
           m_charged_cycles += static_cast<u64>(charge > 0 ? charge : 1);
           m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
 
-          // Idle loop skipping for the Wii Menu's OSIdleThread
-          if (m_guest.pc == 0x8150D1D0)
+          // Idle loop skipping for configured target loops (e.g. Wii Menu OSIdleThread)
+          if (m_guest.pc == m_idle_pc && m_idle_pc != 0)
           {
             m_system.GetCoreTiming().Idle();
           }

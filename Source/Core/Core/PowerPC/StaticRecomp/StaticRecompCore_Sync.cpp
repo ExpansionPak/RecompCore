@@ -7,6 +7,35 @@
 #include "Core/HW/SystemTimers.h"
 #include <cstring>
 
+void StaticRecompCore::SetPPCStateFromGuestState(const CPUState& s, PowerPC::PowerPCState& ppc)
+{
+  std::memcpy(ppc.gpr, s.gpr, sizeof(ppc.gpr));
+  for (int i = 0; i < 32; ++i)
+  {
+    std::memcpy(&ppc.ps[i].ps0, &s.fpr[i], sizeof(u64));
+    std::memcpy(&ppc.ps[i].ps1, &s.ps1[i], sizeof(u64));
+  }
+  ppc.pc = s.pc;
+  ppc.npc = s.pc;
+  ppc.spr[SPR_LR] = s.lr;
+  ppc.spr[SPR_CTR] = s.ctr;
+  ppc.cr.Set(s.cr);
+  ppc.SetXER(UReg_XER{s.xer});
+  ppc.fpscr.Hex = s.fpscr;
+  ppc.spr[SPR_SRR0] = s.srr0;
+  ppc.spr[SPR_SRR1] = s.srr1;
+  ppc.spr[SPR_DAR] = s.dar;
+  ppc.spr[SPR_DSISR] = s.dsisr;
+  ppc.spr[SPR_EAR] = s.ear;
+  ppc.spr[SPR_HID2] = s.hid2;
+  for (int i = 0; i < 16; ++i)
+    ppc.sr[i] = s.sr[i];
+  for (int i = 0; i < 8; ++i)
+    ppc.spr[SPR_GQR0 + i] = s.gqr[i];
+  ppc.reserve_address = s.reserve_addr;
+  ppc.reserve = s.reserve_valid;
+}
+
 void StaticRecompCore::SyncIn()
 {
   auto& power_pc = m_system.GetPowerPC();
@@ -59,31 +88,7 @@ void StaticRecompCore::SyncOut()
   ppc.downcount += static_cast<int>(m_guest.downcount);
   m_guest.downcount = 0;
 
-  std::memcpy(ppc.gpr, m_guest.gpr, sizeof(m_guest.gpr));
-  for (int i = 0; i < 32; ++i)
-  {
-    std::memcpy(&ppc.ps[i].ps0, &m_guest.fpr[i], sizeof(u64));
-    std::memcpy(&ppc.ps[i].ps1, &m_guest.ps1[i], sizeof(u64));
-  }
-  ppc.pc = m_guest.pc;
-  ppc.npc = m_guest.pc;
-  ppc.spr[SPR_LR] = m_guest.lr;
-  ppc.spr[SPR_CTR] = m_guest.ctr;
-  ppc.cr.Set(m_guest.cr);
-  ppc.SetXER(UReg_XER{m_guest.xer});
-  ppc.fpscr.Hex = m_guest.fpscr;
-  ppc.spr[SPR_SRR0] = m_guest.srr0;
-  ppc.spr[SPR_SRR1] = m_guest.srr1;
-  ppc.spr[SPR_DAR] = m_guest.dar;
-  ppc.spr[SPR_DSISR] = m_guest.dsisr;
-  ppc.spr[SPR_EAR] = m_guest.ear;
-  ppc.spr[SPR_HID2] = m_guest.hid2;
-  for (int i = 0; i < 16; ++i)
-    ppc.sr[i] = m_guest.sr[i];
-  for (int i = 0; i < 8; ++i)
-    ppc.spr[SPR_GQR0 + i] = m_guest.gqr[i];
-  ppc.reserve_address = m_guest.reserve_addr;
-  ppc.reserve = m_guest.reserve_valid;
+  SetPPCStateFromGuestState(m_guest, ppc);
   // Timebase is owned by Dolphin's CoreTiming; native code cannot write it.
 
   if (ppc.msr.Hex != m_guest.msr)
