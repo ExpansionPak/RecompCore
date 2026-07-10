@@ -28,9 +28,26 @@ static inline void hle_set_f64(CPUState* c, f64 v) { c->fpr[1] = v; }
 // Return from an intercepted call to its caller.
 static inline void hle_return(CPUState* c) { c->pc = c->lr; }
 
+static inline f32 guest_read_f32(CPUState* cpu, u32 address) {
+    u32 bits = mem_read32(cpu, address);
+    f32 value;
+    memcpy(&value, &bits, sizeof value);
+    return value;
+}
+
 // Copy a NUL-terminated guest string at `gaddr` into `buf` (host), at most
 // `cap` bytes including the terminator. Returns `buf`. A zero/!mapped address
 // yields an empty string.
 char* hle_read_cstr(CPUState* c, u32 gaddr, char* buf, size_t cap);
+bool copy_guest_to_host(CPUState* cpu, u32 guest_address, void* output, u32 length);
+bool copy_host_to_guest(CPUState* cpu, u32 guest_address, const void* input, u32 length);
+
+extern bool g_hle_log;
+extern bool g_card_log;
+extern bool g_audio_log;
+extern bool g_graphics_log;
+extern struct DolMemoryCard* g_memory_card;
+
+bool queue_guest_callback(u32 address, s32 channel, s32 result);
 
 #endif // STRIKERSRECOMP_HOST_HLE_ABI_H

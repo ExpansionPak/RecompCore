@@ -15,6 +15,7 @@ using ComPtr = Microsoft::WRL::ComPtr<T>;
 typedef LONG NTSTATUS, *PNTSTATUS;
 extern "C" NTSYSAPI NTSTATUS NTAPI RtlGetVersion(PRTL_OSVERSIONINFOEXW lpVersionInformation);
 #elif __APPLE__
+#include <TargetConditionals.h>
 #include "sys/sysctl.h"
 #elif linux
 #include <ranges>
@@ -287,7 +288,7 @@ std::string GetOSVersion() {
   constexpr auto name = "iOS";
 #elif TARGET_OS_TV
   constexpr auto name = "tvOS";
-#elif
+#else
   constexpr auto name = Unknown;
 #endif
 

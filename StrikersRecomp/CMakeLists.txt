@@ -67,6 +67,10 @@ add_executable(StrikersRecomp
     runtime/host/audio.c
     runtime/host/interrupt.c
     runtime/host/hle.c
+    runtime/host/hle_dvd.c
+    runtime/host/hle_card.c
+    runtime/host/hle_input.c
+    runtime/host/hle_physics.c
     runtime/host/sdk_map.c
     runtime/host/main.c
     "${STRIKERSRECOMP_GENERATED_DIR}/generated.c"

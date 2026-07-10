@@ -50,3 +50,7 @@ CMakeLists.txt.user
 /module-template/generated/*
 !/module-template/generated/generated.h
 /wii_menu
+/StrikersRecomp/chunks
+StrikersRecomp/generated_smc.txt
+StrikersRecomp/generated.c
+StrikersRecomp/generated.h

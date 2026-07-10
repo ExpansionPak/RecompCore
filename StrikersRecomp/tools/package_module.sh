@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STRIKERS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${STRIKERS_DIR}/.." && pwd)"
 
-MODULE_SRC="${STRIKERS_DIR}/chassis-module"
+MODULE_SRC="${REPO_ROOT}/module-template"
 BUILD_DIR="${STRIKERS_DIR}/build-chassis-module"
 USER_DIR="${1:-${REPO_ROOT}/.tools/dolphin/user}"
 
@@ -37,7 +37,7 @@ echo "[package] user dir  : ${USER_DIR}"
 
 # Configure once (ThinLTO Release), then build.
 if [ ! -f "${BUILD_DIR}/build.ninja" ]; then
-  cmake -S "${MODULE_SRC}" -B "${BUILD_DIR}" -GNinja -DCMAKE_BUILD_TYPE=Release
+  cmake -S "${MODULE_SRC}" -B "${BUILD_DIR}" -GNinja -DCMAKE_BUILD_TYPE=Release -DGAME_ID=G4QE01 -DGENERATED_DIR="${STRIKERS_DIR}/generated"
 fi
 ninja -C "${BUILD_DIR}"
 
