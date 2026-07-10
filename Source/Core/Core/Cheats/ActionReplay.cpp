@@ -40,6 +40,7 @@
 #include "Core/Cheats/ARDecrypt.h"
 #include "Core/Achievements/AchievementManager.h"
 #include "Core/Cheats/CheatCodes.h"
+#include "Core/Config/CheatSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Debugger/PPCDebugInterface.h"
 #include "Core/PowerPC/MMU.h"

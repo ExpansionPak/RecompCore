@@ -72,7 +72,6 @@ extern const Info<bool> MAIN_CPU_THREAD;
 extern const Info<bool> MAIN_LOAD_GAME_INTO_MEMORY;
 extern const Info<bool> MAIN_SYNC_ON_SKIP_IDLE;
 extern const Info<std::string> MAIN_DEFAULT_ISO;
-extern const Info<bool> MAIN_ENABLE_CHEATS;
 extern const Info<int> MAIN_GC_LANGUAGE;
 extern const Info<bool> MAIN_OVERRIDE_REGION_SETTINGS;
 extern const Info<bool> MAIN_DPL2_DECODER;
@@ -109,14 +108,6 @@ extern const Info<std::string> MAIN_MODEM_TAPSERVER_DESTINATION;
 const Info<SerialInterface::SIDevices>& GetInfoForSIDevice(int channel);
 const Info<bool>& GetInfoForAdapterRumble(int channel);
 const Info<bool>& GetInfoForSimulateKonga(int channel);
-extern const Info<bool> MAIN_WII_SD_CARD;
-extern const Info<bool> MAIN_WII_SD_CARD_ENABLE_FOLDER_SYNC;
-extern const Info<u64> MAIN_WII_SD_CARD_FILESIZE;
-extern const Info<bool> MAIN_WII_KEYBOARD;
-extern const Info<bool> MAIN_WIIMOTE_CONTINUOUS_SCANNING;
-extern const Info<std::string> MAIN_WIIMOTE_AUTO_CONNECT_ADDRESSES;
-extern const Info<bool> MAIN_WIIMOTE_ENABLE_SPEAKER;
-extern const Info<bool> MAIN_CONNECT_WIIMOTES_FOR_CONTROLLER_INTERFACE;
 extern const Info<bool> MAIN_MMU;
 extern const Info<bool> MAIN_PAUSE_ON_PANIC;
 extern const Info<int> MAIN_BB_DUMP_PORT;
@@ -208,8 +199,6 @@ extern const Info<std::string> MAIN_DUMP_PATH;
 extern const Info<std::string> MAIN_LOAD_PATH;
 extern const Info<std::string> MAIN_RESOURCEPACK_PATH;
 extern const Info<std::string> MAIN_FS_PATH;
-extern const Info<std::string> MAIN_WII_SD_CARD_IMAGE_PATH;
-extern const Info<std::string> MAIN_WII_SD_CARD_SYNC_FOLDER_PATH;
 extern const Info<std::string> MAIN_WFS_PATH;
 extern const Info<bool> MAIN_SHOW_LAG;
 extern const Info<bool> MAIN_SHOW_FRAME_COUNT;
@@ -433,6 +422,5 @@ std::string GetGCIFolderPath(ExpansionInterface::Slot slot, std::optional<DiscIO
 std::string GetGCIFolderPath(std::string configured_folder, ExpansionInterface::Slot slot,
                              std::optional<DiscIO::Region> region);
 bool IsDefaultGCIFolderPathConfigured(ExpansionInterface::Slot slot);
-bool AreCheatsEnabled();
 bool IsDebuggingEnabled();
 }  // namespace Config

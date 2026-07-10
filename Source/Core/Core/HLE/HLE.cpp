@@ -9,6 +9,7 @@
 
 #include "Common/CommonTypes.h"
 
+#include "Core/Config/CheatSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/Cheats/GeckoCode.h"

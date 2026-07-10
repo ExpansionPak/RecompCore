@@ -25,6 +25,7 @@
 #include "Common/MsgHandler.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/WiiSettings.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigLoaders/BaseConfigLoader.h"
 #include "Core/Config/ConfigManager.h"

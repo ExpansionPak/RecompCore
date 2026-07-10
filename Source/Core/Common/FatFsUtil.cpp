@@ -27,6 +27,7 @@
 #include "Common/TimeUtil.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/WiiSettings.h"
 
 enum : u32
 {

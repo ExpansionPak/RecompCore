@@ -12,6 +12,7 @@
 #include "Common/FileUtil.h"
 
 #include "Core/Config/AchievementSettings.h"
+#include "Core/Config/CheatSettings.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/SYSCONFSettings.h"

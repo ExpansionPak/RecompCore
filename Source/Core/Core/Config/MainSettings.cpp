@@ -66,7 +66,6 @@ const Info<bool> MAIN_CPU_THREAD{{System::Main, "Core", "CPUThread"}, DEFAULT_CP
 const Info<bool> MAIN_LOAD_GAME_INTO_MEMORY{{System::Main, "Core", "LoadGameIntoMemory"}, false};
 const Info<bool> MAIN_SYNC_ON_SKIP_IDLE{{System::Main, "Core", "SyncOnSkipIdle"}, true};
 const Info<std::string> MAIN_DEFAULT_ISO{{System::Main, "Core", "DefaultISO"}, ""};
-const Info<bool> MAIN_ENABLE_CHEATS{{System::Main, "Core", "EnableCheats"}, false};
 const Info<int> MAIN_GC_LANGUAGE{{System::Main, "Core", "SelectedLanguage"}, 0};
 const Info<bool> MAIN_OVERRIDE_REGION_SETTINGS{{System::Main, "Core", "OverrideRegionSettings"},
                                                false};
@@ -202,18 +201,6 @@ const Info<bool>& GetInfoForSimulateKonga(int channel)
   return infos[channel];
 }
 
-const Info<bool> MAIN_WII_SD_CARD{{System::Main, "Core", "WiiSDCard"}, true};
-const Info<bool> MAIN_WII_SD_CARD_ENABLE_FOLDER_SYNC{
-    {System::Main, "Core", "WiiSDCardEnableFolderSync"}, false};
-const Info<u64> MAIN_WII_SD_CARD_FILESIZE{{System::Main, "Core", "WiiSDCardFilesize"}, 0};
-const Info<bool> MAIN_WII_KEYBOARD{{System::Main, "Core", "WiiKeyboard"}, false};
-const Info<bool> MAIN_WIIMOTE_CONTINUOUS_SCANNING{
-    {System::Main, "Core", "WiimoteContinuousScanning"}, false};
-const Info<std::string> MAIN_WIIMOTE_AUTO_CONNECT_ADDRESSES{
-    {System::Main, "Core", "WiimoteAutoConnectAddresses"}, ""};
-const Info<bool> MAIN_WIIMOTE_ENABLE_SPEAKER{{System::Main, "Core", "WiimoteEnableSpeaker"}, false};
-const Info<bool> MAIN_CONNECT_WIIMOTES_FOR_CONTROLLER_INTERFACE{
-    {System::Main, "Core", "WiimoteControllerInterface"}, false};
 const Info<bool> MAIN_MMU{{System::Main, "Core", "MMU"}, false};
 const Info<bool> MAIN_PAUSE_ON_PANIC{{System::Main, "Core", "PauseOnPanic"}, false};
 const Info<int> MAIN_BB_DUMP_PORT{{System::Main, "Core", "BBDumpPort"}, -1};
@@ -335,9 +322,6 @@ const Info<std::string> MAIN_DUMP_PATH{{System::Main, "General", "DumpPath"}, ""
 const Info<std::string> MAIN_LOAD_PATH{{System::Main, "General", "LoadPath"}, ""};
 const Info<std::string> MAIN_RESOURCEPACK_PATH{{System::Main, "General", "ResourcePackPath"}, ""};
 const Info<std::string> MAIN_FS_PATH{{System::Main, "General", "NANDRootPath"}, ""};
-const Info<std::string> MAIN_WII_SD_CARD_IMAGE_PATH{{System::Main, "General", "WiiSDCardPath"}, ""};
-const Info<std::string> MAIN_WII_SD_CARD_SYNC_FOLDER_PATH{
-    {System::Main, "General", "WiiSDCardSyncFolder"}, ""};
 const Info<std::string> MAIN_WFS_PATH{{System::Main, "General", "WFSPath"}, ""};
 const Info<bool> MAIN_SHOW_LAG{{System::Main, "General", "ShowLag"}, false};
 const Info<bool> MAIN_SHOW_FRAME_COUNT{{System::Main, "General", "ShowFrameCount"}, false};
@@ -906,11 +890,6 @@ std::string GetGCIFolderPath(std::string configured_folder, ExpansionInterface::
 bool IsDefaultGCIFolderPathConfigured(ExpansionInterface::Slot slot)
 {
   return Config::Get(GetInfoForGCIPath(slot)).empty();
-}
-
-bool AreCheatsEnabled()
-{
-  return Config::Get(::Config::MAIN_ENABLE_CHEATS);
 }
 
 bool IsDebuggingEnabled()

@@ -25,6 +25,7 @@
 #include "Common/FileUtil.h"
 #include "Common/Hash.h"
 #include "Common/IOFile.h"
+#include "Core/MovieFile.h"
 #include "Common/MsgHandler.h"
 #include "Common/NandPaths.h"
 #include "Common/StringUtil.h"
@@ -71,10 +72,7 @@ namespace Movie
 using namespace WiimoteCommon;
 using namespace WiimoteEmu;
 
-static bool IsMovieHeader(const std::array<u8, 4>& magic)
-{
-  return magic[0] == 'D' && magic[1] == 'T' && magic[2] == 'M' && magic[3] == 0x1A;
-}
+
 
 static std::array<u8, 20> ConvertGitRevisionToBytes(const std::string& revision)
 {
@@ -906,10 +904,10 @@ bool MovieManager::PlayInput(const std::string& movie_path,
     return false;
 
   File::IOFile recording_file(movie_path, "rb");
-  if (!recording_file.ReadArray(&m_temp_header, 1))
+  if (!Movie::ReadDTMHeader(recording_file, &m_temp_header))
     return false;
 
-  if (!IsMovieHeader(m_temp_header.filetype))
+  if (!Movie::IsMovieHeader(m_temp_header.filetype))
   {
     PanicAlertFmtT("Invalid recording file");
     return false;
@@ -992,9 +990,14 @@ void MovieManager::LoadInput(const std::string& movie_path)
     return;
   }
 
-  t_record.ReadArray(&m_temp_header, 1);
+  if (!Movie::ReadDTMHeader(t_record, &m_temp_header))
+  {
+    PanicAlertFmtT("Failed to read {0}", movie_path);
+    EndPlayInput(false);
+    return;
+  }
 
-  if (!IsMovieHeader(m_temp_header.filetype))
+  if (!Movie::IsMovieHeader(m_temp_header.filetype))
   {
     PanicAlertFmtT("Savestate movie {0} is corrupted, movie recording stopping...", movie_path);
     EndPlayInput(false);
@@ -1006,7 +1009,7 @@ void MovieManager::LoadInput(const std::string& movie_path)
     m_rerecords++;
     m_temp_header.numRerecords = m_rerecords;
     t_record.Seek(0, File::SeekOrigin::Begin);
-    t_record.WriteArray(&m_temp_header, 1);
+    Movie::WriteDTMHeader(t_record, m_temp_header);
   }
 
   ChangePads();
@@ -1389,7 +1392,7 @@ void MovieManager::SaveRecording(const std::string& filename)
   header.uniqueID = 0;
   // header.audioEmulator;
 
-  save_record.WriteArray(&header, 1);
+  Movie::WriteDTMHeader(save_record, header);
 
   bool success = save_record.WriteBytes(m_temp_input.data(), m_temp_input.size());
 

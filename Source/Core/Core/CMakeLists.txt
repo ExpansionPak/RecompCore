@@ -2,6 +2,8 @@ add_library(core
   Achievements/AchievementApprovedHash.h
   Achievements/AchievementManager.cpp
   Achievements/AchievementManager.h
+  Achievements/AchievementBadgeDownloader.cpp
+  Achievements/AchievementIntegrationWin.cpp
   Cheats/ActionReplay.cpp
   Cheats/ActionReplay.h
   Cheats/ARDecrypt.cpp
@@ -32,6 +34,8 @@ add_library(core
   Config/FreeLookSettings.h
   Config/GraphicsSettings.cpp
   Config/GraphicsSettings.h
+  Config/CheatSettings.cpp
+  Config/CheatSettings.h
   Config/MainSettings.cpp
   Config/MainSettings.h
   Config/NetplaySettings.cpp
@@ -42,6 +46,8 @@ add_library(core
   Config/StaticRecompSettings.h
   Config/SYSCONFSettings.cpp
   Config/SYSCONFSettings.h
+  Config/WiiSettings.cpp
+  Config/WiiSettings.h
   Config/UISettings.cpp
   Config/UISettings.h
   Config/WiimoteSettings.cpp
@@ -504,6 +510,8 @@ add_library(core
   MemTools.h
   Movie.cpp
   Movie.h
+  MovieFile.cpp
+  MovieFile.h
   NetPlay/NetPlayClient.cpp
   NetPlay/NetPlayClient.h
   NetPlay/NetPlayCommon.cpp
@@ -555,6 +563,9 @@ add_library(core
   PowerPC/GDBStub.h
   PowerPC/MMU.cpp
   PowerPC/MMU.h
+  PowerPC/MMUBAT.cpp
+  PowerPC/MMUBAT.h
+  PowerPC/MMUPageTable.cpp
   PowerPC/PowerPC.cpp
   PowerPC/PowerPC.h
   PowerPC/StaticRecomp/StaticRecompABI.h

@@ -20,6 +20,7 @@
 #include "Common/MathUtil.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/WiiSettings.h"
 #include "Core/Core.h"
 #include "Core/HW/Wiimote.h"
 
