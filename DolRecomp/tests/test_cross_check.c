@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "../src/core/types.h"
+#include "core/types.h"
 #include "../src/frontend/decoder.h"
 
 // Raw machine code from devkitPPC (powerpc-eabi-as + powerpc-eabi-objdump).

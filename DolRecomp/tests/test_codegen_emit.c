@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "../src/backend/emitter.h"
-#include "../src/core/types.h"
+#include "core/types.h"
 #include "../src/frontend/decoder.h"
 #include "opcode_samples.h"
 

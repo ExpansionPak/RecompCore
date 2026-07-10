@@ -30,7 +30,7 @@ project(CodegenCompileCheck C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 add_library(codegen_check OBJECT \"${output_c_cmake}\")
-target_include_directories(codegen_check PRIVATE \"${repo_src_cmake}\")
+target_include_directories(codegen_check PRIVATE \"${repo_src_cmake}\" \"${repo_src_cmake}/../../GXRuntime/include\")
 ")
 
 set(configure_args -S "${check_src_dir}" -B "${check_build_dir}")

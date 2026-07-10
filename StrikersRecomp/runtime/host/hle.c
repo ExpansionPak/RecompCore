@@ -7,6 +7,7 @@
 #include "host/sdk_map.h"
 #include "host/hle_physics.h"
 #include "host/hle_input.h"
+#include "host/hle_offsets.h"
 
 #include <limits.h>
 #include <math.h>
@@ -21,6 +22,12 @@ typedef struct {
     const char* name;
     HleHandler  fn;
 } HleEntry;
+
+typedef struct {
+    u32         address;
+    HleHandler  fn;
+    const char* name;
+} HleAddrEntry;
 
 typedef struct {
     HleHandler intercept;
@@ -57,7 +64,7 @@ static double host_time_seconds(void) {
 }
 
 static u32 thp_audio_valid_samples(CPUState* cpu, u32* output_valid) {
-    const u32 base = 0x8032F000u; // THP_SIMPLE_CONTROL
+    const u32 base = STRIKERS_THP_SIMPLE_CONTROL; // THP_SIMPLE_CONTROL
     u32 total = 0;
     for (u32 i = 0; i < 6u; i++)
         total += mem_read32(cpu, base + 0x16Cu + i * 12u + 8u);
@@ -75,7 +82,7 @@ static void movie_cadence_present(CPUState* cpu) {
     if (!g_movie_cadence_log)
         return;
 
-    const u32 base = 0x8032F000u; // THP_SIMPLE_CONTROL
+    const u32 base = STRIKERS_THP_SIMPLE_CONTROL; // THP_SIMPLE_CONTROL
     if (mem_read8(cpu, base + 0x6Cu) == 0u) {
         g_movie_cadence_started = false;
         return;
@@ -160,9 +167,9 @@ static void matrix_log_frame(CPUState* cpu) {
     if (frame_matrix_count >= 120u)
         return;
     ++frame_matrix_count;
-    matrix_log_floats(cpu, "gx_proj     ", 0x8032C090u, 16u);
-    matrix_log_floats(cpu, "gx_modelview", 0x8032C0D0u, 12u);
-    matrix_log_floats(cpu, "gx_mview    ", 0x8032C060u, 12u);
+    matrix_log_floats(cpu, "gx_proj     ", STRIKERS_GX_PROJ_MATRIX, 16u);
+    matrix_log_floats(cpu, "gx_modelview", STRIKERS_GX_MODELVIEW_MATRIX, 12u);
+    matrix_log_floats(cpu, "gx_mview    ", STRIKERS_GX_MVIEW_MATRIX, 12u);
 }
 
 // ---------------------------------------------------------------------------
@@ -172,7 +179,7 @@ static void matrix_log_frame(CPUState* cpu) {
 static void notify_OSSleepThread(CPUState* cpu) {
     if (g_hle_log) {
         fprintf(stderr, "[trace] OSSleepThread queue=0x%08X context=0x%08X\n",
-                hle_arg_u32(cpu, 0), mem_read32(cpu, 0x800000D4u));
+                hle_arg_u32(cpu, 0), mem_read32(cpu, STRIKERS_OS_CONTEXT_POINTER));
     }
 }
 
@@ -308,7 +315,7 @@ static void notify_LCDisable(CPUState* cpu) {
 static void notify_GXBegin(CPUState* cpu) {
 #ifdef STRIKERSRECOMP_AURORA
     ++g_gx_begin_count;
-    if (ball_state_log_enabled() && guest_backchain_contains(cpu, 0x8011DF10u, 0x8011E38Cu)) {
+    if (ball_state_log_enabled() && guest_backchain_contains(cpu, STRIKERS_BALL_DRAW_FUN_START, STRIKERS_BALL_DRAW_FUN_END)) {
         fprintf(stderr, "[ball-draw] guest-frame=%llu begin=%u prim=%u fmt=%u count=%u lr=0x%08X\n",
                 (unsigned long long)(cpu->timebase / 675000ull),
                 g_gx_begin_count, hle_arg_u32(cpu, 0), hle_arg_u32(cpu, 1),
@@ -321,7 +328,7 @@ static void notify_GXLoadPosMtxImm(CPUState* cpu) {
     static int matrix_log_enabled = -1;
     if (matrix_log_enabled < 0)
         matrix_log_enabled = getenv("STRIKERS_MATRIX_LOG") != NULL ? 1 : 0;
-    const bool ball_load = ball_state_log_enabled() && guest_backchain_contains(cpu, 0x8011DF10u, 0x8011E38Cu);
+    const bool ball_load = ball_state_log_enabled() && guest_backchain_contains(cpu, STRIKERS_BALL_DRAW_FUN_START, STRIKERS_BALL_DRAW_FUN_END);
     if (!matrix_log_enabled && !ball_load)
         return;
 
@@ -372,7 +379,7 @@ static void notify_GXCopyDisp(CPUState* cpu) {
             s_cutscene_diag = getenv("STRIKERS_CUTSCENE_DIAG") != NULL ? 1 : 0;
         if (s_cutscene_diag) {
             static u64 s_diag_frame = 0;
-            u8 render_world = mem_read8(cpu, 0x8037273Cu); // g_bRenderWorld
+            u8 render_world = mem_read8(cpu, STRIKERS_RENDER_WORLD_GLOBAL); // g_bRenderWorld
             fprintf(stderr, "[cutscene] frame=%llu g_bRenderWorld=%u\n",
                     (unsigned long long)++s_diag_frame, render_world);
         }
@@ -699,6 +706,25 @@ static bool hle_dispatch(CPUState* cpu, u32 address) {
     return false;
 }
 
+static const HleAddrEntry kPhysicsNotify[] = {
+    { STRIKERS_CBALL_UPDATE_ORIENTATION, notify_cBallUpdateOrientation, "cBall::UpdateOrientation" },
+    { STRIKERS_CBALL_POST_PHYSICS_UPDATE, notify_cBallPostPhysicsUpdate, "cBall::PostPhysicsUpdate" },
+    { STRIKERS_PHYSICS_UPDATE,             notify_PhysicsUpdate,       "PhysicsUpdate" },
+    { STRIKERS_PHYSICS_AI_BALL_POST_UPDATE, notify_PhysicsAIBallPostUpdate, "PhysicsAIBall::PostUpdate" },
+    { STRIKERS_PHYSICS_WORLD_UPDATE,       notify_PhysicsWorldUpdate,  "PhysicsWorld::Update" },
+    { STRIKERS_PHYSICS_WORLD_PRE_UPDATE,   notify_PhysicsWorldPreUpdate, "PhysicsWorld::PreUpdate" },
+    { STRIKERS_DWORLD_QUICK_STEP,          notify_dWorldQuickStep,   "dWorldQuickStep" },
+    { STRIKERS_DBODY_SET_FORCE,            notify_dBodySetForce,     "dBodySetForce" },
+    { STRIKERS_DBODY_ADD_FORCE,            notify_dBodyAddForce,     "dBodyAddForce" },
+    { STRIKERS_DBODY_SET_ANGULAR_VEL,      notify_dBodySetAngularVel, "dBodySetAngularVel" },
+    { STRIKERS_DBODY_SET_LINEAR_VEL,       notify_dBodySetLinearVel, "dBodySetLinearVel" },
+    { STRIKERS_DBODY_SET_ROTATION,          notify_dBodySetRotation,  "dBodySetRotation" },
+    { STRIKERS_DBODY_SET_POSITION,          notify_dBodySetPosition,  "dBodySetPosition" },
+    { STRIKERS_SOR_LCP,                    notify_SorLcp,             "SOR_LCP" },
+    { STRIKERS_SOR_LCP_RETURN,             notify_SorLcpReturn,       "SOR_LCP return" },
+    { STRIKERS_DX_STEP_BODY,               notify_dxStepBody,        "dxStepBody" },
+};
+
 static void initialize_hle_dispatch(void) {
     memset(g_hle_dispatch, 0, sizeof g_hle_dispatch);
 
@@ -748,11 +774,11 @@ void hle_install(CPUState* cpu) {
     memset(&config, 0, sizeof config);
     config.code_base = HLE_CODE_BASE;
     config.code_limit = HLE_CODE_LIMIT;
-    config.dispatch_interrupt_addr = 0x80256FD0u;
-    config.musyx_dsp_done_addr = 0x80374A98u;
-    config.thp_simple_control_addr = 0x8032F000u;
-    config.gx_dirty_state_helper_addr = 0x8024DCA0u;
-    config.gx_flush_prim_helper_addr = 0x8024DDF0u;
+    config.dispatch_interrupt_addr = STRIKERS_DISPATCH_INTERRUPT_ADDR;
+    config.musyx_dsp_done_addr = STRIKERS_MUSYX_DSP_DONE_ADDR;
+    config.thp_simple_control_addr = STRIKERS_THP_SIMPLE_CONTROL;
+    config.gx_dirty_state_helper_addr = STRIKERS_GX_DIRTY_STATE_HELPER_ADDR;
+    config.gx_flush_prim_helper_addr = STRIKERS_GX_FLUSH_PRIM_HELPER_ADDR;
     memcpy(config.game_code, "G4QE", 4);
     memcpy(config.company, "01", 2);
     dol_hle_init(&config);
@@ -794,7 +820,6 @@ void hle_install(CPUState* cpu) {
 
 #ifdef STRIKERSRECOMP_AURORA
     g_gx_begin_count = 0;
-    g_movie_texture_load_count = 0;
 #endif
 
     cpu->host_call = hle_dispatch;

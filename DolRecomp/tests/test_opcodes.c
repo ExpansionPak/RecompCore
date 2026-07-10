@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../src/core/types.h"
+#include "core/types.h"
 #include "../src/frontend/decoder.h"
 
 #define BASE 0x80003000u

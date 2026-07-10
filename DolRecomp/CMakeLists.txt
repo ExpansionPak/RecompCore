@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(DolRecomp C)
 
+include_directories(../GXRuntime/include)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -38,6 +40,9 @@ find_package(ZLIB QUIET)
 
 add_executable(dolrecomp
     src/main.c
+    src/cli.c
+    src/setup.c
+    src/jobs.c
     src/util.c
     src/loader.c
     src/analysis.c
@@ -125,7 +130,7 @@ add_executable(test_pc_reference
     src/frontend/decoder.c
     src/frontend/disasm.c
     src/frontend/dol.c
-    src/core/cpu.c
+    ../GXRuntime/src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
 )
 target_include_directories(test_pc_reference PRIVATE src)
@@ -188,7 +193,7 @@ add_custom_command(
 add_executable(test_emitted_diff
     tests/diff/run.c
     ${DIFF_GENERATED}
-    src/core/cpu.c
+    ../GXRuntime/src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
 )
 target_include_directories(test_emitted_diff PRIVATE src tests/diff)
@@ -240,7 +245,7 @@ add_custom_command(
 add_executable(test_dedicated_diff
     tests/oracle/dedicated_run.c
     ${DEDICATED_GENERATED}
-    src/core/cpu.c
+    ../GXRuntime/src/core/cpu.c
     ../GXRuntime/src/core/cpu_interpreter.c
 )
 target_include_directories(test_dedicated_diff PRIVATE src tests/oracle)
