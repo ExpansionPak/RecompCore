@@ -36,7 +36,7 @@
 @implementation Application
 - (void)shutdown;
 {
-  [self platform]->RequestShutdown();
+  [self platform]->Stop();
   [self stop:nil];
 }
 
@@ -129,6 +129,7 @@ public:
   bool Init() override;
   void SetTitle(const std::string& title) override;
   void MainLoop() override;
+  void SaveWindowGeometry() override;
 
   WindowSystemInfo GetWindowSystemInfo() const override;
 
@@ -176,6 +177,10 @@ bool PlatformMacOS::Init()
                                  styleMask:styleMask
                                    backing:NSBackingStoreBuffered
                                      defer:NO];
+  if (m_window_x == -1 || m_window_y == -1)
+  {
+    [m_window center];
+  }
   m_window_delegate = [[WindowDelegate alloc] init];
   [m_window setDelegate:m_window_delegate];
 
@@ -283,7 +288,7 @@ void PlatformMacOS::UpdateWindowPosition()
   if (m_window_fullscreen)
     return;
 
-  NSRect win = [m_window frame];
+  NSRect win = [m_window contentRectForFrameRect:[m_window frame]];
   m_window_x = win.origin.x;
   m_window_y = win.origin.y;
   m_window_width = win.size.width;
@@ -418,6 +423,18 @@ void PlatformMacOS::SetupMenu()
     [miscMenuItem setSubmenu:miscMenu];
 
     [NSApp setMainMenu:menuBar];
+  }
+}
+
+void PlatformMacOS::SaveWindowGeometry()
+{
+  if (Config::Get(Config::MAIN_RENDER_WINDOW_SAVE_ON_EXIT))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_RENDER_WINDOW_WIDTH, static_cast<int>(m_window_width));
+    Config::SetBaseOrCurrent(Config::MAIN_RENDER_WINDOW_HEIGHT, static_cast<int>(m_window_height));
+    Config::SetBaseOrCurrent(Config::MAIN_RENDER_WINDOW_XPOS, static_cast<int>(m_window_x));
+    Config::SetBaseOrCurrent(Config::MAIN_RENDER_WINDOW_YPOS, static_cast<int>(m_window_y));
+    Config::Save();
   }
 }
 

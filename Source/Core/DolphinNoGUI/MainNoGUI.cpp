@@ -273,6 +273,9 @@ int main(const int argc, char* argv[])
   if (options.is_set("user"))
     user_directory = static_cast<const char*>(options.get("user"));
 
+  UICommon::SetUserDirectory(user_directory);
+  UICommon::Init();
+
   s_platform = GetPlatform(options);
   if (!s_platform || !s_platform->Init())
   {
@@ -281,9 +284,6 @@ int main(const int argc, char* argv[])
   }
 
   const WindowSystemInfo wsi = s_platform->GetWindowSystemInfo();
-
-  UICommon::SetUserDirectory(user_directory);
-  UICommon::Init();
   UICommon::InitControllers(wsi);
 
   Common::ScopeGuard ui_common_guard([] {
@@ -337,6 +337,7 @@ int main(const int argc, char* argv[])
 #endif
 
   s_platform->MainLoop();
+  s_platform->SaveWindowGeometry();
   Core::Stop(Core::System::GetInstance());
 
   Core::Shutdown(Core::System::GetInstance());
