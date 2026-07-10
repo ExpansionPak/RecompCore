@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Bypassing global/system git configs (autocrlf) during dependency checkouts
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_SYSTEM=/dev/null
+export GIT_CONFIG_NOSYSTEM=1
+
+
 # Core count detection
 NCPU=$(sysctl -n hw.ncpu 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
 
