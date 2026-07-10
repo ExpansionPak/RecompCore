@@ -178,6 +178,9 @@ bool MemoryManager::IsAddressInFastmemArea(const u8* address) const
 
 bool MemoryManager::InitFastmemArena()
 {
+  if (m_is_fastmem_arena_initialized)
+    return true;
+
   // Here we set up memory mappings for fastmem. The basic idea of fastmem is that we reserve 4 GiB
   // of virtual memory and lay out the addresses within that 4 GiB range just like the memory map of
   // the emulated system. This lets the JIT emulate PPC load/store instructions by translating a PPC

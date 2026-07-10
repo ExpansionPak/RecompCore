@@ -22,6 +22,7 @@
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PPCSymbolDB.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -231,6 +232,12 @@ JitBlock* JitBaseBlockCache::GetBlockFromStartAddress(u32 addr, CPUEmuFeatureFla
 const u8* JitBaseBlockCache::Dispatch()
 {
   const auto& ppc_state = m_jit.m_ppc_state;
+  if (g_static_recomp_core && g_static_recomp_core->IsModuleActive() &&
+      g_static_recomp_core->DispatchableAt(ppc_state.pc))
+  {
+    return nullptr;
+  }
+
   if (m_entry_points_ptr)
   {
     u8* entry_point =

@@ -37,6 +37,9 @@ public:
 
   void Run() override;
   void SingleStep() override;
+  bool IsModuleActive() const;
+  bool DispatchableAt(u32 address);
+  bool FastDispatchableAt(u32 address) const;
 
   void ClearCache() override;
   void Jit(u32 em_address) override {}
@@ -94,8 +97,6 @@ private:
 
   void OnICacheInvalidate(u32 address, u32 length);
   int ChunkIndexOf(u32 address) const;
-  bool DispatchableAt(u32 address);              // lazily verifies Unverified chunks
-  bool FastDispatchableAt(u32 address) const;    // Verified chunks only
   void VerifyChunk(u32 index);
 
   // D1 state residency: registers live in m_guest while native code runs;
@@ -185,6 +186,8 @@ private:
   CPUState m_guest{};
   Common::DynamicLibrary m_library;
   const StaticRecompModuleDesc* m_module = nullptr;
+  bool m_module_active = false;
+  std::unique_ptr<JitBase> m_fallback_jit;
 
   u64 m_native_dispatches = 0;
   u64 m_fallback_steps = 0;
@@ -199,7 +202,16 @@ private:
   u64 m_verifications = 0;    // chunk hash checks performed
   u64 m_reverify_events = 0;  // invalidations that reset a chunk to Unverified
 
+  // Lookup table optimization for O(1) chunk searches
+  std::vector<int> m_chunk_lookup_table;
+  u32 m_lookup_ram_size = 0;
+  u32 m_lookup_exram_size = 0;
+  int GetAddressLookupIndex(u32 address) const;
+  void InitLookupTable(u32 ram_size, u32 exram_size);
+
   // Dispatch locality: most control transfers stay inside one chunk, so the
   // last hit short-circuits the chunk binary search on the hot path.
   mutable u32 m_last_chunk_index = 0;
 };
+
+extern StaticRecompCore* g_static_recomp_core;

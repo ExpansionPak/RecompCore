@@ -28,6 +28,13 @@
 #include "Core/PowerPC/StaticRecomp/StaticRecompLockstep.h"
 #include "Core/System.h"
 
+#ifdef _M_X86_64
+#include "Core/PowerPC/Jit64/Jit.h"
+#endif
+#ifdef _M_ARM_64
+#include "Core/PowerPC/JitArm64/Jit.h"
+#endif
+
 namespace
 {
 // D3: guest time is charged by the generated code itself (ABI v2). Each
@@ -178,6 +185,13 @@ bool LsIsLoopHeader(const u8* ram, u32 ram_size, u32 end_pc)
 }
 }  // namespace
 
+StaticRecompCore* g_static_recomp_core = nullptr;
+
+bool StaticRecompCore::IsModuleActive() const
+{
+  return m_module_active;
+}
+
 StaticRecompCore::StaticRecompCore(Core::System& system) : JitBase(system)
 {
 }
@@ -186,6 +200,7 @@ StaticRecompCore::~StaticRecompCore() = default;
 
 void StaticRecompCore::Init()
 {
+  g_static_recomp_core = this;
   RefreshConfig();
   jo.enableBlocklink = false;
   jo.fastmem = false;
@@ -214,10 +229,19 @@ void StaticRecompCore::Init()
 
   LoadModule();
   InitLockstep();
+
+#ifdef _M_ARM_64
+  m_fallback_jit = std::make_unique<JitArm64>(m_system);
+#elif defined(_M_X86_64)
+  m_fallback_jit = std::make_unique<Jit64>(m_system);
+#endif
+  if (m_fallback_jit)
+    m_fallback_jit->Init();
 }
 
 void StaticRecompCore::Shutdown()
 {
+  g_static_recomp_core = nullptr;
   std::fprintf(stderr,
                "[staticrecomp] shutdown: native=%llu fallback=%llu native_exc=%llu hook_fb=%llu "
                "smc_failed=%u verifications=%llu reverify_events=%llu\n",
@@ -248,6 +272,12 @@ void StaticRecompCore::Shutdown()
   m_module = nullptr;
   if (m_library.IsOpen())
     m_library.Close();
+
+  if (m_fallback_jit)
+  {
+    m_fallback_jit->Shutdown();
+    m_fallback_jit.reset();
+  }
 }
 
 void StaticRecompCore::LoadModule()
@@ -319,8 +349,12 @@ void StaticRecompCore::LoadModule()
     return reject(fmt::format("module game_id '{}' != running game '{}'", desc->game_id, game_id));
 
   m_module = desc;
+  m_module_active = (desc != nullptr);
   m_chunk_state.assign(desc->num_chunk_ranges, CHUNK_UNVERIFIED);
   m_failed_chunks = 0;
+  m_lookup_ram_size = 0;
+  m_lookup_exram_size = 0;
+  m_chunk_lookup_table.clear();
   // Optional: the module's DolRuntime cpu.c exports a setter for the RAM-write
   // journal that the differential ("lockstep") harness relies on. Absent =>
   // lockstep stays disabled even if requested (warned in InitLockstep).
@@ -339,13 +373,9 @@ void StaticRecompCore::LoadModule()
 
 void StaticRecompCore::ClearCache()
 {
-  // JitInterface::DoState calls this on savestate LOAD (and generic cache
-  // clears reach it too): the freshly loaded guest RAM has no relationship
-  // to what was previously verified, so every chunk re-verifies against the
-  // module's DOL-text hash before its next native dispatch. Register state
-  // needs nothing here: outside a burst it lives entirely in PowerPCState,
-  // and the next SyncIn rebuilds m_guest (and on_state_loaded re-arms host
-  // FP rounding from the loaded FPSCR).
+  if (m_fallback_jit)
+    m_fallback_jit->ClearCache();
+
   if (!m_module)
     return;
   std::fill(m_chunk_state.begin(), m_chunk_state.end(), u8{CHUNK_UNVERIFIED});
@@ -353,33 +383,58 @@ void StaticRecompCore::ClearCache()
   ++m_reverify_events;
 }
 
-int StaticRecompCore::ChunkIndexOf(u32 address) const
+int StaticRecompCore::GetAddressLookupIndex(u32 address) const
 {
-  // Dispatch locality fast path: check the last chunk hit first.
+  if (address >= 0x80000000u && address < 0x80000000u + m_lookup_ram_size)
+    return static_cast<int>((address - 0x80000000u) >> 2);
+  if (address >= 0x90000000u && address < 0x90000000u + m_lookup_exram_size)
+    return static_cast<int>((m_lookup_ram_size >> 2) + ((address - 0x90000000u) >> 2));
+  return -1;
+}
+
+void StaticRecompCore::InitLookupTable(u32 ram_size, u32 exram_size)
+{
+  if (m_lookup_ram_size == ram_size && m_lookup_exram_size == exram_size)
+    return;
+
+  m_lookup_ram_size = ram_size;
+  m_lookup_exram_size = exram_size;
+
+  if (!m_module)
   {
-    const auto& last = m_module->chunk_ranges[m_last_chunk_index];
-    if (address >= last.start && address < last.end)
-      return static_cast<int>(m_last_chunk_index);
+    m_chunk_lookup_table.clear();
+    return;
   }
-  // Binary search over the sorted, non-overlapping chunk table (which tiles
-  // the module's code ranges exactly).
-  u32 lo = 0;
-  u32 hi = m_module->num_chunk_ranges;
-  while (lo < hi)
+
+  u32 total_instructions = (ram_size + exram_size) >> 2;
+  m_chunk_lookup_table.assign(total_instructions, -1);
+
+  for (u32 i = 0; i < m_module->num_chunk_ranges; ++i)
   {
-    const u32 mid = lo + (hi - lo) / 2;
-    const auto& chunk = m_module->chunk_ranges[mid];
-    if (address < chunk.start)
-      hi = mid;
-    else if (address >= chunk.end)
-      lo = mid + 1;
-    else
+    const auto& chunk = m_module->chunk_ranges[i];
+    int start_idx = GetAddressLookupIndex(chunk.start);
+    int end_idx = GetAddressLookupIndex(chunk.end);
+
+    if (start_idx >= 0 && end_idx >= start_idx)
     {
-      m_last_chunk_index = mid;
-      return static_cast<int>(mid);
+      for (int idx = start_idx; idx < end_idx; ++idx)
+      {
+        m_chunk_lookup_table[idx] = static_cast<int>(i);
+      }
     }
   }
-  return -1;
+}
+
+int StaticRecompCore::ChunkIndexOf(u32 address) const
+{
+  if (!m_module_active || m_chunk_lookup_table.empty())
+    return -1;
+
+  int idx = GetAddressLookupIndex(address);
+  if (idx < 0 || idx >= static_cast<int>(m_chunk_lookup_table.size()))
+    return -1;
+
+  return m_chunk_lookup_table[idx];
 }
 
 bool StaticRecompCore::FastDispatchableAt(u32 address) const
@@ -446,13 +501,34 @@ void StaticRecompCore::VerifyChunk(u32 index)
 
 void StaticRecompCore::OnICacheInvalidate(u32 address, u32 length)
 {
-  if (!m_module || length == 0)
+  if (m_fallback_jit)
+  {
+    m_fallback_jit->GetBlockCache()->InvalidateICache(address, length, false);
+  }
+
+  if (!m_module_active || length == 0)
     return;
   const u32 last = address + (length - 1u);
-  for (u32 i = 0; i < m_module->num_chunk_ranges; ++i)
+
+  // Binary search to find the first chunk index that could possibly overlap (chunk.end > address)
+  u32 lo = 0;
+  u32 hi = m_module->num_chunk_ranges;
+  while (lo < hi)
+  {
+    const u32 mid = lo + (hi - lo) / 2;
+    if (m_module->chunk_ranges[mid].end <= address)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+
+  for (u32 i = lo; i < m_module->num_chunk_ranges; ++i)
   {
     const auto& chunk = m_module->chunk_ranges[i];
-    if (address < chunk.end && last >= chunk.start && m_chunk_state[i] != CHUNK_UNVERIFIED)
+    if (chunk.start > last)
+      break;
+
+    if (m_chunk_state[i] != CHUNK_UNVERIFIED)
     {
       if (m_chunk_state[i] == CHUNK_FAILED)
         --m_failed_chunks;
@@ -1415,16 +1491,28 @@ void StaticRecompCore::Run()
   m_guest.ram_size = memory.GetRamSizeReal();
   m_guest.exram = memory.GetEXRAM();
   m_guest.exram_size = memory.GetExRamSizeReal();
+  InitLookupTable(m_guest.ram_size, m_guest.exram_size);
+
+  const std::string initial_game_id = SConfig::GetInstance().GetGameID();
+  m_module_active = m_module && (initial_game_id.empty() || initial_game_id == m_module->game_id);
+
+  if (!m_module_active && m_fallback_jit)
+  {
+    m_fallback_jit->Run();
+    return;
+  }
 
   while (*state_ptr == CPU::State::Running)
   {
     core_timing.Advance();
+    const std::string current_game_id = SConfig::GetInstance().GetGameID();
+    m_module_active = m_module && (current_game_id.empty() || current_game_id == m_module->game_id);
 
     do
     {
       // MSR.FP needs no gate here: generated FPU instructions raise the
       // FP-unavailable exception themselves (ppc_fp_available).
-      if (m_module && DispatchableAt(ppc.pc))
+      if (m_module_active && DispatchableAt(ppc.pc))
       {
         SyncIn();
         ++m_bursts;
@@ -1526,7 +1614,7 @@ void StaticRecompCore::Run()
           }
           if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
-        } while (FastDispatchableAt(m_guest.pc) && ppc.downcount > 0 &&
+        } while (m_module_active && FastDispatchableAt(m_guest.pc) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
@@ -1536,26 +1624,19 @@ void StaticRecompCore::Run()
       {
         // SingleStepInner delivers synchronous exceptions itself; external
         // interrupts are delivered at slice start, as in Interpreter::Run.
-        do
+        if (m_fallback_jit)
         {
-          ppc.downcount -= interpreter.SingleStepInner();
-          ++m_fallback_steps;
-          /*
-          if (VerboseCounters() && (m_fallback_steps & 0xFFFFFu) == 1u)
+          m_fallback_jit->Run();
+        }
+        else
+        {
+          do
           {
-            const int idx = m_module ? ChunkIndexOf(ppc.pc) : -2;
-            std::fprintf(stderr,
-                         "[staticrecomp] fallback=%llu native=%llu pc=0x%08X idx=%d st=%d "
-                         "msr=0x%08X dc=%d rv=%llu hookfb=%llu\n",
-                         (unsigned long long)m_fallback_steps,
-                         (unsigned long long)m_native_dispatches, ppc.pc, idx,
-                         idx >= 0 ? (int)m_chunk_state[idx] : -1, ppc.msr.Hex, ppc.downcount,
-                         (unsigned long long)m_reverify_events,
-                         (unsigned long long)m_hook_fallback_instructions);
-          }
-          */
-        } while (!(m_module && DispatchableAt(ppc.pc)) && ppc.downcount > 0 &&
-                 *state_ptr == CPU::State::Running);
+            ppc.downcount -= interpreter.SingleStepInner();
+            ++m_fallback_steps;
+          } while (!(m_module_active && DispatchableAt(ppc.pc)) && ppc.downcount > 0 &&
+                   *state_ptr == CPU::State::Running);
+        }
       }
     } while (ppc.downcount > 0 && *state_ptr == CPU::State::Running);
   }
