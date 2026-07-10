@@ -13,10 +13,6 @@
 #include <unistd.h>
 #endif
 
-// Helpers for reading big-endian values (usually in util.h or inline here)
-static u32 read_be32(const u8* data) {
-    return ((u32)data[0] << 24) | ((u32)data[1] << 16) | ((u32)data[2] << 8) | data[3];
-}
 
 int ascii_ieq(const char* a, const char* b) {
     while (*a && *b) {

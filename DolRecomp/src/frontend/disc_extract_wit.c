@@ -4,13 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int file_exists(const char* path) {
-    FILE* file = fopen(path, "rb");
-    if (!file)
-        return 0;
-    fclose(file);
-    return 1;
-}
+
 
 static int local_wit_path(char* out, size_t out_size) {
     char bin_dir[MAX_PATH_BUF];

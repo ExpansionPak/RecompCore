@@ -55,7 +55,7 @@ int raw_reader_open(RawReader* reader, const char* path);
 void raw_reader_close(RawReader* reader);
 int read_at(RawReader* reader, u64 offset, void* out, size_t size);
 char* quote_arg(const char* arg);
-void print_usage(void);
+
 
 // Subsystem Entry Points
 ExtractResult extract_gamecube_iso_native(const Options* opts);

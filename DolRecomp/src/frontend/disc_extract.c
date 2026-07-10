@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void print_usage(void) {
+static void print_usage(void) {
     printf("usage: dolrecomp.exe extract [options] <image.iso|image.wbfs> <output-dir>\n");
     printf("       dolrecomp.exe extract --info <image.iso|image.wbfs>\n");
     printf("\n");

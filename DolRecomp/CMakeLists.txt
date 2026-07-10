@@ -38,6 +38,13 @@ endif()
 
 find_package(ZLIB QUIET)
 
+set(DECODER_SRCS
+    src/frontend/decoder.c
+    src/frontend/decoder_integer.c
+    src/frontend/decoder_float.c
+    src/frontend/decoder_system.c
+)
+
 add_executable(dolrecomp
     src/main.c
     src/cli.c
@@ -52,10 +59,7 @@ add_executable(dolrecomp
     src/frontend/disc_extract.c
     src/frontend/disc_extract_native.c
     src/frontend/disc_extract_wit.c
-    src/frontend/decoder.c
-    src/frontend/decoder_integer.c
-    src/frontend/decoder_float.c
-    src/frontend/decoder_system.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
     src/backend/emitter.c
     src/backend/emitter_integer.c
@@ -77,7 +81,7 @@ endif()
 # opcode verification tests
 add_executable(test_opcodes
     tests/test_opcodes.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
 )
 target_include_directories(test_opcodes PRIVATE src)
@@ -88,7 +92,7 @@ add_test(NAME opcodes COMMAND test_opcodes)
 # cross-check against devkitPPC machine code
 add_executable(test_cross_check
     tests/test_cross_check.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
 )
 target_include_directories(test_cross_check PRIVATE src)
@@ -132,7 +136,7 @@ add_test(NAME disc_extract
 # PC-side CPU behavior checks.
 add_executable(test_pc_reference
     tests/test_pc_reference.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
     src/frontend/dol.c
     ../GXRuntime/src/core/cpu.c
@@ -150,7 +154,7 @@ add_test(NAME pc_reference COMMAND test_pc_reference)
 # Generate C for the current opcode set and make sure the host compiler accepts it.
 add_executable(test_codegen_emit
     tests/test_codegen_emit.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
     src/backend/emitter.c
     src/backend/emitter_integer.c
@@ -178,7 +182,7 @@ add_test(NAME codegen_compile
 # Catches emitter-semantics defects -- known (catalogued xfail) and unknown.
 add_executable(diff_gen
     tests/diff/gen.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
     src/backend/emitter.c
     src/backend/emitter_integer.c
@@ -223,7 +227,7 @@ add_test(NAME emitted_diff COMMAND test_emitted_diff)
 add_executable(dol_corpus_inventory
     tests/corpus/inventory.c
     tests/test_codegen_emit.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
     src/frontend/dol.c
 )
@@ -234,7 +238,7 @@ target_include_directories(dol_corpus_inventory PRIVATE src tests tests/diff)
 # that cannot live in the ordinary producer-DOL fallthrough matrix.
 add_executable(dedicated_diff_gen
     tests/oracle/dedicated_gen.c
-    src/frontend/decoder.c
+    ${DECODER_SRCS}
     src/frontend/disasm.c
     src/backend/emitter.c
     src/backend/emitter_integer.c
