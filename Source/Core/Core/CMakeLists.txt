@@ -189,6 +189,7 @@ add_library(core
   HW/DSPHLE/UCodes/UCodes.h
   HW/DSPHLE/UCodes/Zelda.cpp
   HW/DSPHLE/UCodes/Zelda.h
+  HW/DSPHLE/UCodes/ZeldaUCodesTable.cpp
   HW/DSPLLE/DSPHost.cpp
   HW/DSPLLE/DSPLLE.cpp
   HW/DSPLLE/DSPLLE.h

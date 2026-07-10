@@ -9,6 +9,8 @@
 #include "Common/CommonTypes.h"
 #include "Core/HW/DSPHLE/UCodes/UCodes.h"
 
+#include <map>
+
 namespace Core
 {
 class System;
@@ -17,6 +19,23 @@ class System;
 namespace DSP::HLE
 {
 class DSPHLE;
+
+enum ZeldaUCodeFlag
+{
+  NO_ARAM = 0x00000001,
+  MAKE_DOLBY_LOUDER = 0x00000002,
+  LIGHT_PROTOCOL = 0x00000004,
+  FOUR_MIXING_DESTS = 0x00000008,
+  TINY_VPB = 0x00000010,
+  VOLUME_EXPLICIT_STEP = 0x00000020,
+  SYNC_PER_FRAME = 0x00000040,
+  NO_CMD_0D = 0x00000080,
+  SUPPORTS_GBA_CRYPTO = 0x00000100,
+  WEIRD_CMD_0C = 0x00000200,
+  COMBINED_CMD_0D = 0x00000400,
+};
+
+extern const std::map<u32, u32> UCODE_FLAGS;
 
 class ZeldaAudioRenderer
 {
