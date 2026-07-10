@@ -106,16 +106,59 @@
 @end
 
 @interface WindowDelegate : NSObject <NSWindowDelegate>
+{
+  BOOL m_cursor_hidden;
+}
 
 - (void)windowDidResize:(NSNotification*)notification;
+- (void)mouseEntered:(NSEvent*)event;
+- (void)mouseExited:(NSEvent*)event;
+- (void)windowWillClose:(NSNotification*)notification;
 @end
 
 @implementation WindowDelegate
+
+- (id)init
+{
+  self = [super init];
+  if (self)
+  {
+    m_cursor_hidden = NO;
+  }
+  return self;
+}
 
 - (void)windowDidResize:(NSNotification*)notification
 {
   if (g_presenter)
     g_presenter->ResizeSurface();
+}
+
+- (void)mouseEntered:(NSEvent*)event
+{
+  if (!m_cursor_hidden)
+  {
+    [NSCursor hide];
+    m_cursor_hidden = YES;
+  }
+}
+
+- (void)mouseExited:(NSEvent*)event
+{
+  if (m_cursor_hidden)
+  {
+    [NSCursor unhide];
+    m_cursor_hidden = NO;
+  }
+}
+
+- (void)windowWillClose:(NSNotification*)notification
+{
+  if (m_cursor_hidden)
+  {
+    [NSCursor unhide];
+    m_cursor_hidden = NO;
+  }
 }
 @end
 
@@ -183,6 +226,14 @@ bool PlatformMacOS::Init()
   }
   m_window_delegate = [[WindowDelegate alloc] init];
   [m_window setDelegate:m_window_delegate];
+
+  NSTrackingAreaOptions trackingOptions =
+      NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways | NSTrackingInVisibleRect;
+  NSTrackingArea* trackingArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
+                                                             options:trackingOptions
+                                                               owner:m_window_delegate
+                                                            userInfo:nil];
+  [[m_window contentView] addTrackingArea:trackingArea];
 
   NSNotificationCenter* c = [NSNotificationCenter defaultCenter];
   [c addObserver:NSApp
