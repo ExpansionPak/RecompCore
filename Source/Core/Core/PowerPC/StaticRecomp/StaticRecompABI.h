@@ -15,7 +15,8 @@
 #ifndef STATICRECOMP_ABI_H
 #define STATICRECOMP_ABI_H
 
-#include "dolrecomp/cpu.h"
+#include "core/cpu.h"
+
 
 #ifdef __cplusplus
 extern "C" {

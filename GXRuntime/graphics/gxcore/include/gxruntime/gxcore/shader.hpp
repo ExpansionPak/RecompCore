@@ -467,5 +467,7 @@ struct EfbCopyCommand {
 // reversed-Z (graphics/aurora lib/gx/gx.hpp UseReversedZ); bind groups are
 // group(1)=dynamic uniform, group(2)=texture+sampler.
 std::string generate_wgsl(const ShaderKey& key);
+bool channel_lit_path(const ShaderKey& k, unsigned j);
 
 } // namespace gxruntime::gxcore
+

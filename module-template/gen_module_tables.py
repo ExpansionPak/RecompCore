@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate module_tables.inc for the dolphin-chassis Strikers module.
+"""Generate module_tables.inc for a dolphin-chassis static recompilation module.
 
 Parses the generated dispatcher's coverage ranges out of generated.h (the
 `address >= 0x...u && address < 0x...u` guards in dolrecomp_call) and the SMC

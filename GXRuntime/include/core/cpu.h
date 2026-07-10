@@ -54,7 +54,30 @@
 #define PPC_HID2_DCHERR 0x00800000u
 #define PPC_HID2_DCHEE  0x00080000u
 
+#define PPC_BIT(n) (1u << (31u - (n)))
+#define PPC_MSR_RFI_MASK 0x87C0FFFFu
+#define PPC_MSR_POW PPC_BIT(13)
+#define PPC_MSR_ILE PPC_BIT(15)
+#define PPC_MSR_EE  PPC_BIT(16)
+#define PPC_MSR_PR  PPC_BIT(17)
+#define PPC_MSR_FP  PPC_BIT(18)
+#define PPC_MSR_ME  PPC_BIT(19)
+#define PPC_MSR_FE0 PPC_BIT(20)
+#define PPC_MSR_SE  PPC_BIT(21)
+#define PPC_MSR_BE  PPC_BIT(22)
+#define PPC_MSR_FE1 PPC_BIT(23)
+#define PPC_MSR_IP  PPC_BIT(25)
+#define PPC_MSR_IR  PPC_BIT(26)
+#define PPC_MSR_DR  PPC_BIT(27)
+#define PPC_MSR_PM  PPC_BIT(29)
+#define PPC_MSR_RI  PPC_BIT(30)
+#define PPC_MSR_LE  PPC_BIT(31)
+
+#define PPC_EAR_ENABLE 0x80000000u
+#define PPC_SRR1_MACHINE_CHECK_DCBZL PPC_BIT(10)
+
 typedef struct CPUState CPUState;
+
 typedef u64 (*PPCExternalRead)(CPUState* cpu, u32 ea, u8 size);
 typedef void (*PPCExternalWrite)(CPUState* cpu, u32 ea, u64 value, u8 size);
 typedef u32 (*PPCExternalRead32)(CPUState* cpu, u32 ea, u8 rid);

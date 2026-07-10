@@ -115,6 +115,7 @@ add_executable(test_pc_reference
     src/frontend/decoder.c
     src/frontend/dol.c
     src/core/cpu.c
+    ../GXRuntime/src/core/cpu_interpreter.c
 )
 target_include_directories(test_pc_reference PRIVATE src)
 if(NOT WIN32)
@@ -167,6 +168,7 @@ add_executable(test_emitted_diff
     tests/diff/run.c
     ${DIFF_GENERATED}
     src/core/cpu.c
+    ../GXRuntime/src/core/cpu_interpreter.c
 )
 target_include_directories(test_emitted_diff PRIVATE src tests/diff)
 # Match Gekko IEEE-754 round-once semantics on the host: no fma contraction,
@@ -212,6 +214,7 @@ add_executable(test_dedicated_diff
     tests/oracle/dedicated_run.c
     ${DEDICATED_GENERATED}
     src/core/cpu.c
+    ../GXRuntime/src/core/cpu_interpreter.c
 )
 target_include_directories(test_dedicated_diff PRIVATE src tests/oracle)
 if(NOT MSVC)

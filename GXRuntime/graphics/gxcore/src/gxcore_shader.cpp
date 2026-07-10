@@ -10,9 +10,8 @@ namespace gxruntime::gxcore {
 
 namespace {
 
-namespace ar = gxruntime::aurora_recomp;
-
 std::uint32_t bits(std::uint32_t value, std::uint32_t count,
+
                    std::uint32_t shift) {
   return (value >> shift) & ((1u << count) - 1u);
 }
@@ -503,7 +502,9 @@ void emit_lighting_chan(std::string& out, const ShaderKey& key,
 // material register for either color or alpha, takes the full path. An
 // unconfigured channel (bit clear in chan_captured_mask) stays passthrough even
 // though MatSource::Register decodes to 0 — there is no material to apply.
-static bool channel_lit_path(const ShaderKey& k, unsigned j) {
+} // namespace
+
+bool channel_lit_path(const ShaderKey& k, unsigned j) {
   if ((k.chan_captured_mask & (1u << j)) == 0u)
     return false;
   const LightChanKey& col = k.litchan[j];
@@ -513,9 +514,8 @@ static bool channel_lit_path(const ShaderKey& k, unsigned j) {
          static_cast<MatSource>(alp.matsource) == MatSource::Register;
 }
 
-} // namespace
-
 std::string generate_wgsl(const ShaderKey& key) {
+
   std::string out;
   out.reserve(4096);
   const bool tev = key.tev_valid != 0;

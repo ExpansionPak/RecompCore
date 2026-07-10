@@ -97,7 +97,9 @@ def fix_generated_dispatch(generated_dir: Path) -> int:
 
     original = header.read_text(encoding="utf-8")
     if FAST_DISPATCH_MARKER in original:
+        # Native constant-time dispatch is already emitted by DolRecomp
         return 0
+
     fixed, count = DISPATCH_FUNCTION.subn(_constant_time_dispatch, original, count=1)
     if count and fixed != original:
         header.write_text(fixed, encoding="utf-8")

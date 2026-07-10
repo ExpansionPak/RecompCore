@@ -1232,13 +1232,62 @@ static void emit_dispatch_helpers(FILE* out, const FunctionList* funcs, u32 entr
     fprintf(out, "\ntypedef void (*DolRecompFunction)(CPUState* ctx);\n");
     fprintf(out, "\nstatic inline int dolrecomp_call(CPUState* ctx, u32 address) {\n");
     fprintf(out, "    if (ppc_host_call(ctx, address)) return 1;\n");
-    for (u32 i = 0; i < funcs->count; i++) {
-        fprintf(out,
-                "    if (address >= 0x%08Xu && address < 0x%08Xu && "
-                "((address - 0x%08Xu) & 3u) == 0u) { func_%08X(ctx); return 1; }\n",
-                funcs->ranges[i].start, funcs->ranges[i].end,
-                funcs->ranges[i].start, funcs->ranges[i].start);
+
+    bool optimized = false;
+    if (funcs->count >= 3) {
+        u32 stride = funcs->ranges[2].start - funcs->ranges[1].start;
+        if (stride > 0) {
+            bool matches = true;
+            for (u32 i = 1; i < funcs->count; i++) {
+                if (funcs->ranges[i].start != funcs->ranges[1].start + (i - 1) * stride) {
+                    matches = false;
+                    break;
+                }
+            }
+            for (u32 i = 1; i < funcs->count - 1; i++) {
+                if (funcs->ranges[i].end != funcs->ranges[i + 1].start) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                optimized = true;
+                u32 first_start = funcs->ranges[0].start;
+                u32 first_end = funcs->ranges[0].end;
+                u32 regular_start = funcs->ranges[1].start;
+                u32 regular_end = funcs->ranges[funcs->count - 1].end;
+
+                fprintf(out, "    // DolRecomp constant-time chunk dispatch.\n");
+                fprintf(out, "    if (address >= 0x%08Xu && address < 0x%08Xu && ((address - 0x%08Xu) & 3u) == 0u) {\n",
+                        first_start, first_end, first_start);
+                fprintf(out, "        func_%08X(ctx);\n", first_start);
+                fprintf(out, "        return 1;\n");
+                fprintf(out, "    }\n");
+                fprintf(out, "    if (address >= 0x%08Xu && address < 0x%08Xu && ((address - 0x%08Xu) & 3u) == 0u) {\n",
+                        regular_start, regular_end, regular_start);
+                fprintf(out, "        static const DolRecompFunction functions[] = {\n");
+                for (u32 i = 1; i < funcs->count; i++) {
+                    fprintf(out, "            func_%08X%s\n", funcs->ranges[i].start, (i == funcs->count - 1) ? "" : ",");
+                }
+                fprintf(out, "        };\n");
+                fprintf(out, "        const u32 index = (address - 0x%08Xu) / 0x%Xu;\n", regular_start, stride);
+                fprintf(out, "        functions[index](ctx);\n");
+                fprintf(out, "        return 1;\n");
+                fprintf(out, "    }\n");
+            }
+        }
     }
+
+    if (!optimized) {
+        for (u32 i = 0; i < funcs->count; i++) {
+            fprintf(out,
+                    "    if (address >= 0x%08Xu && address < 0x%08Xu && "
+                    "((address - 0x%08Xu) & 3u) == 0u) { func_%08X(ctx); return 1; }\n",
+                    funcs->ranges[i].start, funcs->ranges[i].end,
+                    funcs->ranges[i].start, funcs->ranges[i].start);
+        }
+    }
+
     fprintf(out, "    return 0;\n");
     fprintf(out, "}\n");
     fprintf(out, "\nstatic inline int dolrecomp_run_blocks(CPUState* ctx, u32 max_blocks) {\n");
@@ -1251,6 +1300,7 @@ static void emit_dispatch_helpers(FILE* out, const FunctionList* funcs, u32 entr
     fprintf(out, "    return 1;\n");
     fprintf(out, "}\n");
 }
+
 
 typedef enum {
     EMBEDDED_DATA_NONE = 0,

@@ -80,29 +80,9 @@ void cpu_reset(CPUState* cpu) {
     if (cpu->ram)
         memset(cpu->ram, 0, cpu->ram_size);
 }
-#define PPC_BIT(n) (1u << (31u - (n)))
-#define PPC_MSR_RFI_MASK 0x87C0FFFFu
-#define PPC_MSR_POW PPC_BIT(13)
-#define PPC_MSR_ILE PPC_BIT(15)
-#define PPC_MSR_EE  PPC_BIT(16)
-#define PPC_MSR_PR  PPC_BIT(17)
-#define PPC_MSR_FP  PPC_BIT(18)
-#define PPC_MSR_ME  PPC_BIT(19)
-#define PPC_MSR_FE0 PPC_BIT(20)
-#define PPC_MSR_SE  PPC_BIT(21)
-#define PPC_MSR_BE  PPC_BIT(22)
-#define PPC_MSR_FE1 PPC_BIT(23)
-#define PPC_MSR_IP  PPC_BIT(25)
-#define PPC_MSR_IR  PPC_BIT(26)
-#define PPC_MSR_DR  PPC_BIT(27)
-#define PPC_MSR_PM  PPC_BIT(29)
-#define PPC_MSR_RI  PPC_BIT(30)
-#define PPC_MSR_LE  PPC_BIT(31)
-
-#define PPC_EAR_ENABLE 0x80000000u
-#define PPC_SRR1_MACHINE_CHECK_DCBZL PPC_BIT(10)
 
 static u32 exception_vector_address(u32 msr, u32 vector) {
+
     return ((msr & PPC_MSR_IP) ? 0xFFF00000u : 0u) + vector;
 }
 
@@ -195,78 +175,10 @@ u32 ppc_mftb(CPUState* cpu, u16 tbr, u32 cia) {
     ppc_program_exception(cpu, PPC_PROGRAM_ILLEGAL, cia);
     return 0;
 }
-
-static f32 f32_value(u32 bits) {
-    f32 value;
-    memcpy(&value, &bits, sizeof(value));
-    return value;
-}
-
-static u64 f64_bits(f64 value) {
-    u64 bits;
-    memcpy(&bits, &value, sizeof(bits));
-    return bits;
-}
-
-static f64 f64_value(u64 bits) {
-    f64 value;
-    memcpy(&value, &bits, sizeof(value));
-    return value;
-}
-
-/* Single<->double register conversions mirrored bit-exactly from Dolphin's
- * Interpreter_FPUtils (themselves from the PowerPC PEM): lfs/psq_l type-0
- * loads preserve SNaN-ness and subnormals through the f64 FPR model, and
- * stfs/psq_st type-0 stores repack bits (a mantissa TRUNCATION for
- * non-single doubles, not a host rounding). */
-static u64 convert_to_double(u32 value) {
-    u64 x = value;
-    u64 exp = (x >> 23) & 0xFFu;
-    u64 frac = x & 0x007FFFFFu;
-
-    if (exp > 0 && exp < 255) { /* normal */
-        u64 y = !(exp >> 7);
-        u64 z = (y << 61) | (y << 60) | (y << 59);
-        return ((x & 0xC0000000u) << 32) | z | ((x & 0x3FFFFFFFu) << 29);
-    } else if (exp == 0 && frac != 0) { /* subnormal */
-        exp = 1023 - 126;
-        do {
-            frac <<= 1;
-            exp -= 1;
-        } while ((frac & 0x00800000u) == 0);
-        return ((x & 0x80000000u) << 32) | (exp << 52) | ((frac & 0x007FFFFFu) << 29);
-    } else { /* QNaN, SNaN or zero */
-        u64 y = exp >> 7;
-        u64 z = (y << 61) | (y << 60) | (y << 59);
-        return ((x & 0xC0000000u) << 32) | z | ((x & 0x3FFFFFFFu) << 29);
-    }
-}
-
-static u32 convert_to_single(u64 x) {
-    u32 exp = (u32)((x >> 52) & 0x7FFu);
-    if (exp > 896 || (x & ~0x8000000000000000ull) == 0) {
-        return (u32)(((x >> 32) & 0xC0000000u) | ((x >> 29) & 0x3FFFFFFFu));
-    } else if (exp >= 874) {
-        u32 t = (u32)(0x80000000u | ((x & 0x000FFFFFFFFFFFFFull) >> 21));
-        t = t >> (905 - exp);
-        t |= (u32)((x >> 32) & 0x80000000u);
-        return t;
-    } else {
-        /* Undefined on hardware; matches Dolphin's hardware-test-based code. */
-        return (u32)(((x >> 32) & 0xC0000000u) | ((x >> 29) & 0x3FFFFFFFu));
-    }
-}
-
-static u32 convert_to_single_ftz(u64 x) {
-    u32 exp = (u32)((x >> 52) & 0x7FFu);
-    if (exp > 896 || (x & ~0x8000000000000000ull) == 0)
-        return (u32)(((x >> 32) & 0xC0000000u) | ((x >> 29) & 0x3FFFFFFFu));
-    return (u32)((x >> 32) & 0x80000000u);
-}
-
 static s32 gqr_scale(u32 value) {
     return sign_extend(value & 0x3Fu, 6);
 }
+
 
 static u32 psq_type_size(u8 type) {
     switch (type) {

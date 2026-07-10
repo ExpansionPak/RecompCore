@@ -67,4 +67,69 @@ static inline void write_be64(u8* p, u64 v) {
     memcpy(p, &swapped, 8);
 }
 
+static inline f32 f32_value(u32 bits) {
+    f32 value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static inline u64 f64_bits(f64 value) {
+    u64 bits;
+    memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+static inline f64 f64_value(u64 bits) {
+    f64 value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static inline u64 convert_to_double(u32 value) {
+    u64 x = value;
+    u64 exp = (x >> 23) & 0xFFu;
+    u64 frac = x & 0x007FFFFFu;
+
+    if (exp > 0 && exp < 255) { /* normal */
+        u64 y = !(exp >> 7);
+        u64 z = (y << 61) | (y << 60) | (y << 59);
+        return ((x & 0xC0000000u) << 32) | z | ((x & 0x3FFFFFFFu) << 29);
+    } else if (exp == 0 && frac != 0) { /* subnormal */
+        exp = 1023 - 126;
+        do {
+            frac <<= 1;
+            exp -= 1;
+        } while ((frac & 0x00800000u) == 0);
+        return ((x & 0x80000000u) << 32) | (exp << 52) | ((frac & 0x007FFFFFu) << 29);
+    } else { /* QNaN, SNaN or zero */
+        u64 y = exp >> 7;
+        u64 z = (y << 61) | (y << 60) | (y << 59);
+        return ((x & 0xC0000000u) << 32) | z | ((x & 0x3FFFFFFFu) << 29);
+    }
+}
+
+static inline u32 convert_to_single(u64 x) {
+    u32 exp = (u32)((x >> 52) & 0x7FFu);
+    if (exp > 896 || (x & ~0x8000000000000000ull) == 0) {
+        return (u32)(((x >> 32) & 0xC0000000u) | ((x >> 29) & 0x3FFFFFFFu));
+    } else if (exp >= 874) {
+        u32 t = (u32)(0x80000000u | ((x & 0x000FFFFFFFFFFFFFull) >> 21));
+        t = t >> (905 - exp);
+        t |= (u32)((x >> 32) & 0x80000000u);
+        return t;
+    } else {
+        /* Undefined on hardware; matches Dolphin's hardware-test-based code. */
+        return (u32)(((x >> 32) & 0xC0000000u) | ((x >> 29) & 0x3FFFFFFFu));
+    }
+}
+
+static inline u32 convert_to_single_ftz(u64 x) {
+    u32 exp = (u32)((x >> 52) & 0x7FFu);
+    if (exp > 896 || (x & ~0x8000000000000000ull) == 0)
+        return (u32)(((x >> 32) & 0xC0000000u) | ((x >> 29) & 0x3FFFFFFFu));
+    return (u32)((x >> 32) & 0x80000000u);
+}
+
 #endif /* DOLRECOMP_TYPES_H */
+
+

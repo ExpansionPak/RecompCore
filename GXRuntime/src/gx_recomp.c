@@ -4,8 +4,9 @@
 
 #include <string.h>
 
-void dol_gx_recomp_dol_gx_recomp_trace_event(DolGxRecompState* gx, DolGxRecompEventKind kind,
+void dol_gx_recomp_trace_event(DolGxRecompState* gx, DolGxRecompEventKind kind,
                         u32 a, u32 b, u32 c, u32 d) {
+
     if (gx == NULL || gx->trace_count >= DOL_GX_RECOMP_MAX_TRACE_EVENTS)
         return;
     DolGxRecompTraceEvent* event = &gx->trace[gx->trace_count++];
