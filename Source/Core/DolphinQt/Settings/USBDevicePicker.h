@@ -8,7 +8,7 @@
 
 #include <QDialog>
 
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 
 class QTimer;
 class QDialog;

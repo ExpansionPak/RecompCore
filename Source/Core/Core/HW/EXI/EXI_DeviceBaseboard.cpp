@@ -15,7 +15,7 @@
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/DVD/AMMediaboard.h"
 #include "Core/HW/EXI/EXI.h"

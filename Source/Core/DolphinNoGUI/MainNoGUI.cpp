@@ -17,7 +17,7 @@
 
 #include "Common/ScopeGuard.h"
 #include "Core/Boot/Boot.h"
-#include "Core/BootManager.h"
+#include "Core/Boot/BootManager.h"
 #include "Core/Core.h"
 #include "Core/DolphinAnalytics.h"
 #include "Core/Host.h"

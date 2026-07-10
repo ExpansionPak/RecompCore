@@ -11,7 +11,7 @@
 
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
-#include "Core/GeckoCode.h"
+#include "Core/Cheats/GeckoCode.h"
 #include "Core/HLE/HLE_Misc.h"
 #include "Core/HLE/HLE_OS.h"
 #include "Core/HW/Memmap.h"

@@ -29,13 +29,13 @@
 
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/SessionSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "Core/HW/GCMemcard/GCMemcardUtils.h"
 #include "Core/HW/Sram.h"
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 
 static const char* MC_HDR = "MC_SYSTEM_AREA";
 

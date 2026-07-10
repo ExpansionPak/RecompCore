@@ -12,7 +12,7 @@
 #include "Common/StringUtil.h"
 #include "Common/VariantUtil.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "VideoCommon/Assets/DirectFilesystemAssetLibrary.h"
 #include "VideoCommon/GraphicsModSystem/Config/GraphicsMod.h"

@@ -22,10 +22,10 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/ConfigLoaders/IsSettingSaveable.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/IOS/IOS.h"
 #include "Core/IOS/USB/Bluetooth/BTBase.h"
-#include "Core/SysConf.h"
+#include "Core/Wii/SysConf.h"
 #include "Core/System.h"
 
 static bool s_sysconf_controlled_by_guest = false;

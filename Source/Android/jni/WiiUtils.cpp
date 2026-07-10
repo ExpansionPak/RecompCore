@@ -15,7 +15,7 @@
 #include "Core/HW/WiiSave.h"
 #include "Core/IOS/ES/ES.h"
 #include "Core/IOS/IOS.h"
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 
 #include "DiscIO/NANDImporter.h"
 

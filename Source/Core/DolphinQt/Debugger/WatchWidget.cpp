@@ -12,7 +12,7 @@
 
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PowerPC.h"

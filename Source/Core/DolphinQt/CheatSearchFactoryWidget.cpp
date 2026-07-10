@@ -17,7 +17,7 @@
 #include <QVBoxLayout>
 
 #include "Common/StringUtil.h"
-#include "Core/CheatSearch.h"
+#include "Core/Cheats/CheatSearch.h"
 #include "Core/Core.h"
 #include "Core/HW/Memmap.h"
 #include "Core/PowerPC/MMU.h"

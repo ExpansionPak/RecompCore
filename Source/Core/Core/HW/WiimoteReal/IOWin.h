@@ -13,7 +13,7 @@
 #include "Common/WindowsDevice.h"
 
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 
 namespace WiimoteReal
 {

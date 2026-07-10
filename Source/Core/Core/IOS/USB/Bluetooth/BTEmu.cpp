@@ -21,9 +21,9 @@
 #include "Core/IOS/Device.h"
 #include "Core/IOS/IOS.h"
 #include "Core/Movie.h"
-#include "Core/NetPlayClient.h"
-#include "Core/NetPlayProto.h"
-#include "Core/SysConf.h"
+#include "Core/NetPlay/NetPlayClient.h"
+#include "Core/NetPlay/NetPlayProto.h"
+#include "Core/Wii/SysConf.h"
 #include "Core/System.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 

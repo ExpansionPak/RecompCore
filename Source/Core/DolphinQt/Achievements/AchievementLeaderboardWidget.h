@@ -6,7 +6,7 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include <QWidget>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 
 class QGroupBox;
 class QGridLayout;

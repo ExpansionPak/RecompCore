@@ -1,11 +1,11 @@
 add_library(core
-  AchievementApprovedHash.h
-  AchievementManager.cpp
-  AchievementManager.h
-  ActionReplay.cpp
-  ActionReplay.h
-  ARDecrypt.cpp
-  ARDecrypt.h
+  Achievements/AchievementApprovedHash.h
+  Achievements/AchievementManager.cpp
+  Achievements/AchievementManager.h
+  Cheats/ActionReplay.cpp
+  Cheats/ActionReplay.h
+  Cheats/ARDecrypt.cpp
+  Cheats/ARDecrypt.h
   Boot/AncastTypes.h
   Boot/Boot_BS2Emu.cpp
   Boot/Boot_WiiWAD.cpp
@@ -16,13 +16,13 @@ add_library(core
   Boot/ElfReader.cpp
   Boot/ElfReader.h
   Boot/ElfTypes.h
-  BootManager.cpp
-  BootManager.h
-  CheatCodes.h
-  CheatGeneration.cpp
-  CheatGeneration.h
-  CheatSearch.cpp
-  CheatSearch.h
+  Boot/BootManager.cpp
+  Boot/BootManager.h
+  Cheats/CheatCodes.h
+  Cheats/CheatGeneration.cpp
+  Cheats/CheatGeneration.h
+  Cheats/CheatSearch.cpp
+  Cheats/CheatSearch.h
   CommonTitles.h
   Config/AchievementSettings.cpp
   Config/AchievementSettings.h
@@ -38,6 +38,8 @@ add_library(core
   Config/NetplaySettings.h
   Config/SessionSettings.cpp
   Config/SessionSettings.h
+  Config/StaticRecompSettings.cpp
+  Config/StaticRecompSettings.h
   Config/SYSCONFSettings.cpp
   Config/SYSCONFSettings.h
   Config/UISettings.cpp
@@ -54,8 +56,8 @@ add_library(core
   ConfigLoaders/MovieConfigLoader.h
   ConfigLoaders/NetPlayConfigLoader.cpp
   ConfigLoaders/NetPlayConfigLoader.h
-  ConfigManager.cpp
-  ConfigManager.h
+  Config/ConfigManager.cpp
+  Config/ConfigManager.h
   Core.cpp
   Core.h
   CoreTiming.cpp
@@ -126,10 +128,10 @@ add_library(core
   FifoPlayer/FifoRecorder.h
   FreeLookManager.cpp
   FreeLookManager.h
-  GeckoCode.cpp
-  GeckoCode.h
-  GeckoCodeConfig.cpp
-  GeckoCodeConfig.h
+  Cheats/GeckoCode.cpp
+  Cheats/GeckoCode.h
+  Cheats/GeckoCodeConfig.cpp
+  Cheats/GeckoCodeConfig.h
   HLE/HLE_Misc.cpp
   HLE/HLE_Misc.h
   HLE/HLE_OS.cpp
@@ -496,22 +498,22 @@ add_library(core
   IOS/WFS/WFSI.h
   IOS/WFS/WFSSRV.cpp
   IOS/WFS/WFSSRV.h
-  LibusbUtils.cpp
-  LibusbUtils.h
+  USB/LibusbUtils.cpp
+  USB/LibusbUtils.h
   MemTools.cpp
   MemTools.h
   Movie.cpp
   Movie.h
-  NetPlayClient.cpp
-  NetPlayClient.h
-  NetPlayCommon.cpp
-  NetPlayCommon.h
-  NetPlayServer.cpp
-  NetPlayServer.h
-  NetworkCaptureLogger.cpp
-  NetworkCaptureLogger.h
-  PatchEngine.cpp
-  PatchEngine.h
+  NetPlay/NetPlayClient.cpp
+  NetPlay/NetPlayClient.h
+  NetPlay/NetPlayCommon.cpp
+  NetPlay/NetPlayCommon.h
+  NetPlay/NetPlayServer.cpp
+  NetPlay/NetPlayServer.h
+  NetPlay/NetworkCaptureLogger.cpp
+  NetPlay/NetworkCaptureLogger.h
+  Cheats/PatchEngine.cpp
+  Cheats/PatchEngine.h
   PowerPC/BreakPoints.cpp
   PowerPC/BreakPoints.h
   PowerPC/CachedInterpreter/CachedInterpreter_Disassembler.cpp
@@ -562,8 +564,10 @@ add_library(core
   PowerPC/StaticRecomp/StaticRecompCore_Hooks.cpp
   PowerPC/StaticRecomp/StaticRecompCore_Run.cpp
   PowerPC/StaticRecomp/StaticRecompCore.h
-  PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.cpp
-  PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.h
+  PowerPC/StaticRecomp/StaticRecompLockstep.cpp
+  PowerPC/StaticRecomp/StaticRecompLockstep.h
+  PowerPC/StaticRecomp/StaticRecompLockstep_Trampolines.cpp
+  PowerPC/StaticRecomp/StaticRecompLockstep_Check.cpp
   PowerPC/PPCAnalyst.cpp
   PowerPC/PPCAnalyst.h
   PowerPC/PPCCache.cpp
@@ -583,22 +587,22 @@ add_library(core
   State.cpp
   State.h
   SyncIdentifier.h
-  SysConf.cpp
-  SysConf.h
+  Wii/SysConf.cpp
+  Wii/SysConf.h
   System.cpp
   System.h
   TimePlayed.cpp
   TimePlayed.h
   TitleDatabase.cpp
   TitleDatabase.h
-  USBUtils.cpp
-  USBUtils.h
-  WC24PatchEngine.cpp
-  WC24PatchEngine.h
-  WiiRoot.cpp
-  WiiRoot.h
-  WiiUtils.cpp
-  WiiUtils.h
+  USB/USBUtils.cpp
+  USB/USBUtils.h
+  Wii/WC24PatchEngine.cpp
+  Wii/WC24PatchEngine.h
+  Wii/WiiRoot.cpp
+  Wii/WiiRoot.h
+  Wii/WiiUtils.cpp
+  Wii/WiiUtils.h
 )
 
 if(_M_X86_64)
@@ -831,8 +835,8 @@ endif()
 
 if(UNIX)
   target_sources(core PRIVATE
-    MemoryWatcher.cpp
-    MemoryWatcher.h
+    Cheats/MemoryWatcher.cpp
+    Cheats/MemoryWatcher.h
   )
 endif()
 

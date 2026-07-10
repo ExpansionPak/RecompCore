@@ -7,7 +7,7 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/JitInterface.h"
 #include "Core/PowerPC/Interpreter/Interpreter.h"
-#include "Core/PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompLockstep.h"
 #include "Core/HW/GPFifo.h"
 #include "Common/Logging/Log.h"
 

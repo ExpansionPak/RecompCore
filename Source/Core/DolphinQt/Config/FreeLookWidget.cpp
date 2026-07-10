@@ -8,7 +8,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/FreeLookSettings.h"
 
 #include "DolphinQt/Config/ConfigControls/ConfigBool.h"

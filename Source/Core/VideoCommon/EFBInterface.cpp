@@ -8,7 +8,7 @@
 
 #include "Common/MsgHandler.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/System.h"
 
 #include "VideoCommon/AsyncRequests.h"

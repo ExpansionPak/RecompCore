@@ -17,7 +17,7 @@
 #include "Common/SPSCQueue.h"
 #include "Common/ScopeGuard.h"
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/CPUThreadConfigCallback.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"

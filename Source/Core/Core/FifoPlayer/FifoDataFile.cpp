@@ -12,7 +12,7 @@
 #include "Common/IOFile.h"
 #include "Common/MsgHandler.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/HW/Memmap.h"
 #include "Core/System.h"
 

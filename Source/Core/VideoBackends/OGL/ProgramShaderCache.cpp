@@ -21,7 +21,7 @@
 #include "Common/MsgHandler.h"
 #include "Common/Version.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/System.h"
 
 #include "VideoBackends/OGL/OGLConfig.h"

@@ -11,7 +11,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 #include "Common/Random.h"
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 
 namespace Common
 {

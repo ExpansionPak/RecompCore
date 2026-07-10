@@ -27,9 +27,9 @@
 #include "Core/IOS/USB/Emulated/WiiSpeak.h"
 #include "Core/IOS/USB/Host.h"
 #include "Core/IOS/USB/LibusbDevice.h"
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 #include "Core/System.h"
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 
 namespace IOS::HLE
 {

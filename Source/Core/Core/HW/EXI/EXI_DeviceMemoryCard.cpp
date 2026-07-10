@@ -20,7 +20,7 @@
 #include "Common/Logging/Log.h"
 #include "Core/CommonTitles.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_Channel.h"

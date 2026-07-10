@@ -21,7 +21,7 @@
 #include "Core/HW/WiimoteCommon/WiimoteConstants.h"
 #include "Core/HW/WiimoteCommon/WiimoteHid.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 
 class PointerWrap;
 

@@ -13,7 +13,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 
 #include "DolphinQt/QtUtils/FromStdString.h"
 

@@ -11,7 +11,7 @@
 #include "Common/Common.h"
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 #include "DiscIO/Enums.h"
 
 // DSP Backend Types
@@ -55,8 +55,6 @@ namespace Config
 
 extern const Info<bool> MAIN_SKIP_IPL;
 extern const Info<PowerPC::CPUCore> MAIN_CPU_CORE;
-extern const Info<bool> MAIN_STATICRECOMP_MODULE;
-extern const Info<u32> MAIN_STATICRECOMP_IDLE_PC;
 extern const Info<bool> MAIN_JIT_FOLLOW_BRANCH;
 extern const Info<bool> MAIN_FASTMEM;
 extern const Info<bool> MAIN_PAGE_TABLE_FASTMEM;

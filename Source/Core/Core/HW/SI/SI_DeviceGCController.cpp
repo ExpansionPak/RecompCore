@@ -15,7 +15,7 @@
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/SystemTimers.h"
 #include "Core/Movie.h"
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 #include "Core/System.h"
 #include "InputCommon/GCPadStatus.h"
 

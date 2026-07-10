@@ -9,8 +9,8 @@
 #include <unordered_map>
 
 #include "Common/CommonTypes.h"
-#include "Core/ActionReplay.h"
-#include "Core/CheatSearch.h"
+#include "Core/Cheats/ActionReplay.h"
+#include "Core/Cheats/CheatSearch.h"
 
 namespace Core
 {

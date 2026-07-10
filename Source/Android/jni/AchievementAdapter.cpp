@@ -6,7 +6,7 @@
 #include <latch>
 #include "Common/Event.h"
 #include "Common/HookableEvent.h"
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "jni/AndroidCommon/AndroidCommon.h"
 #include "jni/AndroidCommon/IDCache.h"
 

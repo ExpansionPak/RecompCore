@@ -23,6 +23,7 @@ fi
 DOLRECOMP_STATUS="Skipped"
 GXRUNTIME_STATUS="Skipped"
 CHASSIS_STATUS="Skipped"
+MODULE_STATUS="Skipped"
 
 FAILED=0
 
@@ -31,7 +32,7 @@ echo -e "${CYAN}             RecompCore Unified Test Runner            ${NC}"
 echo -e "${CYAN}=======================================================${NC}"
 
 # 1. DolRecomp Test Suite
-echo -e "\n${BLUE}[1/3] Building and running DolRecomp tests...${NC}"
+echo -e "\n${BLUE}[1/4] Building and running DolRecomp tests...${NC}"
 if [ -d "DolRecomp" ]; then
   mkdir -p DolRecomp/build
   cmake $GENERATOR -S DolRecomp -B DolRecomp/build -DCMAKE_BUILD_TYPE=Release
@@ -51,7 +52,7 @@ else
 fi
 
 # 2. GXRuntime Test Suite
-echo -e "\n${BLUE}[2/3] Building and running GXRuntime tests...${NC}"
+echo -e "\n${BLUE}[2/4] Building and running GXRuntime tests...${NC}"
 if [ -d "GXRuntime" ]; then
   mkdir -p GXRuntime/build
   cmake $GENERATOR -S GXRuntime -B GXRuntime/build -DCMAKE_BUILD_TYPE=Release
@@ -71,7 +72,7 @@ else
 fi
 
 # 3. Chassis Core Unit Tests
-echo -e "\n${BLUE}[3/3] Building and running Chassis Core Unit Tests...${NC}"
+echo -e "\n${BLUE}[3/4] Building and running Chassis Core Unit Tests...${NC}"
 if [ -d "build" ]; then
   # The CMake configuration runs tests as part of the post-build phase of the unittests target.
   if cmake --build build --target unittests -j"$NCPU"; then
@@ -85,6 +86,21 @@ else
   FAILED=1
 fi
 
+# 4. Static Recomp Module Build Check
+echo -e "\n${BLUE}[4/4] Building Static Recomp Module...${NC}"
+if [ -d "module-template" ]; then
+  mkdir -p module-template/build
+  cmake $GENERATOR -S module-template -B module-template/build -DCMAKE_BUILD_TYPE=Release -DGAME_ID=000002
+  if cmake --build module-template/build -j"$NCPU"; then
+    MODULE_STATUS="${GREEN}PASSED${NC}"
+  else
+    MODULE_STATUS="${RED}FAILED (build failed)${NC}"
+    FAILED=1
+  fi
+else
+  MODULE_STATUS="${YELLOW}SKIPPED (directory not found)${NC}"
+fi
+
 # Final Summary
 echo -e "\n${CYAN}=======================================================${NC}"
 echo -e "${CYAN}                    Test Result Summary                ${NC}"
@@ -92,6 +108,7 @@ echo -e "${CYAN}=======================================================${NC}"
 echo -e "1. DolRecomp Compiler Tests:      $DOLRECOMP_STATUS"
 echo -e "2. GXRuntime Emulation Tests:     $GXRUNTIME_STATUS"
 echo -e "3. Chassis Core Unit Tests:       $CHASSIS_STATUS"
+echo -e "4. Static Recomp Module Build:    $MODULE_STATUS"
 echo -e "${CYAN}=======================================================${NC}"
 
 if [ $FAILED -eq 0 ]; then

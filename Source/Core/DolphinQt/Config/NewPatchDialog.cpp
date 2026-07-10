@@ -14,7 +14,7 @@
 #include <QScrollArea>
 #include <QVBoxLayout>
 
-#include "Core/PatchEngine.h"
+#include "Core/Cheats/PatchEngine.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 
 struct NewPatchEntry

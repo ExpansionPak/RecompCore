@@ -11,7 +11,7 @@
 #include <QDialog>
 
 #include "Common/CommonTypes.h"
-#include "Core/CheatSearch.h"
+#include "Core/Cheats/CheatSearch.h"
 #include "DolphinQt/GameList/GameListModel.h"
 #include "VideoCommon/VideoEvents.h"
 

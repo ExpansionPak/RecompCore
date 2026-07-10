@@ -8,7 +8,7 @@
 #include "Common/CommonPaths.h"
 #include "Common/FileSearch.h"
 #include "Common/FileUtil.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "InputCommon/DynamicInputTextures/DITConfiguration.h"
 #include "InputCommon/ImageOperations.h"

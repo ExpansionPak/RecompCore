@@ -10,7 +10,7 @@
 #include "Common/Assert.h"
 #include "Common/FileUtil.h"
 #include "Common/MsgHandler.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/ConstantManager.h"

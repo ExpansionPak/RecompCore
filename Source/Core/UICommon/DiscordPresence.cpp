@@ -5,7 +5,7 @@
 
 #include "Core/Config/NetplaySettings.h"
 #include "Core/Config/UISettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 #ifdef USE_DISCORD_PRESENCE
 
@@ -17,7 +17,7 @@
 
 #include "Common/Hash.h"
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/AchievementSettings.h"
 #include "Core/System.h"
 

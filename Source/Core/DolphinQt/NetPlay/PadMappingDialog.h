@@ -5,7 +5,7 @@
 
 #include <QDialog>
 
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 
 class QCheckBox;
 class QGridLayout;

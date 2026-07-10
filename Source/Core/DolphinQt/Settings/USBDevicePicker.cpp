@@ -20,7 +20,7 @@
 
 #include <fmt/format.h>
 
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 
 #include "DolphinQt/Settings/WiiPane.h"
 

@@ -10,7 +10,7 @@
 
 #include "Common/Logging/Log.h"
 #include "Core/CommonTitles.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/Memmap.h"
 #include "Core/IOS/ES/Formats.h"

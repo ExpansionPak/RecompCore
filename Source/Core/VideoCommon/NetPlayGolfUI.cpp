@@ -8,7 +8,7 @@
 #include <fmt/format.h>
 #include <imgui.h>
 
-#include "Core/NetPlayClient.h"
+#include "Core/NetPlay/NetPlayClient.h"
 
 constexpr float DEFAULT_WINDOW_WIDTH = 220.0f;
 constexpr float DEFAULT_WINDOW_HEIGHT = 45.0f;

@@ -25,7 +25,7 @@
 #include "Core/IOS/IOS.h"
 #include "Core/Movie.h"
 #include "Core/System.h"
-#include "Core/WiiRoot.h"
+#include "Core/Wii/WiiRoot.h"
 
 namespace IOS::HLE::FS
 {

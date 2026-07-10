@@ -14,7 +14,7 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 
 #include "DolphinQt/Achievements/AchievementHeaderWidget.h"
 #include "DolphinQt/Achievements/AchievementLeaderboardWidget.h"

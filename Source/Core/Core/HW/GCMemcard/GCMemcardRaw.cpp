@@ -24,7 +24,7 @@
 #include "Common/Timer.h"
 
 #include "Core/Config/SessionSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"

@@ -11,7 +11,7 @@
 #include "Common/Logging/Log.h"
 
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/DSPEmulator.h"
 #include "Core/HLE/HLE.h"

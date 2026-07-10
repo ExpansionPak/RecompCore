@@ -16,7 +16,7 @@
 #include "Common/SPSCQueue.h"
 #include "Common/Timer.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/DVD/DVDInterface.h"

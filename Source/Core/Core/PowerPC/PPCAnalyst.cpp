@@ -13,7 +13,7 @@
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HLE/HLE.h"
 #include "Core/PowerPC/JitCommon/JitBase.h"

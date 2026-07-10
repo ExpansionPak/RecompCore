@@ -13,7 +13,7 @@
 #include "Common/WorkQueueThread.h"
 
 #include "Core/IOS/USB/Bluetooth/hci.h"
-#include "Core/LibusbUtils.h"
+#include "Core/USB/LibusbUtils.h"
 
 struct libusb_device_handle;
 struct libusb_device_descriptor;

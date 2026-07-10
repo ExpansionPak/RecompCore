@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "Common/Config/Config.h"
-#include "Core/SysConf.h"
+#include "Core/Wii/SysConf.h"
 
 namespace Config
 {

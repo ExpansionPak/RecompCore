@@ -26,7 +26,7 @@
 #include "Core/IOS/IOS.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
-#include "Core/WC24PatchEngine.h"
+#include "Core/Wii/WC24PatchEngine.h"
 
 #ifdef _WIN32
 #define ERRORCODE(name) WSA##name

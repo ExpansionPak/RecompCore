@@ -13,8 +13,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include "Core/NetPlayClient.h"
-#include "Core/NetPlayServer.h"
+#include "Core/NetPlay/NetPlayClient.h"
+#include "Core/NetPlay/NetPlayServer.h"
 
 #include "DolphinQt/Settings.h"
 

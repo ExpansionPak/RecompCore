@@ -29,7 +29,7 @@
 #include "Core/IOS/Network/Socket.h"
 #include "Core/IOS/Uids.h"
 #include "Core/System.h"
-#include "Core/WC24PatchEngine.h"
+#include "Core/Wii/WC24PatchEngine.h"
 
 namespace IOS::HLE
 {

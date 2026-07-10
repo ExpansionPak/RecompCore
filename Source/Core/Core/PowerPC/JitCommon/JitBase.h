@@ -17,7 +17,7 @@
 #include "Common/Config/ConfigInfo.h"
 #include "Common/x64Emitter.h"
 #include "Core/CPUThreadConfigCallback.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/MachineContext.h"
 #include "Core/PowerPC/CPUCoreBase.h"
 #include "Core/PowerPC/JitCommon/JitAsmCommon.h"

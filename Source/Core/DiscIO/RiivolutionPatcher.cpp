@@ -13,7 +13,7 @@
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
 #include "Common/StringUtil.h"
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Core.h"
 #include "Core/HLE/HLE.h"
 #include "Core/HW/Memmap.h"

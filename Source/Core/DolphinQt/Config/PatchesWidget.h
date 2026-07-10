@@ -9,7 +9,7 @@
 #include <QWidget>
 
 #include "Common/CommonTypes.h"
-#include "Core/PatchEngine.h"
+#include "Core/Cheats/PatchEngine.h"
 
 #ifdef USE_RETRO_ACHIEVEMENTS
 class HardcoreWarningWidget;

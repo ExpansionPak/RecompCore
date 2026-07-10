@@ -10,7 +10,7 @@
 #include "Common/Logging/Log.h"
 
 #include "Core/Config/GraphicsSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "VideoCommon/AbstractTexture.h"
 

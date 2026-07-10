@@ -11,7 +11,7 @@
 #include <QMenuBar>
 
 #include "Common/Lazy.h"
-#include "Core/NetPlayClient.h"
+#include "Core/NetPlay/NetPlayClient.h"
 #include "DolphinQt/GameList/GameListModel.h"
 #include "DolphinQt/NetPlay/ClickBlurLabel.h"
 #include "VideoCommon/OnScreenDisplay.h"

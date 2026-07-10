@@ -13,7 +13,7 @@
 #include "Common/Debug/Watches.h"
 #include "Common/Swap.h"
 #include "Core/Debugger/DebugInterface.h"
-#include "Core/NetworkCaptureLogger.h"
+#include "Core/NetPlay/NetworkCaptureLogger.h"
 
 namespace Core
 {

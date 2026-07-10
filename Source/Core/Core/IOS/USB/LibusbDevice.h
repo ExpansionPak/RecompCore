@@ -13,7 +13,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Core/IOS/USB/Common.h"
-#include "Core/LibusbUtils.h"
+#include "Core/USB/LibusbUtils.h"
 
 struct libusb_device;
 struct libusb_device_descriptor;

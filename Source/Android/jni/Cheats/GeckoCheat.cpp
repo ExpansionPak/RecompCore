@@ -11,9 +11,9 @@
 
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
-#include "Core/ConfigManager.h"
-#include "Core/GeckoCode.h"
-#include "Core/GeckoCodeConfig.h"
+#include "Core/Config/ConfigManager.h"
+#include "Core/Cheats/GeckoCode.h"
+#include "Core/Cheats/GeckoCodeConfig.h"
 #include "jni/AndroidCommon/AndroidCommon.h"
 #include "jni/AndroidCommon/IDCache.h"
 #include "jni/Cheats/Cheats.h"

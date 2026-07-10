@@ -27,7 +27,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigLoaders/BaseConfigLoader.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/FreeLookManager.h"
 #include "Core/HW/GBAPad.h"
@@ -39,7 +39,7 @@
 #include "Core/IOS/IOS.h"
 #include "Core/IOS/STM/STM.h"
 #include "Core/System.h"
-#include "Core/WiiRoot.h"
+#include "Core/Wii/WiiRoot.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/GCAdapter.h"

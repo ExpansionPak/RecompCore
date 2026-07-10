@@ -7,7 +7,7 @@
 #include <QDialog>
 
 #include "Common/HookableEvent.h"
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 
 class AchievementHeaderWidget;
 class AchievementLeaderboardWidget;

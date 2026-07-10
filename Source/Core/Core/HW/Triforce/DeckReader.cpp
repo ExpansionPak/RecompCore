@@ -17,7 +17,7 @@
 #include "Common/ScopeGuard.h"
 #include "Common/Swap.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 namespace
 {

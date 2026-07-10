@@ -11,7 +11,7 @@
 #include <QVBoxLayout>
 
 #include "Common/CommonTypes.h"
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 
 #include "DolphinQt/QtUtils/ClearLayoutRecursively.h"
 

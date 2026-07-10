@@ -10,7 +10,7 @@
 #include "Common/IniFile.h"
 #include "Common/MsgHandler.h"
 #include "Common/StringUtil.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/Wiimote.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"

@@ -10,8 +10,8 @@
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
 
-#include "Core/ConfigManager.h"
-#include "Core/PatchEngine.h"
+#include "Core/Config/ConfigManager.h"
+#include "Core/Cheats/PatchEngine.h"
 
 #include "DolphinQt/Config/HardcoreWarningWidget.h"
 #include "DolphinQt/Config/NewPatchDialog.h"

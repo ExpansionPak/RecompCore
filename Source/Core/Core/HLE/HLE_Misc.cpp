@@ -5,7 +5,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Core/Core.h"
-#include "Core/GeckoCode.h"
+#include "Core/Cheats/GeckoCode.h"
 #include "Core/HW/CPU.h"
 #include "Core/Host.h"
 #include "Core/PowerPC/MMU.h"

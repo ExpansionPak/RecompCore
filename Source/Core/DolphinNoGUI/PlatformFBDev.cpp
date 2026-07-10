@@ -5,7 +5,7 @@
 
 #include "DolphinNoGUI/Platform.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/State.h"
 #include "Core/System.h"

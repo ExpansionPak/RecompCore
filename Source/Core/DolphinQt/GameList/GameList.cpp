@@ -52,7 +52,7 @@
 #include "Core/HW/EXI/EXI_Device.h"
 #include "Core/HW/WiiSave.h"
 #include "Core/System.h"
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 
 #include "DiscIO/Enums.h"
 

@@ -5,7 +5,7 @@
 
 #include <QWidget>
 
-#include "Core/CheatSearch.h"
+#include "Core/Cheats/CheatSearch.h"
 
 class QCheckBox;
 class QComboBox;

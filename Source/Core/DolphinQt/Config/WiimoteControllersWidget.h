@@ -9,7 +9,7 @@
 #include <QWidget>
 
 #include "Common/WorkQueueThread.h"
-#include "Core/USBUtils.h"
+#include "Core/USB/USBUtils.h"
 
 class QAction;
 class QCheckBox;

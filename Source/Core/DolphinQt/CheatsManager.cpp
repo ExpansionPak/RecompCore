@@ -6,8 +6,8 @@
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
 
-#include "Core/CheatSearch.h"
-#include "Core/ConfigManager.h"
+#include "Core/Cheats/CheatSearch.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/System.h"
 

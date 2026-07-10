@@ -28,10 +28,10 @@
 
 #include <fmt/format.h>
 
-#include "Core/ActionReplay.h"
-#include "Core/CheatGeneration.h"
-#include "Core/CheatSearch.h"
-#include "Core/ConfigManager.h"
+#include "Core/Cheats/ActionReplay.h"
+#include "Core/Cheats/CheatGeneration.h"
+#include "Core/Cheats/CheatSearch.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/PowerPC/BreakPoints.h"
 #include "Core/PowerPC/PowerPC.h"

@@ -27,7 +27,7 @@
 
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/AddressSpace.h"
 #include "Core/PowerPC/PPCSymbolDB.h"

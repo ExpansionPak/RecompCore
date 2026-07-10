@@ -10,7 +10,7 @@
 #include <OptionParser.h>
 #include <fmt/ostream.h>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "DiscIO/Volume.h"
 #include "DiscIO/VolumeVerifier.h"
 #include "UICommon/UICommon.h"

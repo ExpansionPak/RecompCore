@@ -17,7 +17,7 @@
 #include "Common/Config/Config.h"
 #include "Common/Thread.h"
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/FreeLookSettings.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
@@ -28,7 +28,7 @@
 #include "Core/IOS/IOS.h"
 #include "Core/State.h"
 #include "Core/System.h"
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 
 #ifdef HAS_LIBMGBA
 #include "DolphinQt/GBAWidget.h"

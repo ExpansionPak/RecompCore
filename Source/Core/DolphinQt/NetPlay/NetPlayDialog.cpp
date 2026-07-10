@@ -37,13 +37,13 @@
 #include "Core/Boot/Boot.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/NetplaySettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #ifdef HAS_LIBMGBA
 #include "Core/HW/GBACore.h"
 #endif
 #include "Core/IOS/FS/FileSystem.h"
-#include "Core/NetPlayServer.h"
+#include "Core/NetPlay/NetPlayServer.h"
 #include "Core/SyncIdentifier.h"
 #include "Core/System.h"
 

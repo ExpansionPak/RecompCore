@@ -11,7 +11,7 @@
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
-#include "Core/SysConf.h"
+#include "Core/Wii/SysConf.h"
 
 namespace IOS::HLE
 {

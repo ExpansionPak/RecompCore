@@ -8,8 +8,8 @@
 
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
-#include "Core/ConfigManager.h"
-#include "Core/PatchEngine.h"
+#include "Core/Config/ConfigManager.h"
+#include "Core/Cheats/PatchEngine.h"
 #include "jni/AndroidCommon/AndroidCommon.h"
 #include "jni/AndroidCommon/IDCache.h"
 #include "jni/Cheats/Cheats.h"

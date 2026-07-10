@@ -4,7 +4,7 @@
 #include <jni.h>
 
 #include "Common/Logging/Log.h"
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "UICommon/UICommon.h"
 
 extern "C" {

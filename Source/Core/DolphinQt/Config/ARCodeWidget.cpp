@@ -22,9 +22,9 @@
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
 
-#include "Core/AchievementManager.h"
-#include "Core/ActionReplay.h"
-#include "Core/ConfigManager.h"
+#include "Core/Achievements/AchievementManager.h"
+#include "Core/Cheats/ActionReplay.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "DolphinQt/Config/CheatCodeEditor.h"
 #include "DolphinQt/Config/CheatWarningWidget.h"

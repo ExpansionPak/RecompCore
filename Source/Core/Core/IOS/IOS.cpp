@@ -21,7 +21,7 @@
 #include "Core/Boot/ElfReader.h"
 #include "Core/CommonTitles.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/Memmap.h"
@@ -58,7 +58,7 @@
 #include "Core/IOS/WFS/WFSSRV.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
-#include "Core/WiiRoot.h"
+#include "Core/Wii/WiiRoot.h"
 
 namespace IOS::HLE
 {

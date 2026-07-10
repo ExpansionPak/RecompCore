@@ -19,7 +19,7 @@
 #include "Common/Contains.h"
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/PowerPC/BreakPoints.h"
 #include "Core/PowerPC/Expression.h"

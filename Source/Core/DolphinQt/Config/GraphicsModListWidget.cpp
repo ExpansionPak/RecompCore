@@ -16,7 +16,7 @@
 #include <set>
 
 #include "Common/FileUtil.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/System.h"
 #include "DolphinQt/Config/GraphicsModWarningWidget.h"

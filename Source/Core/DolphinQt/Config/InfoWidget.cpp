@@ -13,7 +13,7 @@
 #include <QPushButton>
 #include <QTextEdit>
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 #include "DiscIO/Enums.h"
 #include "DiscIO/Volume.h"

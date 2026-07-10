@@ -33,7 +33,7 @@
 #include "Common/Swap.h"
 
 #include "Core/Config/UISettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/IOS/ES/Formats.h"
 #include "Core/TitleDatabase.h"
 

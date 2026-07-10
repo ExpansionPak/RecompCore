@@ -11,7 +11,7 @@
 #include "Common/StringUtil.h"
 
 #include "Core/Config/SessionSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/PowerPC/JitArm64/JitArm64_RegCache.h"

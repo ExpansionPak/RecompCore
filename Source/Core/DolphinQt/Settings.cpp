@@ -26,14 +26,14 @@
 #include "Common/Contains.h"
 #include "Common/FileUtil.h"
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/IOS/IOS.h"
-#include "Core/NetPlayClient.h"
-#include "Core/NetPlayServer.h"
+#include "Core/NetPlay/NetPlayClient.h"
+#include "Core/NetPlay/NetPlayServer.h"
 #include "Core/System.h"
 
 #include "DolphinQt/QtUtils/QueueOnObject.h"

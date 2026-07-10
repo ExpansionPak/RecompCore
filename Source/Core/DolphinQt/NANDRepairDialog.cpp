@@ -17,9 +17,9 @@
 #include <fmt/format.h>
 
 #include "Common/StringUtil.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/TitleDatabase.h"
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 #include "DiscIO/WiiSaveBanner.h"
 #include "DolphinQt/Resources.h"
 

@@ -27,13 +27,13 @@
 #include "Common/MsgHandler.h"
 
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "DolphinQt/Config/SettingsWindow.h"
 #ifdef HAS_LIBMGBA
-#include "Core/NetPlayServer.h"
+#include "Core/NetPlay/NetPlayServer.h"
 #endif
 #include "Core/System.h"
 

@@ -10,7 +10,7 @@
 #include "Core/IOS/IOS.h"
 #include "Core/IOS/IOSC.h"
 #include "Core/System.h"
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 #include "DiscIO/VolumeWad.h"
 
 bool CBoot::BootNANDTitle(Core::System& system, const u64 title_id)

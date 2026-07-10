@@ -14,7 +14,7 @@
 #include "Common/x64ABI.h"
 #include "Common/x64Emitter.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/CoreTiming.h"
 #include "Core/Debugger/BranchWatch.h"
 #include "Core/HW/CPU.h"

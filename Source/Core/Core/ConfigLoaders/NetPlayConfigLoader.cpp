@@ -17,7 +17,7 @@
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/Config/SessionSettings.h"
 #include "Core/HW/EXI/EXI.h"
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 
 namespace ConfigLoaders
 {

@@ -31,7 +31,7 @@
 #include "Core/IOS/Network/MACUtils.h"
 #include "Core/IOS/Network/Socket.h"
 #include "Core/System.h"
-#include "Core/WC24PatchEngine.h"
+#include "Core/Wii/WC24PatchEngine.h"
 
 #ifdef _WIN32
 #include <iphlpapi.h>

@@ -13,7 +13,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/Core.h"

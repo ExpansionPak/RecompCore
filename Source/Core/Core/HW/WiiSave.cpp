@@ -38,7 +38,7 @@
 #include "Core/IOS/IOS.h"
 #include "Core/IOS/IOSC.h"
 #include "Core/IOS/Uids.h"
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 
 namespace WiiSave
 {

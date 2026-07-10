@@ -9,7 +9,7 @@
 #include <QPushButton>
 #include <QStyle>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 
 #include "DolphinQt/QtUtils/QtUtils.h"
 #include "DolphinQt/Settings.h"

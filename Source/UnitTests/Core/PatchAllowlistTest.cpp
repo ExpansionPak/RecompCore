@@ -18,11 +18,11 @@
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
 #include "Common/JsonUtil.h"
-#include "Core/AchievementApprovedHash.h"
-#include "Core/ActionReplay.h"
-#include "Core/GeckoCode.h"
-#include "Core/GeckoCodeConfig.h"
-#include "Core/PatchEngine.h"
+#include "Core/Achievements/AchievementApprovedHash.h"
+#include "Core/Cheats/ActionReplay.h"
+#include "Core/Cheats/GeckoCode.h"
+#include "Core/Cheats/GeckoCodeConfig.h"
+#include "Core/Cheats/PatchEngine.h"
 
 struct GameHashes
 {

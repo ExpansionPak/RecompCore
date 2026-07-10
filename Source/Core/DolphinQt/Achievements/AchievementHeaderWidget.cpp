@@ -13,7 +13,7 @@
 
 #include <rcheevos/include/rc_client.h>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/AchievementSettings.h"
 
 #include "DolphinQt/QtUtils/FromStdString.h"

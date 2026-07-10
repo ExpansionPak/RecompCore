@@ -13,7 +13,7 @@
 #include "Common/Flag.h"
 #include "Common/WaitableFlag.h"
 #include "Core/IOS/USB/Common.h"
-#include "Core/LibusbUtils.h"
+#include "Core/USB/LibusbUtils.h"
 
 class PointerWrap;
 

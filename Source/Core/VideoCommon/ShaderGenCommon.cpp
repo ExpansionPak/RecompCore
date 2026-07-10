@@ -6,7 +6,7 @@
 #include <fmt/format.h>
 
 #include "Common/FileUtil.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
 

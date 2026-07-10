@@ -12,8 +12,9 @@
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
-#include "Core/PowerPC/StaticRecomp/lockstep/StaticRecompLockstep.h"
+#include "Core/Config/StaticRecompSettings.h"
+#include "Core/Config/ConfigManager.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompLockstep.h"
 #include "Core/System.h"
 
 #ifdef _M_X86_64

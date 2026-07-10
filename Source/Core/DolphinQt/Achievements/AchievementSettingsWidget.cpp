@@ -10,7 +10,7 @@
 #include <QString>
 #include <QVBoxLayout>
 
-#include "Core/AchievementManager.h"
+#include "Core/Achievements/AchievementManager.h"
 #include "Core/Config/AchievementSettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/Core.h"

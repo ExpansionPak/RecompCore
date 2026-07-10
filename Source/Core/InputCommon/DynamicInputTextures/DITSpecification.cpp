@@ -7,7 +7,7 @@
 
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 
 namespace InputCommon::DynamicInputTextures
 {

@@ -18,7 +18,7 @@
 #include <QTabWidget>
 
 #include "Core/Config/NetplaySettings.h"
-#include "Core/NetPlayProto.h"
+#include "Core/NetPlay/NetPlayProto.h"
 
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/NonDefaultQPushButton.h"

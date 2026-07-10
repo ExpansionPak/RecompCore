@@ -13,7 +13,7 @@
 #include "Common/Assert.h"
 #include "Common/Flag.h"
 
-#include "Core/WiiUtils.h"
+#include "Core/Wii/WiiUtils.h"
 
 #include "DiscIO/NANDImporter.h"
 

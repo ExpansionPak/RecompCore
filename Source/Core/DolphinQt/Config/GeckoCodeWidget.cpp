@@ -26,10 +26,10 @@
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
 
-#include "Core/AchievementManager.h"
-#include "Core/ConfigManager.h"
-#include "Core/GeckoCode.h"
-#include "Core/GeckoCodeConfig.h"
+#include "Core/Achievements/AchievementManager.h"
+#include "Core/Config/ConfigManager.h"
+#include "Core/Cheats/GeckoCode.h"
+#include "Core/Cheats/GeckoCodeConfig.h"
 
 #include "DolphinQt/Config/CheatCodeEditor.h"
 #include "DolphinQt/Config/CheatWarningWidget.h"

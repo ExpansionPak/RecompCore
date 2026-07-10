@@ -15,7 +15,7 @@
 #include "Common/ScopeGuard.h"
 #include "Common/Swap.h"
 
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/HW/DVD/AMMediaboard.h"
 
 namespace

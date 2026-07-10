@@ -42,7 +42,7 @@ using namespace std::chrono_literals;
 
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
 #include "Common/ScopeGuard.h"
-#include "Core/LibusbUtils.h"
+#include "Core/USB/LibusbUtils.h"
 #elif GCADAPTER_USE_ANDROID_IMPLEMENTATION
 #include "jni/AndroidCommon/IDCache.h"
 #endif

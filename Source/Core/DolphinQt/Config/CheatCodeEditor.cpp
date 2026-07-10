@@ -15,9 +15,9 @@
 
 #include "Common/StringUtil.h"
 
-#include "Core/ARDecrypt.h"
-#include "Core/ActionReplay.h"
-#include "Core/GeckoCodeConfig.h"
+#include "Core/Cheats/ARDecrypt.h"
+#include "Core/Cheats/ActionReplay.h"
+#include "Core/Cheats/GeckoCodeConfig.h"
 
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 

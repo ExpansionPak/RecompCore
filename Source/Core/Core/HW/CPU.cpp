@@ -13,7 +13,7 @@
 #include "Common/Timer.h"
 #include "Core/CPUThreadConfigCallback.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/ConfigManager.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/Host.h"
 #include "Core/PowerPC/GDBStub.h"
