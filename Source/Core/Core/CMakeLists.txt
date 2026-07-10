@@ -704,6 +704,9 @@ elseif(_M_ARM_64)
   target_sources(core PRIVATE
     PowerPC/JitArm64/Jit.cpp
     PowerPC/JitArm64/Jit.h
+    PowerPC/JitArm64/JitArm64_Cache.cpp
+    PowerPC/JitArm64/JitArm64_Compile.cpp
+    PowerPC/JitArm64/JitArm64_Fault.cpp
     PowerPC/JitArm64/JitAsm.cpp
     PowerPC/JitArm64/JitArm64Cache.cpp
     PowerPC/JitArm64/JitArm64_BackPatch.cpp
