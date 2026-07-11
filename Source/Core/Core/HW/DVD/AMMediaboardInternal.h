@@ -8,6 +8,11 @@
 #include <string_view>
 #include <cassert>
 #include <climits>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+
 #include "Common/BitUtils.h"
 #include "Common/CommonTypes.h"
 #include "Common/Network.h"

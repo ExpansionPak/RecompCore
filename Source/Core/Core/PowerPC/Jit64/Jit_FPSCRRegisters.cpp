@@ -49,11 +49,6 @@ void Jit64::UpdateFPExceptionSummary(X64Reg fpscr, X64Reg tmp1, X64Reg tmp2)
   OR(32, R(fpscr), R(tmp1));
 }
 
-static void DoICacheReset(PowerPC::PowerPCState& ppc_state, JitInterface& jit_interface)
-{
-  ppc_state.iCache.Reset(jit_interface);
-}
-
 void Jit64::mcrfs(UGeckoInstruction inst)
 {
   INSTRUCTION_START

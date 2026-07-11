@@ -2,6 +2,10 @@
 # RecompCore Unified Test Runner
 # Compiles and runs all test suites across the repository.
 
+
+# todo: replace with a simpler test suite
+
+
 # Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'

@@ -7,6 +7,10 @@
 #include <stddef.h>
 #include <string.h>
 
+#if defined(_MSC_VER)
+#include <stdlib.h>
+#endif
+
 typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -26,44 +30,61 @@ static inline s32 sign_extend(u32 value, int bits) {
 
 // byte swap
 static inline u16 bswap16(u16 v) {
+#if defined(_MSC_VER)
+    return _byteswap_ushort(v);
+#else
     return __builtin_bswap16(v);
+#endif
 }
 
 static inline u32 bswap32(u32 v) {
+    // so we can compile on msvc too
+#if defined(_MSC_VER)
+    return _byteswap_ulong(v);
+#else
     return __builtin_bswap32(v);
+#endif
+}
+
+static inline u64 bswap64(u64 v) {
+#if defined(_MSC_VER)
+    return _byteswap_uint64(v);
+#else
+    return __builtin_bswap64(v);
+#endif
 }
 
 // big-endian read/write
 static inline u16 read_be16(const u8* p) {
     u16 v;
     memcpy(&v, p, 2);
-    return __builtin_bswap16(v);
+    return bswap16(v);
 }
 
 static inline u32 read_be32(const u8* p) {
     u32 v;
     memcpy(&v, p, 4);
-    return __builtin_bswap32(v);
+    return bswap32(v);
 }
 
 static inline u64 read_be64(const u8* p) {
     u64 v;
     memcpy(&v, p, 8);
-    return __builtin_bswap64(v);
+    return bswap64(v);
 }
 
 static inline void write_be16(u8* p, u16 v) {
-    u16 swapped = __builtin_bswap16(v);
+    u16 swapped = bswap16(v);
     memcpy(p, &swapped, 2);
 }
 
 static inline void write_be32(u8* p, u32 v) {
-    u32 swapped = __builtin_bswap32(v);
+    u32 swapped = bswap32(v);
     memcpy(p, &swapped, 4);
 }
 
 static inline void write_be64(u8* p, u64 v) {
-    u64 swapped = __builtin_bswap64(v);
+    u64 swapped = bswap64(v);
     memcpy(p, &swapped, 8);
 }
 
@@ -131,5 +152,4 @@ static inline u32 convert_to_single_ftz(u64 x) {
 }
 
 #endif /* DOLRECOMP_TYPES_H */
-
 

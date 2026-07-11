@@ -58,7 +58,7 @@ void StaticRecompCore::Init()
   m_guest.host_call = nullptr;
   m_guest.external_user_data = this;
 
-  std::fprintf(stderr, "[staticrecomp] core init (chassis built " __DATE__ " " __TIME__ ")\n");
+  std::fprintf(stderr, "[staticrecomp] core init\n");
 
   LoadModule();
   m_idle_pc = Config::Get(Config::MAIN_STATICRECOMP_IDLE_PC);
@@ -176,10 +176,8 @@ void StaticRecompCore::LoadModule()
   m_lookup_exram_size = 0;
   m_chunk_lookup_table.clear();
 
-  std::fprintf(stderr,
-               "[staticrecomp] module loaded: %s entry=0x%08X (chassis built " __DATE__
-               " " __TIME__ ")\n",
-               path.c_str(), desc->entry_point);
+  std::fprintf(stderr, "[staticrecomp] module loaded: %s entry=0x%08X\n", path.c_str(),
+               desc->entry_point);
   NOTICE_LOG_FMT(POWERPC,
                  "StaticRecomp: loaded module '{}' (game_id={} entry=0x{:08X} "
                  "code_ranges={} smc_ranges={})",

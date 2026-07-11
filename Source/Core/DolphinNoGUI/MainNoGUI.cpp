@@ -305,6 +305,7 @@ int main(const int argc, char* argv[])
 #ifdef _WIN32
   std::signal(SIGINT, signal_handler);
   std::signal(SIGTERM, signal_handler);
+  std::signal(SIGBREAK, signal_handler);
 #else
   // Shut down cleanly on SIGINT and SIGTERM
   struct sigaction sa;
