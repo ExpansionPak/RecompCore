@@ -22,7 +22,7 @@ Running this script will:
 7) Code sign the final universal binaries using the specified
    codesign_identity
 """
-
+# going to assume this script already works, since i don't have MacOS. Though when MacOS testing rolls around come back here
 import argparse
 import filecmp
 import glob

@@ -3,6 +3,14 @@
 #define DOLRECOMP_CPU_H
 
 #include "types.h"
+// more msvc shit fuck msvc
+#if defined(_MSC_VER)
+#define GXRUNTIME_ALWAYS_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+#define GXRUNTIME_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#define GXRUNTIME_ALWAYS_INLINE inline
+#endif
 
 // Minimal CPU support ABI for generated code and CPU tests.
 //
@@ -142,7 +150,7 @@ typedef void (*PPCMemWriteJournal)(u32 offset, u32 size, void* user);
 extern PPCMemWriteJournal g_mem_write_journal;
 extern void* g_mem_write_journal_user;
 
-static inline __attribute__((always_inline)) u8* get_ram_ptr(CPUState* cpu, u32 addr, u32 size, u32* out_offset) {
+static GXRUNTIME_ALWAYS_INLINE u8* get_ram_ptr(CPUState* cpu, u32 addr, u32 size, u32* out_offset) {
     u32 masked_addr = addr & ~0x40000000u;
     
     // Check MEM2 (EXRAM) first as it is much more common in Wii titles
@@ -164,7 +172,7 @@ static inline __attribute__((always_inline)) u8* get_ram_ptr(CPUState* cpu, u32 
     return NULL;
 }
 
-static inline __attribute__((always_inline)) u64 mem_read64(CPUState* cpu, u32 addr) {
+static GXRUNTIME_ALWAYS_INLINE u64 mem_read64(CPUState* cpu, u32 addr) {
     u8* ptr = get_ram_ptr(cpu, addr, 8, NULL);
     if (ptr == NULL) {
         if (cpu->external_read)
@@ -174,7 +182,7 @@ static inline __attribute__((always_inline)) u64 mem_read64(CPUState* cpu, u32 a
     return read_be64(ptr);
 }
 
-static inline __attribute__((always_inline)) void mem_write64(CPUState* cpu, u32 addr, u64 value) {
+static GXRUNTIME_ALWAYS_INLINE void mem_write64(CPUState* cpu, u32 addr, u64 value) {
     u32 offset;
     u8* ptr = get_ram_ptr(cpu, addr, 8, &offset);
     if (ptr == NULL) {
@@ -187,7 +195,7 @@ static inline __attribute__((always_inline)) void mem_write64(CPUState* cpu, u32
     write_be64(ptr, value);
 }
 
-static inline __attribute__((always_inline)) u32 mem_read32(CPUState* cpu, u32 addr) {
+static GXRUNTIME_ALWAYS_INLINE u32 mem_read32(CPUState* cpu, u32 addr) {
     u8* ptr = get_ram_ptr(cpu, addr, 4, NULL);
     if (ptr == NULL) {
         if (cpu->external_read)
@@ -197,7 +205,7 @@ static inline __attribute__((always_inline)) u32 mem_read32(CPUState* cpu, u32 a
     return read_be32(ptr);
 }
 
-static inline __attribute__((always_inline)) void mem_write32(CPUState* cpu, u32 addr, u32 value) {
+static GXRUNTIME_ALWAYS_INLINE void mem_write32(CPUState* cpu, u32 addr, u32 value) {
     u32 offset;
     u8* ptr = get_ram_ptr(cpu, addr, 4, &offset);
     if (ptr == NULL) {
@@ -210,7 +218,7 @@ static inline __attribute__((always_inline)) void mem_write32(CPUState* cpu, u32
     write_be32(ptr, value);
 }
 
-static inline __attribute__((always_inline)) u16 mem_read16(CPUState* cpu, u32 addr) {
+static GXRUNTIME_ALWAYS_INLINE u16 mem_read16(CPUState* cpu, u32 addr) {
     u8* ptr = get_ram_ptr(cpu, addr, 2, NULL);
     if (ptr == NULL) {
         if (cpu->external_read)
@@ -220,7 +228,7 @@ static inline __attribute__((always_inline)) u16 mem_read16(CPUState* cpu, u32 a
     return read_be16(ptr);
 }
 
-static inline __attribute__((always_inline)) void mem_write16(CPUState* cpu, u32 addr, u16 value) {
+static GXRUNTIME_ALWAYS_INLINE void mem_write16(CPUState* cpu, u32 addr, u16 value) {
     u32 offset;
     u8* ptr = get_ram_ptr(cpu, addr, 2, &offset);
     if (ptr == NULL) {
@@ -233,7 +241,7 @@ static inline __attribute__((always_inline)) void mem_write16(CPUState* cpu, u32
     write_be16(ptr, value);
 }
 
-static inline __attribute__((always_inline)) u8 mem_read8(CPUState* cpu, u32 addr) {
+static GXRUNTIME_ALWAYS_INLINE u8 mem_read8(CPUState* cpu, u32 addr) {
     u8* ptr = get_ram_ptr(cpu, addr, 1, NULL);
     if (ptr == NULL) {
         if (cpu->external_read)
@@ -243,7 +251,7 @@ static inline __attribute__((always_inline)) u8 mem_read8(CPUState* cpu, u32 add
     return *ptr;
 }
 
-static inline __attribute__((always_inline)) void mem_write8(CPUState* cpu, u32 addr, u8 value) {
+static GXRUNTIME_ALWAYS_INLINE void mem_write8(CPUState* cpu, u32 addr, u8 value) {
     u32 offset;
     u8* ptr = get_ram_ptr(cpu, addr, 1, &offset);
     if (ptr == NULL) {
@@ -255,6 +263,8 @@ static inline __attribute__((always_inline)) void mem_write8(CPUState* cpu, u32 
     if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 1, g_mem_write_journal_user);
     *ptr = value;
 }
+
+#undef GXRUNTIME_ALWAYS_INLINE
 
 bool cpu_init(CPUState* cpu);
 void cpu_free(CPUState* cpu);

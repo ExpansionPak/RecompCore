@@ -3,15 +3,17 @@
 
 #include "Core/PowerPC/Jit64/Jit.h"
 
+#include <bit>
+
+#include "Common/CPUDetect.h"
 #include "Common/CommonTypes.h"
 #include "Core/Config/MainSettings.h"
+#include "Core/PowerPC/Jit64/RegCache/JitRegCache.h"
 #include "Core/PowerPC/Jit64Common/Jit64PowerPCState.h"
 #include "Core/PowerPC/PowerPC.h"
 
 using namespace Gen;
 
-namespace Jit64
-{
 void Jit64::rlwinmx(UGeckoInstruction inst)
 {
   INSTRUCTION_START
@@ -268,6 +270,7 @@ void Jit64::rlwnmx(UGeckoInstruction inst)
     ComputeRC(a, false);
 }
 
+#if 0
 void Jit64::srwx(UGeckoInstruction inst)
 {
   INSTRUCTION_START
@@ -486,5 +489,4 @@ void Jit64::srawix(UGeckoInstruction inst)
   if (inst.Rc)
     ComputeRC(a);
 }
-
-}
+#endif

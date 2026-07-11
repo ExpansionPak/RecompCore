@@ -18,9 +18,9 @@
 
 using namespace Gen;
 
-static OpArg CROffset(int field)
+static void DoICacheReset(PowerPC::PowerPCState& ppc_state, JitInterface& jit_interface)
 {
-  return PPCSTATE_CR(field);
+  ppc_state.iCache.Reset(jit_interface);
 }
 
 void Jit64::mtspr(UGeckoInstruction inst)
@@ -292,5 +292,3 @@ void Jit64::mftb(UGeckoInstruction inst)
   JITDISABLE(bJITSystemRegistersOff);
   mfspr(inst);
 }
-
-} // namespace Jit64

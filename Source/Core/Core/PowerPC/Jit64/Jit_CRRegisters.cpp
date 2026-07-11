@@ -365,5 +365,3 @@ void Jit64::crXXX(UGeckoInstruction inst)
   // Store result bit in CRBD
   SetCRFieldBit(inst.CRBD >> 2, 3 - (inst.CRBD & 3), RSCRATCH);
 }
-
-} // namespace Jit64

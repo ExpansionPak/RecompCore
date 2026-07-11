@@ -19,6 +19,9 @@
 #include "Core/PowerPC/PPCAnalyst.h"
 
 using namespace Gen;
+// hi
+alignas(16) static const double half_qnan_and_s32_max[2] = {0x7FFFFFFF, -0x80000};
+
 void Jit64::FloatCompare(UGeckoInstruction inst, bool upper)
 {
   bool fprf = m_fprf && js.op->wantsFPRF;
