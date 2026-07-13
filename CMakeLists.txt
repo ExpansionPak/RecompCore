@@ -725,7 +725,10 @@ if(ENABLE_SDL)
   # ModernGekko's standalone ImGui launcher is declared by the parent project.
   # Make the distro SDL target visible outside this directory when one is used.
   if(TARGET SDL3::SDL3-shared)
-    set_property(TARGET SDL3::SDL3-shared PROPERTY IMPORTED_GLOBAL TRUE)
+    get_target_property(_moderngekko_sdl_alias SDL3::SDL3-shared ALIASED_TARGET)
+    if(NOT _moderngekko_sdl_alias)
+      set_property(TARGET SDL3::SDL3-shared PROPERTY IMPORTED_GLOBAL TRUE)
+    endif()
   endif()
 endif()
 
