@@ -56,7 +56,7 @@ add_library(${MODULE_NAME} SHARED
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_integer.c"
   ${CHUNK_SOURCES})
 
-set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD ON)
+set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD OFF)
 set_source_files_properties("${MODULE_TABLES}" PROPERTIES HEADER_FILE_ONLY TRUE GENERATED TRUE)
 
 target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
@@ -67,9 +67,22 @@ target_include_directories(${MODULE_NAME} PRIVATE
   "${CHASSIS_ABI_DIR}"
   "${CMAKE_CURRENT_BINARY_DIR}")
 
-target_link_libraries(${MODULE_NAME} PRIVATE m)
+if(NOT WIN32)
+  target_link_libraries(${MODULE_NAME} PRIVATE m)
+endif()
 
-# ThinLTO so the GXRuntime cpu.c helpers inline into the generated chunk
-# call sites; semantics unchanged (no -ffast-math, FP stays bit-exact).
-target_compile_options(${MODULE_NAME} PRIVATE -flto=thin -fvisibility=hidden)
-target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
+# Keep each generated chunk as its own translation unit. Clang uses ThinLTO and
+# lld; GCC deliberately avoids LTO until the differential parity gate covers it.
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  target_compile_options(${MODULE_NAME} PRIVATE -O2 -flto=thin -fvisibility=hidden
+                         -ffp-contract=off -fno-fast-math)
+  target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
+  if(UNIX AND NOT APPLE)
+    target_link_options(${MODULE_NAME} PRIVATE -fuse-ld=lld)
+  endif()
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(${MODULE_NAME} PRIVATE -O2 -fvisibility=hidden
+                         -ffp-contract=off -fno-fast-math)
+elseif(MSVC)
+  target_compile_options(${MODULE_NAME} PRIVATE /fp:strict)
+endif()

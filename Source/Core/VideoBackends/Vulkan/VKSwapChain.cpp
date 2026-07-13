@@ -10,6 +10,8 @@
 #include "Common/Contains.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+#include "Common/Config/Config.h"
+#include "Core/Config/MainSettings.h"
 
 #include "VideoBackends/Vulkan/CommandBufferManager.h"
 #include "VideoBackends/Vulkan/ObjectCache.h"
@@ -19,6 +21,9 @@
 
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
 #include <X11/Xlib.h>
+#endif
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+#include <wayland-client.h>
 #endif
 
 namespace Vulkan
@@ -80,6 +85,26 @@ VkSurfaceKHR SwapChain::CreateVulkanSurface(VkInstance instance, const WindowSys
       return VK_NULL_HANDLE;
     }
 
+    return surface;
+  }
+#endif
+
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+  if (wsi.type == WindowSystemType::Wayland)
+  {
+    const VkWaylandSurfaceCreateInfoKHR surface_create_info = {
+        VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR, nullptr, 0,
+        static_cast<wl_display*>(wsi.display_connection),
+        static_cast<wl_surface*>(wsi.render_surface)};
+
+    VkSurfaceKHR surface;
+    const VkResult res =
+        vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
+    if (res != VK_SUCCESS)
+    {
+      LOG_VULKAN_ERROR(res, "vkCreateWaylandSurfaceKHR failed: ");
+      return VK_NULL_HANDLE;
+    }
     return surface;
   }
 #endif
@@ -299,8 +324,12 @@ bool SwapChain::CreateSwapChain()
   VkExtent2D size = surface_capabilities.currentExtent;
   if (size.width == UINT32_MAX)
   {
-    size.width = std::max(g_presenter->GetBackbufferWidth(), 1);
-    size.height = std::max(g_presenter->GetBackbufferHeight(), 1);
+    // Wayland surfaces usually leave the extent to the client. The presenter
+    // does not exist yet during the initial Vulkan swap-chain creation.
+    size.width = g_presenter ? std::max(g_presenter->GetBackbufferWidth(), 1) :
+                               Config::Get(Config::MAIN_RENDER_WINDOW_WIDTH);
+    size.height = g_presenter ? std::max(g_presenter->GetBackbufferHeight(), 1) :
+                                Config::Get(Config::MAIN_RENDER_WINDOW_HEIGHT);
   }
   size.width = std::clamp(size.width, surface_capabilities.minImageExtent.width,
                           surface_capabilities.maxImageExtent.width);

@@ -14,6 +14,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Core/MachineContext.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompModuleSource.h"
 
 class CPUCoreBase;
 class PointerWrap;
@@ -44,6 +45,7 @@ public:
 
   CPUCoreBase* InitJitCore(PowerPC::CPUCore core);
   CPUCoreBase* GetCore() const;
+  void SetStaticRecompModuleSource(StaticRecompModuleSource source);
 
 #ifdef _ARCH_32
   constexpr bool WantsPageTableMappings() const { return false; }
@@ -107,4 +109,5 @@ public:
 private:
   std::unique_ptr<JitBase> m_jit;
   Core::System& m_system;
+  StaticRecompModuleSource m_static_recomp_module_source;
 };

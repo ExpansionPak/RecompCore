@@ -103,14 +103,20 @@ def main() -> int:
         for a, b in code_ranges:
             f.write(f"    {{0x{a:08X}u, 0x{b:08X}u}},\n")
         f.write("};\n")
+        f.write(f"#define MODULE_CODE_RANGE_COUNT {len(code_ranges)}u\n")
         f.write("static const StaticRecompRange s_smc_ranges[] = {\n")
-        for a, b in smc_ranges:
-            f.write(f"    {{0x{a:08X}u, 0x{b:08X}u}},\n")
+        if smc_ranges:
+            for a, b in smc_ranges:
+                f.write(f"    {{0x{a:08X}u, 0x{b:08X}u}},\n")
+        else:
+            f.write("    {0u, 0u}, /* C and MSVC do not support zero-sized arrays. */\n")
         f.write("};\n")
+        f.write(f"#define MODULE_SMC_RANGE_COUNT {len(smc_ranges)}u\n")
         f.write("static const StaticRecompRange s_chunk_ranges[] = {\n")
         for a, b in chunk_ranges:
             f.write(f"    {{0x{a:08X}u, 0x{b:08X}u}},\n")
         f.write("};\n")
+        f.write(f"#define MODULE_CHUNK_RANGE_COUNT {len(chunk_ranges)}u\n")
         # FNV-1a 64 of each chunk's original text, so the chassis can verify
         # that guest RAM still holds the code this module was compiled from.
         read_range = load_dol_text(dol_path)

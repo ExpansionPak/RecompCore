@@ -13,6 +13,7 @@
 #include "Core/PowerPC/JitCommon/JitBase.h"
 #include "Core/PowerPC/JitCommon/JitCache.h"
 #include "Core/PowerPC/StaticRecomp/StaticRecompABI.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompModuleSource.h"
 
 namespace Core
 {
@@ -37,7 +38,7 @@ class StaticRecompCore : public JitBase
 public:
   friend class StaticRecompLockstep::StaticRecompLockstepVerifier;
 
-  explicit StaticRecompCore(Core::System& system);
+  explicit StaticRecompCore(Core::System& system, StaticRecompModuleSource module_source);
   StaticRecompCore(const StaticRecompCore&) = delete;
   StaticRecompCore(StaticRecompCore&&) = delete;
   StaticRecompCore& operator=(const StaticRecompCore&) = delete;
@@ -137,6 +138,7 @@ private:
 
   CPUState m_guest{};
   Common::DynamicLibrary m_library;
+  StaticRecompModuleSource m_module_source;
   const StaticRecompModuleDesc* m_module = nullptr;
   bool m_module_active = false;
   std::unique_ptr<JitBase> m_fallback_jit;
@@ -169,4 +171,3 @@ private:
 };
 
 extern StaticRecompCore* g_static_recomp_core;
-
