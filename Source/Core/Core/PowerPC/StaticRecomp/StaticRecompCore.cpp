@@ -4,7 +4,6 @@
 #include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
 
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 
 #include "Common/Config/Config.h"
@@ -27,12 +26,60 @@
 
 StaticRecompCore* g_static_recomp_core = nullptr;
 
+namespace
+{
+bool RangesAreSorted(const StaticRecompRange* ranges, u32 count)
+{
+  if (!ranges || count == 0)
+    return false;
+  for (u32 i = 0; i < count; ++i)
+  {
+    if (ranges[i].start >= ranges[i].end ||
+        (i != 0 && ranges[i - 1].end > ranges[i].start))
+      return false;
+  }
+  return true;
+}
+
+bool AddressIsCovered(const StaticRecompRange* ranges, u32 count, u32 address)
+{
+  for (u32 i = 0; i < count; ++i)
+  {
+    if (address >= ranges[i].start && address < ranges[i].end)
+      return true;
+  }
+  return false;
+}
+
+bool ChunksTileCode(const StaticRecompModuleDesc& desc)
+{
+  if (!RangesAreSorted(desc.chunk_ranges, desc.num_chunk_ranges) || !desc.chunk_hashes)
+    return false;
+  u32 chunk = 0;
+  for (u32 code = 0; code < desc.num_code_ranges; ++code)
+  {
+    u32 cursor = desc.code_ranges[code].start;
+    while (chunk < desc.num_chunk_ranges && desc.chunk_ranges[chunk].start < desc.code_ranges[code].end)
+    {
+      if (desc.chunk_ranges[chunk].start != cursor ||
+          desc.chunk_ranges[chunk].end > desc.code_ranges[code].end)
+        return false;
+      cursor = desc.chunk_ranges[chunk++].end;
+    }
+    if (cursor != desc.code_ranges[code].end)
+      return false;
+  }
+  return chunk == desc.num_chunk_ranges;
+}
+}  // namespace
+
 bool StaticRecompCore::IsModuleActive() const
 {
   return m_module_active;
 }
 
-StaticRecompCore::StaticRecompCore(Core::System& system) : JitBase(system)
+StaticRecompCore::StaticRecompCore(Core::System& system, StaticRecompModuleSource module_source)
+    : JitBase(system), m_module_source(std::move(module_source))
 {
 }
 
@@ -106,49 +153,36 @@ void StaticRecompCore::Shutdown()
 
 void StaticRecompCore::LoadModule()
 {
-  if (!Config::Get(Config::MAIN_STATICRECOMP_MODULE))
+  if (m_module_source.kind == StaticRecompModuleSource::Kind::None)
   {
-    std::fprintf(stderr,
-                 "[staticrecomp] native module disabled by config "
-                 "(Main.Core.StaticRecompModule=false); interpreter-only (invariant path).\n");
-    NOTICE_LOG_FMT(POWERPC, "StaticRecomp: module disabled by config; interpreter-only.");
+    NOTICE_LOG_FMT(POWERPC, "StaticRecomp: no explicit module source; interpreter-only.");
     return;
   }
 
   const std::string game_id = SConfig::GetInstance().GetGameID();
-  std::string path;
-  if (const char* env = std::getenv("STATICRECOMP_MODULE"))
+  std::string path = m_module_source.path;
+  const StaticRecompModuleDesc* desc = nullptr;
+  if (m_module_source.kind == StaticRecompModuleSource::Kind::AttachedDescriptor)
   {
-    path = env;
+    desc = m_module_source.descriptor;
   }
-  else if (!game_id.empty())
+  else
   {
-    path = Common::DynamicLibrary::GetUnprefixedFilename(
-        (File::GetUserPath(D_USER_IDX) + "StaticRecompModules/g" + game_id + "_recomp").c_str());
+    if (path.empty() || !File::Exists(path) || !m_library.Open(path.c_str()))
+    {
+      ERROR_LOG_FMT(POWERPC, "StaticRecomp: failed to open explicit module '{}'.", path);
+      return;
+    }
+    const auto get_module = reinterpret_cast<StaticRecompGetModuleFn>(
+        m_library.GetSymbolAddress(STATICRECOMP_GET_MODULE_SYMBOL));
+    desc = get_module ? get_module() : nullptr;
   }
-
-  if (path.empty() || !File::Exists(path))
-  {
-    NOTICE_LOG_FMT(POWERPC, "StaticRecomp: no module for game '{}' (looked at '{}'); "
-                            "running interpreter-only.",
-                   game_id, path);
-    return;
-  }
-
-  if (!m_library.Open(path.c_str()))
-  {
-    ERROR_LOG_FMT(POWERPC, "StaticRecomp: failed to dlopen module '{}'; interpreter-only.", path);
-    return;
-  }
-
-  const auto get_module = reinterpret_cast<StaticRecompGetModuleFn>(
-      m_library.GetSymbolAddress(STATICRECOMP_GET_MODULE_SYMBOL));
-  const StaticRecompModuleDesc* desc = get_module ? get_module() : nullptr;
 
   const auto reject = [&](const std::string& why) {
     ERROR_LOG_FMT(POWERPC, "StaticRecomp: rejecting module '{}': {}. Interpreter-only.", path, why);
     m_module = nullptr;
-    m_library.Close();
+    if (m_library.IsOpen())
+      m_library.Close();
   };
 
   if (!desc)
@@ -163,9 +197,19 @@ void StaticRecompCore::LoadModule()
                               sizeof(CPUState)));
   if (!desc->dispatch || !desc->code_ranges || desc->num_code_ranges == 0)
     return reject("no dispatch entry or empty code ranges");
+  if (!std::memchr(desc->game_id, '\0', sizeof(desc->game_id)) || desc->game_id[0] == '\0')
+    return reject("invalid game_id");
+  if (!RangesAreSorted(desc->code_ranges, desc->num_code_ranges))
+    return reject("malformed or overlapping code ranges");
+  if (desc->num_smc_ranges != 0 && !RangesAreSorted(desc->smc_ranges, desc->num_smc_ranges))
+    return reject("malformed or overlapping SMC ranges");
   if (!desc->chunk_ranges || desc->num_chunk_ranges == 0 || !desc->chunk_hashes)
     return reject("no chunk ranges/hashes (required for the SMC guard)");
-  if (!std::getenv("STATICRECOMP_MODULE") && !game_id.empty() && game_id != desc->game_id)
+  if (!ChunksTileCode(*desc))
+    return reject("chunk ranges do not exactly tile code ranges");
+  if (!AddressIsCovered(desc->code_ranges, desc->num_code_ranges, desc->entry_point))
+    return reject("entry point is not covered by the module");
+  if (!game_id.empty() && game_id != desc->game_id)
     return reject(fmt::format("module game_id '{}' != running game '{}'", desc->game_id, game_id));
 
   m_module = desc;

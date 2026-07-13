@@ -321,6 +321,9 @@ void emit_header_for_cpu(FILE* out, DolRecompCPU cpu) {
         "// DolRecomp output\n"
         "// cpu: %s\n"
         "\n"
+        "#ifndef RECOMP_GENERATED_H\n"
+        "#define RECOMP_GENERATED_H\n"
+        "\n"
         "#define DOLRECOMP_CPU_%s 1\n"
         "#define DOLRECOMP_CPU_NAME \"%s\"\n"
         "\n"
@@ -380,7 +383,7 @@ void emit_header(FILE* out) {
 }
 
 void emit_footer(FILE* out) {
-    fprintf(out, "\n// end\n");
+    fprintf(out, "\n#endif /* RECOMP_GENERATED_H */\n\n// end\n");
 }
 
 static void emit_instruction_with_range(FILE* out, const PPCInst* inst,

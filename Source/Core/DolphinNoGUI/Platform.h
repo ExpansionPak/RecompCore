@@ -37,6 +37,9 @@ public:
   void Stop();
 
   static std::unique_ptr<Platform> CreateHeadlessPlatform();
+#ifdef HAVE_WAYLAND
+  static std::unique_ptr<Platform> CreateWaylandPlatform();
+#endif
 #ifdef HAVE_X11
   static std::unique_ptr<Platform> CreateX11Platform();
 #endif

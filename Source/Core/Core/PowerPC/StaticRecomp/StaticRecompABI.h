@@ -22,6 +22,8 @@
 extern "C" {
 #endif
 
+#ifndef MODERNGEKKO_MODULE_ABI_H
+
 #define STATICRECOMP_ABI_VERSION 2u
 
 typedef struct StaticRecompRange
@@ -71,6 +73,8 @@ typedef struct StaticRecompModuleDesc
 //   const StaticRecompModuleDesc* staticrecomp_get_module(void);
 typedef const StaticRecompModuleDesc* (*StaticRecompGetModuleFn)(void);
 #define STATICRECOMP_GET_MODULE_SYMBOL "staticrecomp_get_module"
+
+#endif  // MODERNGEKKO_MODULE_ABI_H
 
 #ifdef __cplusplus
 }

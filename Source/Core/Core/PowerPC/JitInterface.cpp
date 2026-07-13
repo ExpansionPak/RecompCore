@@ -39,6 +39,12 @@ void JitInterface::SetJit(std::unique_ptr<JitBase> jit)
   m_jit = std::move(jit);
 }
 
+void JitInterface::SetStaticRecompModuleSource(StaticRecompModuleSource source)
+{
+  ASSERT(!m_jit);
+  m_static_recomp_module_source = std::move(source);
+}
+
 void JitInterface::DoState(PointerWrap& p)
 {
   if (m_jit && p.IsReadMode())
@@ -64,7 +70,7 @@ CPUCoreBase* JitInterface::InitJitCore(PowerPC::CPUCore core)
     break;
 
   case PowerPC::CPUCore::StaticRecomp:
-    m_jit = std::make_unique<StaticRecompCore>(m_system);
+    m_jit = std::make_unique<StaticRecompCore>(m_system, m_static_recomp_module_source);
     break;
 
   default:

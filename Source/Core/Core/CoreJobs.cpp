@@ -5,9 +5,10 @@
 #include "Core/Host.h"
 #include "Core/System.h"
 
+#include <atomic>
+#include <functional>
 #include <mutex>
 #include <queue>
-#include <functional>
 
 namespace Core
 {
