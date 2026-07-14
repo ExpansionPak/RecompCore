@@ -1,5 +1,9 @@
 <p align="center"><img src="docs/media/banner.png" alt="RecompCore — a static-recompilation CPU core for Dolphin" width="640"></p>
 
+> [!IMPORTANT]
+> Hey. I'm no computer engineer and I don't pretend to be one. I'm just interested in having recompilations available to everyone so we can run the games we love on the hardware we have. This project HEAVILY uses AI. It is fully vibecoded: steered by me, written by AI. This should be evident by how messy the ecosystem is (a hard-fork of DolRecomp with customizations, GXRuntime, and StrikersRecomp). Using a custom agent harness, I had claude models work in checkpoints, iterating different designs in search of the most efficient development path to get games recompiled via DolRecomp playable. This resulted in an unmaintainable codebase, but that was never the goal. The path of least resistance for Gamecube/Wii recompilation was found. Finally, after sharing with the good developers of ExpansionPak, this project's approach (and code, as of now) has been adopted by [GekkoRuntime](https://github.com/ExpansionPak/GekkoRuntime). This repo and those adjacent to it will not be iterated upon further. I'm glad to have provided to the community and hope tthe ExpansionPak developers can continue their good work ❤️
+
+
 # RecompCore
 
 [![Build](https://github.com/aharonahdoot/RecompCore/actions/workflows/build.yml/badge.svg)](https://github.com/aharonahdoot/RecompCore/actions/workflows/build.yml)
