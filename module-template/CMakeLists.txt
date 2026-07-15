@@ -78,7 +78,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
                          -ffp-contract=off -fno-fast-math)
   target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
   if(UNIX AND NOT APPLE)
-    target_link_options(${MODULE_NAME} PRIVATE -fuse-ld=lld)
+    target_link_options(${MODULE_NAME} PRIVATE -fuse-ld=lld -Wl,--thinlto-jobs=4)
   endif()
 elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   target_compile_options(${MODULE_NAME} PRIVATE -O2 -fvisibility=hidden

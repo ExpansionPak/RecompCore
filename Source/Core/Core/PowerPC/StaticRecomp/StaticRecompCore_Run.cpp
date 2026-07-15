@@ -114,19 +114,12 @@ void StaticRecompCore::Run()
       {
         // SingleStepInner delivers synchronous exceptions itself; external
         // interrupts are delivered at slice start, as in Interpreter::Run.
-        if (m_fallback_jit)
+        do
         {
-          m_fallback_jit->Run();
-        }
-        else
-        {
-          do
-          {
-            ppc.downcount -= interpreter.SingleStepInner();
-            ++m_fallback_steps;
-          } while (!(m_module_active && DispatchableAt(ppc.pc)) && ppc.downcount > 0 &&
-                   *state_ptr == CPU::State::Running);
-        }
+          ppc.downcount -= interpreter.SingleStepInner();
+          ++m_fallback_steps;
+        } while (!(m_module_active && DispatchableAt(ppc.pc)) && ppc.downcount > 0 &&
+                 *state_ptr == CPU::State::Running);
       }
     } while (ppc.downcount > 0 && *state_ptr == CPU::State::Running);
   }
