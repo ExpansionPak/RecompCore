@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Generate module_tables.inc for a dolphin-chassis static recompilation module.
 
-Parses the generated dispatcher's coverage ranges out of generated.h (the
-`address >= 0x...u && address < 0x...u` guards in dolrecomp_call) and the SMC
-candidate ranges out of generated_smc.txt, so the module ABI tables can never
-drift from a DolRecomp regen.
+Parses the generated dispatcher's coverage ranges out of generated.h. Both
+the original per-chunk address guards and DolRecomp's compact offset-table
+dispatch runs are supported. SMC candidate ranges come from generated_smc.txt,
+so the module ABI tables can never drift from a DolRecomp regen.
 """
 import re
 import sys
@@ -55,16 +55,23 @@ def main() -> int:
     out_path = Path(sys.argv[4])
 
     header = generated_h.read_text()
-    code_ranges = [
+    code_ranges = {
         (int(a, 16), int(b, 16))
         for a, b in re.findall(
             r"address >= (0x[0-9A-Fa-f]+)u && address < (0x[0-9A-Fa-f]+)u", header
         )
-    ]
+    }
+    for base, span in re.findall(
+        r"u32\s+offset\s*=\s*address\s*-\s*(0x[0-9A-Fa-f]+)u\s*;\s*"
+        r"if\s*\(\s*offset\s*<\s*(0x[0-9A-Fa-f]+)u",
+        header,
+    ):
+        start = int(base, 16)
+        code_ranges.add((start, start + int(span, 16)))
     if not code_ranges:
         print("error: no coverage ranges found in", generated_h, file=sys.stderr)
         return 1
-    code_ranges.sort()
+    code_ranges = sorted(code_ranges)
 
     # Chunk table: one range per generated func_XXXXXXXX translation unit.
     # A chunk is the demotion granule for the chassis SMC guard: an icache
