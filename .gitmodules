@@ -134,3 +134,8 @@
 	path = Externals/wil
 	url = https://github.com/microsoft/wil.git
 	shallow = true
+[submodule "DolRecomp"]
+	path = DolRecomp
+	url = https://github.com/ExpansionPak/DolRecomp.git
+	branch = main
+	shallow = true
