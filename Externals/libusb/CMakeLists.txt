@@ -10,7 +10,11 @@ dolphin_disable_warnings(usb)
 
 set_target_properties(usb PROPERTIES VERSION 1.0.26)
 if(WIN32)
-  target_include_directories(usb BEFORE PUBLIC libusb/libusb PRIVATE libusb/msvc)
+    if(MSVC)
+        target_include_directories(usb BEFORE PUBLIC libusb/libusb PRIVATE libusb/msvc)
+    else()
+        target_include_directories(usb BEFORE PUBLIC libusb/libusb)
+    endif()
 else()
 target_include_directories(usb
   # turns out other projects also have "config.h", so make sure the
