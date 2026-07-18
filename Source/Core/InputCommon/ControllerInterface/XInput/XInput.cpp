@@ -137,6 +137,10 @@ static XInputGetBatteryInformation_t PXInputGetBatteryInformation = nullptr;
 
 static bool s_have_guide_button = false;
 
+#ifndef XINPUT_DLL
+#define XINPUT_DLL TEXT("xinput1_4.dll")
+#endif
+
 void Init()
 {
   if (!hXInput)

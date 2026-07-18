@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "Hidclass.h"
+#include <hidclass.h>
 
 #include "Common/CommonFuncs.h"
 #include "Common/Logging/Log.h"
@@ -90,7 +90,7 @@ NullTerminatedStringList<WCHAR> GetDeviceInterfaceList(LPGUID iface_class_guid, 
   }
 }
 
-static __callback DWORD OnDevicesChanged(_In_ HCMNOTIFICATION notify_handle, _In_opt_ PVOID context,
+static DWORD CALLBACK OnDevicesChanged(_In_ HCMNOTIFICATION notify_handle, _In_opt_ PVOID context,
                                          _In_ CM_NOTIFY_ACTION action,
                                          _In_reads_bytes_(event_data_size)
                                              PCM_NOTIFY_EVENT_DATA event_data,

@@ -39,12 +39,11 @@ int ENET_CALLBACK InterceptCallback(ENetHost* host, ENetEvent* event)
 
 bool SendPacket(ENetPeer* socket, const sf::Packet& packet, u8 channel_id)
 {
-  if (!socket)
-  {
-    ERROR_LOG_FMT(NETPLAY, "Target socket is null.");
-    return false;
-  }
+  return SendPacket(std::span<ENetPeer* const>(&socket, 1), packet, channel_id);
+}
 
+bool SendPacket(std::span<ENetPeer* const> sockets, const sf::Packet& packet, u8 channel_id)
+{
   ENetPacket* epac =
       enet_packet_create(packet.getData(), packet.getDataSize(), ENET_PACKET_FLAG_RELIABLE);
   if (!epac)
@@ -53,13 +52,25 @@ bool SendPacket(ENetPeer* socket, const sf::Packet& packet, u8 channel_id)
     return false;
   }
 
-  const int result = enet_peer_send(socket, channel_id, epac);
-  if (result != 0)
+  bool success = true;
+  for (ENetPeer* socket : sockets)
   {
-    ERROR_LOG_FMT(NETPLAY, "Failed to send ENetPacket (error code {}).", result);
-    return false;
+    if (!socket)
+    {
+      ERROR_LOG_FMT(NETPLAY, "Target socket is null.");
+      success = false;
+      continue;
+    }
+    const int result = enet_peer_send(socket, channel_id, epac);
+    if (result != 0)
+    {
+      ERROR_LOG_FMT(NETPLAY, "Failed to send ENetPacket (error code {}).", result);
+      success = false;
+    }
   }
 
-  return true;
+  if (epac->referenceCount == 0)
+    enet_packet_destroy(epac);
+  return success;
 }
 }  // namespace Common::ENet

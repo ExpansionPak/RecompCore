@@ -22,7 +22,7 @@
 #include "Common/MsgHandler.h"
 #endif
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 
 #ifdef __FreeBSD__
 #include <unistd.h>
@@ -63,6 +63,9 @@ static u64 xgetbv(u32 index)
   return _xgetbv(index);
 }
 
+#endif
+
+#ifdef _WIN32
 static void WarnIfRunningUnderEmulation()
 {
   // Starting with win11, arm64 windows can run x64 processes under emulation.
@@ -86,7 +89,7 @@ static void WarnIfRunningUnderEmulation()
                  "Please run the ARM64 build of Dolphin for a better experience.");
 }
 
-#endif  // ifdef _WIN32
+#endif
 
 struct CPUIDResult
 {

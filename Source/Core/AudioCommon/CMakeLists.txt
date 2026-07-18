@@ -77,10 +77,10 @@ if(WIN32)
     # Dolphin loads openal32.dll at runtime
     OpenALStream.cpp
     OpenALStream.h
-
-    WASAPIStream.cpp
-    WASAPIStream.h
   )
+  if(MSVC)
+    target_sources(audiocommon PRIVATE WASAPIStream.cpp WASAPIStream.h)
+  endif()
 endif()
 
 target_link_libraries(audiocommon

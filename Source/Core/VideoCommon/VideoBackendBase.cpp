@@ -26,7 +26,7 @@
 #include "Core/System.h"
 
 // TODO: ugly
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_MSC_VER)
 #include "VideoBackends/D3D/VideoBackend.h"
 #include "VideoBackends/D3D12/VideoBackend.h"
 #endif
@@ -205,8 +205,10 @@ const std::vector<std::unique_ptr<VideoBackendBase>>& VideoBackendBase::GetAvail
     std::vector<std::unique_ptr<VideoBackendBase>> backends;
 
 #ifdef _WIN32
+#ifdef _MSC_VER
     backends.push_back(std::make_unique<DX11::VideoBackend>());
     backends.push_back(std::make_unique<DX12::VideoBackend>());
+#endif
 #endif
 #ifdef HAS_OPENGL
     backends.push_back(std::make_unique<OGL::VideoBackend>());

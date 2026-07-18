@@ -4,6 +4,7 @@
 #pragma once
 
 #include <SFML/Network/Packet.hpp>
+#include <atomic>
 #include <array>
 #include <chrono>
 #include <map>
@@ -42,6 +43,15 @@ struct SerializedWiimoteState;
 
 namespace NetPlay
 {
+struct InputWaitTelemetry
+{
+  u64 total_wait_ns = 0;
+  u64 maximum_wait_ns = 0;
+  u64 wait_count = 0;
+  u32 buffer_size = 0;
+  bool active = false;
+};
+
 class NetPlayUI
 {
 public:
@@ -103,6 +113,8 @@ public:
   std::string revision;
   u32 ping = 0;
   SyncIdentifierComparison game_status = SyncIdentifierComparison::Unknown;
+  u8 controller_count = 0;
+  bool ready = false;
 
   bool IsHost() const { return pid == 1; }
 };
@@ -114,14 +126,17 @@ public:
   void SendAsync(sf::Packet&& packet, u8 channel_id = DEFAULT_CHANNEL);
 
   NetPlayClient(const std::string& address, const u16 port, NetPlayUI* dialog, std::string name,
-                const NetTraversalConfig& traversal_config);
+                const NetTraversalConfig& traversal_config, u8 controller_count = 1);
   ~NetPlayClient() override;
 
   std::vector<const Player*> GetPlayers();
+  std::vector<Player> GetPlayersSnapshot();
+  PadMappingArray GetWiimoteMappingSnapshot();
   const NetSettings& GetNetSettings() const;
 
   // Called from the GUI thread.
   bool IsConnected() const { return m_is_connected; }
+  ConnectionError GetConnectionError() const { return m_connection_error; }
   bool StartGame(const std::string& path);
   void InvokeStop();
   bool StopGame();
@@ -133,6 +148,12 @@ public:
   void RequestGolfControl(PlayerId pid);
   void RequestGolfControl();
   std::string GetCurrentGolfer();
+  void SetLocalControllerCount(u8 count);
+  void SetReady(bool ready);
+  bool AreAllPlayersReady();
+  u8 GetAssignedControllerCount();
+  u32 GetHighestPing();
+  static InputWaitTelemetry GetInputWaitTelemetry();
 
   // Send and receive pads values
   struct WiimoteDataBatchEntry
@@ -209,6 +230,8 @@ protected:
 
   ENetHost* m_client = nullptr;
   ENetPeer* m_server = nullptr;
+  bool m_enet_initialized = false;
+  ConnectionError m_connection_error = ConnectionError::NoError;
   std::thread m_thread;
 
   SyncIdentifier m_selected_game;
@@ -219,7 +242,7 @@ protected:
   // try to keep in-flight to the other clients. In host input authority mode, this is how
   // many incoming input packets need to be queued up before the client starts
   // speeding up the game to drain the buffer.
-  unsigned int m_target_buffer_size = 20;
+  std::atomic<unsigned int> m_target_buffer_size{20};
   bool m_host_input_authority = false;
   PlayerId m_current_golfer = 1;
 
@@ -260,6 +283,9 @@ private:
 
   bool AddLocalWiimoteToBuffer(int local_wiimote, const WiimoteEmu::SerializedWiimoteState& state,
                                sf::Packet& packet);
+  void RecordInputWait(u64 wait_ns);
+  void ResetInputWaitTelemetry(bool active);
+  void SetInputBufferTelemetry(u32 size);
 
   void UpdateDevices();
   void AddPadStateToPacket(int in_game_pad, const GCPadStatus& np, sf::Packet& packet);
@@ -283,6 +309,8 @@ private:
   void OnChunkedDataAbort(sf::Packet& packet);
   void OnPadMapping(sf::Packet& packet);
   void OnWiimoteMapping(sf::Packet& packet);
+  void OnControllerAssignment(sf::Packet& packet);
+  void OnReadyChanged(sf::Packet& packet, bool ready);
   void OnGBAConfig(sf::Packet& packet);
   void OnPadData(sf::Packet& packet);
   void OnPadHostData(sf::Packet& packet);
@@ -325,6 +353,7 @@ private:
   std::map<PlayerId, Player> m_players;
   std::string m_host_spec;
   std::string m_player_name;
+  u8 m_initial_controller_count = 1;
   bool m_connecting = false;
   Common::TraversalClient* m_traversal_client = nullptr;
   std::thread m_game_digest_thread;
@@ -349,10 +378,19 @@ private:
   std::unique_ptr<IOS::HLE::FS::FileSystem> m_wii_sync_fs;
   std::vector<u64> m_wii_sync_titles;
   std::string m_wii_sync_redirect_folder;
+  std::chrono::steady_clock::time_point m_last_buffer_request{};
+
+  inline static std::atomic<u64> s_total_input_wait_ns{0};
+  inline static std::atomic<u64> s_maximum_input_wait_ns{0};
+  inline static std::atomic<u64> s_input_wait_count{0};
+  inline static std::atomic<u32> s_input_buffer_size{0};
+  inline static std::atomic_bool s_input_wait_active{false};
 };
 
 void NetPlay_Enable(NetPlayClient* const np);
 void NetPlay_Disable();
 bool NetPlay_GetWiimoteData(const std::span<NetPlayClient::WiimoteDataBatchEntry>& entries);
 unsigned int NetPlay_GetLocalWiimoteForSlot(unsigned int slot);
+void SetCompatibilityFingerprint(std::string fingerprint);
+const std::string& GetCompatibilityFingerprint();
 }  // namespace NetPlay

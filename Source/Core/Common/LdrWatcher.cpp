@@ -3,8 +3,8 @@
 
 #include "Common/LdrWatcher.h"
 
-#include <Windows.h>
-#include <TlHelp32.h>
+#include <windows.h>
+#include <tlhelp32.h>
 #include <string>
 #include <winternl.h>
 

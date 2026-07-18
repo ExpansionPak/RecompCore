@@ -4,6 +4,7 @@
 #include "Core/NetPlay/NetPlayServer.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -33,18 +34,18 @@
 #include "Common/Version.h"
 
 #include "Core/Achievements/AchievementManager.h"
-#include "Core/Cheats/ActionReplay.h"
 #include "Core/Boot/Boot.h"
+#include "Core/Cheats/ActionReplay.h"
+#include "Core/Cheats/GeckoCode.h"
+#include "Core/Cheats/GeckoCodeConfig.h"
 #include "Core/Config/CheatSettings.h"
+#include "Core/Config/ConfigManager.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/NetplaySettings.h"
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/Config/SessionSettings.h"
 #include "Core/ConfigLoaders/GameConfigLoader.h"
-#include "Core/Config/ConfigManager.h"
-#include "Core/Cheats/GeckoCode.h"
-#include "Core/Cheats/GeckoCodeConfig.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_Device.h"
 #ifdef HAS_LIBMGBA
@@ -116,18 +117,23 @@ NetPlayServer::~NetPlayServer()
 #ifdef USE_UPNP
   Common::UPnP::StopPortmapping();
 #endif
+
+  if (m_enet_initialized)
+    enet_deinitialize();
 }
 
 // called from ---GUI--- thread
 NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog,
                              const NetTraversalConfig& traversal_config)
-    : m_dialog(dialog)
+    : m_dialog(dialog), m_compatibility_fingerprint(GetCompatibilityFingerprint())
 {
   //--use server time
   if (enet_initialize() != 0)
   {
-    PanicAlertFmtT("Enet Didn't Initialize");
+    m_dialog->OnConnectionError(_trans("Could not initialize networking."));
+    return;
   }
+  m_enet_initialized = true;
 
   m_pad_map.fill(0);
   m_gba_config.fill({});
@@ -258,6 +264,8 @@ void NetPlayServer::ThreadFunc()
 
   while (m_do_loop)
   {
+    UpdateAdaptiveBuffer();
+
     // update pings every so many seconds
     if ((m_ping_timer.ElapsedMs() > 1000) || m_update_pings)
     {
@@ -285,10 +293,8 @@ void NetPlayServer::ThreadFunc()
     net = enet_host_service(m_server, &netEvent, 1000);
     while (!m_async_queue.Empty())
     {
-      INFO_LOG_FMT(NETPLAY, "Processing async queue event.");
       {
         std::lock_guard lkp(m_crit.players);
-        INFO_LOG_FMT(NETPLAY, "Locked player mutex.");
         auto& e = m_async_queue.Front();
         if (e.target_mode == TargetMode::Only)
         {
@@ -300,7 +306,6 @@ void NetPlayServer::ThreadFunc()
           SendToClients(e.packet, e.target_pid, e.channel_id);
         }
       }
-      INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
     if (net > 0)
@@ -317,13 +322,12 @@ void NetPlayServer::ThreadFunc()
       break;
       case ENET_EVENT_TYPE_RECEIVE:
       {
-        INFO_LOG_FMT(NETPLAY, "enet_host_service: receive event");
-
-        sf::Packet rpac;
-        rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
+        bool packet_relayed = false;
 
         if (!netEvent.peer->data)
         {
+          sf::Packet rpac;
+          rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
           // uninitialized client, we'll assume this is their initialization packet
           ConnectionError error;
           {
@@ -351,7 +355,24 @@ void NetPlayServer::ThreadFunc()
         {
           auto it = m_players.find(*PeerPlayerId(netEvent.peer));
           Client& client = it->second;
-          if (OnData(rpac, client) != 0)
+          unsigned int result = 0;
+          if (netEvent.packet->dataLength > 0 &&
+              netEvent.packet->data[0] == static_cast<u8>(MessageID::WiimoteData))
+          {
+            if (client.current_game == m_current_game)
+            {
+              result = ValidateWiimoteData(*netEvent.packet, client);
+              if (result == 0)
+                packet_relayed = SendToClients(netEvent.packet, client.pid, INPUT_CHANNEL);
+            }
+          }
+          else
+          {
+            sf::Packet rpac;
+            rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
+            result = OnData(rpac, client);
+          }
+          if (result != 0)
           {
             INFO_LOG_FMT(NETPLAY, "Invalid packet from client {}, disconnecting.", client.pid);
 
@@ -361,12 +382,9 @@ void NetPlayServer::ThreadFunc()
 
             ClearPeerPlayerId(netEvent.peer);
           }
-          else
-          {
-            INFO_LOG_FMT(NETPLAY, "successfully handled packet from client {}", client.pid);
-          }
         }
-        enet_packet_destroy(netEvent.packet);
+        if (!packet_relayed)
+          enet_packet_destroy(netEvent.packet);
       }
       break;
       case ENET_EVENT_TYPE_DISCONNECT:
@@ -396,19 +414,12 @@ void NetPlayServer::ThreadFunc()
       }
       break;
       default:
-        // not a valid switch case due to not technically being part of the enum
-        if (static_cast<int>(netEvent.type) == Common::ENet::SKIPPABLE_EVENT)
-          INFO_LOG_FMT(NETPLAY, "enet_host_service: skippable packet event");
-        else
+        if (static_cast<int>(netEvent.type) != Common::ENet::SKIPPABLE_EVENT)
           ERROR_LOG_FMT(NETPLAY, "enet_host_service: unknown event type: {}", int(netEvent.type));
         break;
       }
     }
-    else if (net == 0)
-    {
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: no event occurred");
-    }
-    else
+    else if (net < 0)
     {
       ERROR_LOG_FMT(NETPLAY, "enet_host_service error: {}", net);
     }
@@ -444,11 +455,13 @@ ConnectionError NetPlayServer::OnConnect(ENetPeer* incoming_connection, sf::Pack
 {
   std::string netplay_version;
   received_packet >> netplay_version;
-  if (netplay_version != Common::GetScmRevGitStr())
+  if (netplay_version != Common::GetScmRevGitStr() + MODERNGEKKO_NETPLAY_VERSION_SUFFIX)
     return ConnectionError::VersionMismatch;
 
   if (m_is_running || m_start_pending)
     return ConnectionError::GameRunning;
+
+  std::lock_guard lkp(m_crit.players);
 
   if (m_players.size() >= 255)
     return ConnectionError::ServerFull;
@@ -460,6 +473,24 @@ ConnectionError NetPlayServer::OnConnect(ENetPeer* incoming_connection, sf::Pack
   received_packet >> new_player.revision;
   received_packet >> new_player.name;
 
+  std::string compatibility_fingerprint;
+  u8 requested_controllers = 0;
+  received_packet >> compatibility_fingerprint;
+  received_packet >> requested_controllers;
+
+  if (compatibility_fingerprint != m_compatibility_fingerprint)
+    return ConnectionError::CompatibilityMismatch;
+
+  const std::size_t occupied_controllers =
+      std::ranges::count_if(m_wiimote_map, [](PlayerId pid) { return pid != 0; });
+  const std::size_t available_controllers = 4 - occupied_controllers;
+  if (requested_controllers == 0 || requested_controllers > 4 || available_controllers == 0)
+    return ConnectionError::RoomFull;
+
+  requested_controllers =
+      static_cast<u8>(std::min<std::size_t>(requested_controllers, available_controllers));
+  new_player.controller_count = requested_controllers;
+
   if (StringUTF8CodePointCount(new_player.name) > MAX_NAME_LENGTH)
     return ConnectionError::NameTooLong;
 
@@ -470,7 +501,14 @@ ConnectionError NetPlayServer::OnConnect(ENetPeer* incoming_connection, sf::Pack
   // force a ping on first netplay loop
   m_update_pings = true;
 
-  AssignNewUserAPad(new_player);
+  for (PlayerId& mapping : m_wiimote_map)
+  {
+    if (mapping == 0 && requested_controllers > 0)
+    {
+      mapping = new_player.pid;
+      --requested_controllers;
+    }
+  }
 
   // tell other players a new player joined
   SendResponseToAllPlayers(MessageID::PlayerJoin, new_player.pid, new_player.name,
@@ -501,20 +539,26 @@ ConnectionError NetPlayServer::OnConnect(ENetPeer* incoming_connection, sf::Pack
 
     SendResponseToPlayer(new_player, MessageID::GameStatus, existing_player.pid,
                          static_cast<u8>(existing_player.game_status));
+    SendResponseToPlayer(new_player, existing_player.ready ? MessageID::Ready : MessageID::NotReady,
+                         existing_player.pid);
+    SendResponseToPlayer(new_player, MessageID::ControllerAssignment, existing_player.pid,
+                         existing_player.controller_count);
   }
+
+  SendResponseToPlayer(new_player, MessageID::NotReady, new_player.pid);
+  SendResponseToPlayer(new_player, MessageID::ControllerAssignment, new_player.pid,
+                       new_player.controller_count);
+  SendResponseToAllPlayers(MessageID::NotReady, new_player.pid);
+  SendResponseToAllPlayers(MessageID::ControllerAssignment, new_player.pid,
+                           new_player.controller_count);
 
   if (Config::Get(Config::NETPLAY_ENABLE_QOS))
     new_player.qos_session = Common::QoSSession(new_player.socket);
 
-  {
-    std::lock_guard lkp(m_crit.players);
-    // add new player to list of players
-    m_players.emplace(*PeerPlayerId(new_player.socket), std::move(new_player));
-    // sync pad mappings with everyone
-    UpdatePadMapping();
-    UpdateGBAConfig();
-    UpdateWiimoteMapping();
-  }
+  m_players.emplace(*PeerPlayerId(new_player.socket), std::move(new_player));
+  UpdatePadMapping();
+  UpdateGBAConfig();
+  UpdateWiimoteMapping();
 
   return ConnectionError::NoError;
 }
@@ -523,6 +567,7 @@ ConnectionError NetPlayServer::OnConnect(ENetPeer* incoming_connection, sf::Pack
 unsigned int NetPlayServer::OnDisconnect(const Client& player)
 {
   const PlayerId pid = player.pid;
+  const bool was_running = m_is_running;
 
   if (m_is_running)
   {
@@ -598,11 +643,89 @@ unsigned int NetPlayServer::OnDisconnect(const Client& player)
     }
   }
 
+  if (was_running)
+  {
+    for (auto& entry : m_players)
+    {
+      entry.second.ready = false;
+      SendPlayerState(entry.second);
+    }
+  }
+
   return 0;
 }
 
-// called from ---GUI--- thread
+void NetPlayServer::SendPlayerState(const Client& player, PlayerId target_pid)
+{
+  if (target_pid != 0)
+  {
+    if (const auto it = m_players.find(target_pid); it != m_players.end())
+    {
+      SendResponseToPlayer(it->second, MessageID::ControllerAssignment, player.pid,
+                           player.controller_count);
+      SendResponseToPlayer(it->second, player.ready ? MessageID::Ready : MessageID::NotReady,
+                           player.pid);
+    }
+    return;
+  }
+  SendResponseToAllPlayers(MessageID::ControllerAssignment, player.pid, player.controller_count);
+  SendResponseToAllPlayers(player.ready ? MessageID::Ready : MessageID::NotReady, player.pid);
+}
 
+void NetPlayServer::SetControllerCount(Client& player, u8 requested_count)
+{
+  if (m_is_running || m_start_pending)
+    return;
+
+  std::lock_guard lkp(m_crit.players);
+  for (PlayerId& mapping : m_wiimote_map)
+  {
+    if (mapping == player.pid)
+      mapping = 0;
+  }
+
+  const u8 available =
+      static_cast<u8>(std::ranges::count_if(m_wiimote_map, [](PlayerId pid) { return pid == 0; }));
+  const u8 assigned = std::min<u8>({requested_count, available, 4});
+  u8 remaining = assigned;
+  for (PlayerId& mapping : m_wiimote_map)
+  {
+    if (mapping == 0 && remaining > 0)
+    {
+      mapping = player.pid;
+      --remaining;
+    }
+  }
+
+  player.controller_count = assigned;
+  player.ready = false;
+  UpdateWiimoteMapping();
+  SendPlayerState(player);
+}
+
+void NetPlayServer::SetReady(Client& player, bool ready)
+{
+  if (m_is_running || m_start_pending)
+    return;
+  std::lock_guard lkp(m_crit.players);
+  player.ready = ready && player.controller_count > 0 &&
+                 player.game_status == SyncIdentifierComparison::SameGame;
+  SendPlayerState(player);
+}
+
+bool NetPlayServer::CanStart()
+{
+  std::lock_guard lkp(m_crit.players);
+  const std::size_t occupied =
+      std::ranges::count_if(m_wiimote_map, [](PlayerId pid) { return pid != 0; });
+  return occupied >= 2 && !m_players.empty() &&
+         std::ranges::all_of(m_players, [](const auto& entry) {
+           return entry.second.ready && entry.second.controller_count > 0 &&
+                  entry.second.game_status == SyncIdentifierComparison::SameGame;
+         });
+}
+
+// called from ---GUI--- thread
 
 void NetPlayServer::SendAsync(sf::Packet&& packet, const PlayerId pid, const u8 channel_id)
 {
@@ -624,7 +747,25 @@ void NetPlayServer::SendAsyncToClients(sf::Packet&& packet, const PlayerId skip_
   Common::ENet::WakeupThread(m_server);
 }
 
-
+unsigned int NetPlayServer::ValidateWiimoteData(const ENetPacket& packet,
+                                                const Client& player) const
+{
+  std::size_t offset = 1;
+  while (offset < packet.dataLength)
+  {
+    if (packet.dataLength - offset < 2)
+      return 1;
+    const PadIndex map = static_cast<PadIndex>(packet.data[offset++]);
+    if (!IsValidPadIndex(m_wiimote_map, map) || m_wiimote_map.at(map) != player.pid)
+      return 1;
+    const u8 length = packet.data[offset++];
+    if (length > WiimoteEmu::SerializedWiimoteState{}.data.size() ||
+        length > packet.dataLength - offset)
+      return 1;
+    offset += length;
+  }
+  return 0;
+}
 
 // called from ---NETPLAY--- thread
 unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
@@ -719,12 +860,32 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
       if (m_current_golfer != 0)
       {
         if (const auto it = m_players.find(m_current_golfer); it != m_players.end())
-          Send(it->second.socket, spac);
+          Send(it->second.socket, spac, INPUT_CHANNEL);
       }
     }
     else
     {
-      SendToClients(spac, player.pid);
+      SendToClients(spac, player.pid, INPUT_CHANNEL);
+    }
+  }
+  break;
+
+  case MessageID::PadBufferRequest:
+  {
+    u32 requested_size = 0;
+    packet >> requested_size;
+    if (!packet || requested_size < 1 || requested_size > 20)
+      return 1;
+    if (m_adaptive_buffer && requested_size > m_target_buffer_size)
+    {
+      const unsigned int ceiling = std::min(20u, m_adaptive_recommended_buffer_size + 2);
+      const unsigned int target = std::min<unsigned int>(requested_size, ceiling);
+      if (target > m_target_buffer_size)
+      {
+        m_adaptive_boost_buffer_size = target;
+        m_adaptive_buffer_boost_until = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+        AdjustPadBufferSize(target);
+      }
     }
   }
   break;
@@ -759,7 +920,7 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
       }
     }
 
-    SendToClients(spac, player.pid);
+    SendToClients(spac, player.pid, INPUT_CHANNEL);
   }
   break;
 
@@ -769,35 +930,25 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
     if (player.current_game != m_current_game)
       break;
 
-    sf::Packet spac;
-    spac << MessageID::WiimoteData;
-
-    while (!packet.endOfPacket())
+    const auto* data = static_cast<const u8*>(packet.getData());
+    const std::size_t size = packet.getDataSize();
+    std::size_t offset = packet.getReadPosition();
+    while (offset < size)
     {
-      PadIndex map;
-      packet >> map;
+      if (size - offset < 2)
+        return 1;
+      const PadIndex map = static_cast<PadIndex>(data[offset++]);
 
-      // If the data is not from the correct player,
-      // then disconnect them.
       if (!IsValidPadIndex(m_wiimote_map, map) || m_wiimote_map.at(map) != player.pid)
-      {
         return 1;
-      }
 
-      WiimoteEmu::SerializedWiimoteState pad;
-      packet >> pad.length;
-      if (pad.length > pad.data.size())
+      const u8 length = data[offset++];
+      if (length > WiimoteEmu::SerializedWiimoteState{}.data.size() || length > size - offset)
         return 1;
-      for (size_t i = 0; i < pad.length; ++i)
-        packet >> pad.data[i];
-
-      spac << map;
-      spac << pad.length;
-      for (size_t i = 0; i < pad.length; ++i)
-        spac << pad.data[i];
+      offset += length;
     }
 
-    SendToClients(spac, player.pid);
+    SendToClients(packet, player.pid, INPUT_CHANNEL);
   }
   break;
 
@@ -879,6 +1030,22 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
   }
   break;
 
+  case MessageID::ControllerRequest:
+  {
+    u8 requested_count = 0;
+    packet >> requested_count;
+    SetControllerCount(player, requested_count);
+  }
+  break;
+
+  case MessageID::Ready:
+    SetReady(player, true);
+    break;
+
+  case MessageID::NotReady:
+    SetReady(player, false);
+    break;
+
   case MessageID::StartGame:
   {
     packet >> player.current_game;
@@ -898,6 +1065,11 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
 
     std::lock_guard lkp(m_crit.players);
     SendToClients(spac);
+    for (auto& entry : m_players)
+    {
+      entry.second.ready = false;
+      SendPlayerState(entry.second);
+    }
   }
   break;
 
@@ -906,7 +1078,10 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
     SyncIdentifierComparison status;
     packet >> status;
 
+    std::lock_guard lkp(m_crit.players);
     m_players[player.pid].game_status = status;
+    if (status != SyncIdentifierComparison::SameGame)
+      m_players[player.pid].ready = false;
 
     // send msg to other clients
     sf::Packet spac;
@@ -915,11 +1090,14 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
     spac << status;
 
     SendToClients(spac);
+    if (status != SyncIdentifierComparison::SameGame)
+      SendPlayerState(m_players[player.pid]);
   }
   break;
 
   case MessageID::ClientCapabilities:
   {
+    std::lock_guard lkp(m_crit.players);
     packet >> m_players[player.pid].has_ipl_dump;
     packet >> m_players[player.pid].has_hardware_fma;
   }
@@ -952,26 +1130,33 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
             return pair.second == timebases[0].second;
           }))
       {
-        int pid_to_blame = 0;
-        for (auto pair : timebases)
+        ++m_desync_mismatch_count;
+        if (m_desync_mismatch_count >= 2)
         {
-          if (std::ranges::all_of(timebases, [&](std::pair<PlayerId, u64> other) {
-                return other.first == pair.first || other.second != pair.second;
-              }))
+          int pid_to_blame = 0;
+          for (auto pair : timebases)
           {
-            // we are the only outlier
-            pid_to_blame = pair.first;
-            break;
+            if (std::ranges::all_of(timebases, [&](std::pair<PlayerId, u64> other) {
+                  return other.first == pair.first || other.second != pair.second;
+                }))
+            {
+              pid_to_blame = pair.first;
+              break;
+            }
           }
+
+          sf::Packet spac;
+          spac << MessageID::DesyncDetected;
+          spac << pid_to_blame;
+          spac << frame;
+          SendToClients(spac);
+
+          m_desync_detected = true;
         }
-
-        sf::Packet spac;
-        spac << MessageID::DesyncDetected;
-        spac << pid_to_blame;
-        spac << frame;
-        SendToClients(spac);
-
-        m_desync_detected = true;
+      }
+      else
+      {
+        m_desync_mismatch_count = 0;
       }
       m_timebase_by_frame.erase(frame);
     }
@@ -1382,6 +1567,9 @@ bool NetPlayServer::RequestStartGame()
 {
   INFO_LOG_FMT(NETPLAY, "Start Game requested.");
 
+  if (!CanStart())
+    return false;
+
   if (!SetupNetSettings())
     return false;
 
@@ -1450,6 +1638,7 @@ bool NetPlayServer::StartGame()
 
   m_timebase_by_frame.clear();
   m_desync_detected = false;
+  m_desync_mismatch_count = 0;
   std::lock_guard lkg(m_crit.game);
   // only used as an identifier, not time value, so truncation is fine
   m_current_game = static_cast<u32>(Common::Timer::NowMs());
@@ -1514,6 +1703,7 @@ bool NetPlayServer::StartGame()
   spac << m_settings.divide_by_zero_exceptions;
   spac << m_settings.fprf;
   spac << m_settings.accurate_nans;
+  spac << m_settings.accurate_fmadds;
   spac << m_settings.disable_icache;
   spac << m_settings.sync_on_skip_idle;
   spac << m_settings.sync_gpu;
@@ -1557,6 +1747,8 @@ bool NetPlayServer::StartGame()
 
   for (size_t i = 0; i < sizeof(m_settings.sram); ++i)
     spac << m_settings.sram[i];
+
+  spac << MODERNGEKKO_START_GAME_SENTINEL;
 
   SendAsyncToClients(std::move(spac));
 
@@ -2095,13 +2287,24 @@ u64 NetPlayServer::GetInitialNetPlayRTC() const
 void NetPlayServer::SendToClients(const sf::Packet& packet, const PlayerId skip_pid,
                                   const u8 channel_id)
 {
+  std::array<ENetPeer*, 255> sockets;
+  std::size_t count = 0;
   for (auto& p : std::views::values(m_players))
   {
-    if (p.pid && p.pid != skip_pid)
-    {
-      Send(p.socket, packet, channel_id);
-    }
+    if (p.pid && p.pid != skip_pid && p.socket)
+      sockets[count++] = p.socket;
   }
+  Common::ENet::SendPacket(std::span<ENetPeer* const>(sockets.data(), count), packet, channel_id);
+}
+
+bool NetPlayServer::SendToClients(ENetPacket* packet, const PlayerId skip_pid, const u8 channel_id)
+{
+  for (auto& player : std::views::values(m_players))
+  {
+    if (player.pid && player.pid != skip_pid && player.socket)
+      enet_peer_send(player.socket, channel_id, packet);
+  }
+  return packet->referenceCount != 0;
 }
 
 void NetPlayServer::Send(ENetPeer* socket, const sf::Packet& packet, const u8 channel_id)

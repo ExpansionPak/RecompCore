@@ -3,7 +3,7 @@
 
 #include "InputCommon/ControllerInterface/Win32/Win32.h"
 
-#include <Windows.h>
+#include <windows.h>
 #include <cfgmgr32.h>
 // must be before hidclass
 #include <initguid.h>
@@ -13,7 +13,9 @@
 #include "Common/Flag.h"
 #include "Common/Logging/Log.h"
 #include "InputCommon/ControllerInterface/DInput/DInput.h"
+#ifdef _MSC_VER
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
+#endif
 #include "InputCommon/ControllerInterface/XInput/XInput.h"
 
 #pragma comment(lib, "OneCoreUAP.Lib")
@@ -77,7 +79,9 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
     : ciface::InputBackend(controller_interface)
 {
   XInput::Init();
+#ifdef _MSC_VER
   WGInput::Init();
+#endif
 
   CM_NOTIFY_FILTER notify_filter{.cbSize = sizeof(notify_filter),
                                  .FilterType = CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE,
@@ -96,7 +100,9 @@ void InputBackend::PopulateDevices()
     s_first_populate_devices_asked.Set();
     ciface::DInput::PopulateDevices(GetHWND());
     ciface::XInput::PopulateDevices();
+#ifdef _MSC_VER
     ciface::WGInput::PopulateDevices();
+#endif
   });
 }
 
@@ -122,7 +128,9 @@ InputBackend::~InputBackend()
   }
 
   XInput::DeInit();
+#ifdef _MSC_VER
   WGInput::DeInit();
+#endif
 }
 
 }  // namespace ciface::Win32

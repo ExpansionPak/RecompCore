@@ -8,9 +8,11 @@
 #include "Core/Core.h"
 #include "Core/System.h"
 
-#include <Windows.h>
+#include <chrono>
+#include <windows.h>
 #include <climits>
 #include <dwmapi.h>
+#include <thread>
 
 #include "VideoCommon/Present.h"
 #include "resource.h"

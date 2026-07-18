@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <windows.h>
-#include <ShlObj.h>
+#include <shlobj.h>
 #include <shellapi.h>
 
 #include <optional>

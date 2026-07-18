@@ -5,17 +5,18 @@
 
 #ifdef _WIN32
 
+#include <atomic>
+#include <string>
+#include <thread>
+#include <vector>
+
 // clang-format off
-#include <Windows.h>
+#include <windows.h>
 #include <mmreg.h>
 #include <objbase.h>
 #include <wil/resource.h>
 // clang-format on
 
-#include <atomic>
-#include <string>
-#include <thread>
-#include <vector>
 #include <wrl/client.h>
 
 #include "AudioCommon/SoundStream.h"

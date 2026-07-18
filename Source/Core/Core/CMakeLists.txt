@@ -846,11 +846,17 @@ if(WIN32)
     HW/WiimoteReal/IOWin.h
   )
   target_link_libraries(core PUBLIC
-    videod3d
-    videod3d12
+    bthprops.lib
+    hid.lib
     setupapi.lib
     iphlpapi.lib
   )
+  if(TARGET videod3d12)
+    target_link_libraries(core PUBLIC videod3d12)
+  endif()
+  if(TARGET videod3d)
+    target_link_libraries(core PUBLIC videod3d)
+  endif()
   target_compile_definitions(core PRIVATE "-D_WINSOCK_DEPRECATED_NO_WARNINGS")
 elseif(APPLE)
   target_sources(core PRIVATE

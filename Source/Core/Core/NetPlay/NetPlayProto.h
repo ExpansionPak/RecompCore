@@ -29,6 +29,9 @@ enum class CPUCore;
 
 namespace NetPlay
 {
+inline constexpr char MODERNGEKKO_NETPLAY_VERSION_SUFFIX[] = "|moderngekko-netplay-6";
+inline constexpr u32 MODERNGEKKO_START_GAME_SENTINEL = 0x4d475336;
+
 struct NetSettings
 {
   bool cpu_thread = false;
@@ -153,9 +156,12 @@ enum class MessageID : u8
   PadBuffer = 0x62,
   PadHostData = 0x63,
   GBAConfig = 0x64,
+  PadBufferRequest = 0x65,
 
   WiimoteData = 0x70,
   WiimoteMapping = 0x71,
+  ControllerRequest = 0x72,
+  ControllerAssignment = 0x73,
 
   GolfRequest = 0x90,
   GolfSwitch = 0x91,
@@ -198,7 +204,9 @@ enum class ConnectionError : u8
   ServerFull = 1,
   GameRunning = 2,
   VersionMismatch = 3,
-  NameTooLong = 4
+  NameTooLong = 4,
+  CompatibilityMismatch = 5,
+  RoomFull = 6
 };
 
 enum class SyncSaveDataID : u8
@@ -231,6 +239,7 @@ enum : u8
 {
   DEFAULT_CHANNEL,
   CHUNKED_DATA_CHANNEL,
+  INPUT_CHANNEL,
   CHANNEL_COUNT
 };
 
