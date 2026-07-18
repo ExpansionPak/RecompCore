@@ -582,7 +582,7 @@ BitSet32 Jit64::CallerSavedRegistersInUse(BitSet32 additional_registers) const
 void Jit64::EnableBlockLink()
 {
   jo.enableBlocklink = true;
-  if (SConfig::GetInstance().bJITNoBlockLinking)
+  if (SConfig::GetInstance().bJITNoBlockLinking || IsStaticRecompFallback())
     jo.enableBlocklink = false;
 }
 

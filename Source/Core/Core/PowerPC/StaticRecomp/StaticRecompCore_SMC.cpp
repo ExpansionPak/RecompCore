@@ -66,7 +66,8 @@ int StaticRecompCore::ChunkIndexOf(u32 address) const
 bool StaticRecompCore::FastDispatchableAt(u32 address) const
 {
   const int index = ChunkIndexOf(address);
-  return index >= 0 && m_chunk_state[index] == CHUNK_VERIFIED;
+  return index >= 0 && !ChunkContainsHostCall(static_cast<u32>(index)) &&
+         m_chunk_state[index] == CHUNK_VERIFIED;
 }
 
 bool StaticRecompCore::DispatchableAt(u32 address)
@@ -74,9 +75,45 @@ bool StaticRecompCore::DispatchableAt(u32 address)
   const int index = ChunkIndexOf(address);
   if (index < 0)
     return false;
+  if (ChunkContainsHostCall(static_cast<u32>(index)))
+    return false;
   if (m_chunk_state[index] == CHUNK_UNVERIFIED)
     VerifyChunk(static_cast<u32>(index));
   return m_chunk_state[index] == CHUNK_VERIFIED;
+}
+
+bool StaticRecompCore::ChunkContainsHostCall(u32 index) const
+{
+  if (!m_module_source.host_call_contains || index >= m_chunk_host_call_state.size())
+    return false;
+
+  u8& state = m_chunk_host_call_state[index];
+  if (state != 0)
+    return state == 2;
+
+  const auto& chunk = m_module->chunk_ranges[index];
+  bool found = false;
+  if (m_module_source.host_call_range_contains)
+  {
+    found = m_module_source.host_call_range_contains(
+        chunk.start, chunk.end, m_module_source.host_call_user);
+  }
+  else
+  {
+    for (u32 address = chunk.start; address < chunk.end; address += 4)
+    {
+      if (IsHostCallAddress(address))
+      {
+        found = true;
+        break;
+      }
+    }
+  }
+  state = found ? 2 : 1;
+  if (found)
+    std::fprintf(stderr, "[staticrecomp] mod fallback: chunk [0x%08X,0x%08X)\n", chunk.start,
+                 chunk.end);
+  return found;
 }
 
 void StaticRecompCore::VerifyChunk(u32 index)

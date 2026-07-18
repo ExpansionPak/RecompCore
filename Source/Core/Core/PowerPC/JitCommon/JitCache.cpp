@@ -232,8 +232,7 @@ JitBlock* JitBaseBlockCache::GetBlockFromStartAddress(u32 addr, CPUEmuFeatureFla
 const u8* JitBaseBlockCache::Dispatch()
 {
   const auto& ppc_state = m_jit.m_ppc_state;
-  if (g_static_recomp_core && g_static_recomp_core->IsModuleActive() &&
-      g_static_recomp_core->DispatchableAt(ppc_state.pc))
+  if (g_static_recomp_core && g_static_recomp_core->ShouldYieldAt(ppc_state.pc))
   {
     return nullptr;
   }
@@ -448,6 +447,8 @@ void JitBaseBlockCache::LinkBlockExits(JitBlock& block)
 {
   for (auto& e : block.linkData)
   {
+    if (g_static_recomp_core && g_static_recomp_core->IsHostCallAddress(e.exitAddress))
+      continue;
     if (!e.linkStatus)
     {
       JitBlock* destinationBlock = GetBlockFromStartAddress(e.exitAddress, block.feature_flags);

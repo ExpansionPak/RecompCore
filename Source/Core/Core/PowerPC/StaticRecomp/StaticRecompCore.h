@@ -53,6 +53,8 @@ public:
   bool IsModuleActive() const;
   bool DispatchableAt(u32 address);
   bool FastDispatchableAt(u32 address) const;
+  bool IsHostCallAddress(u32 address) const;
+  bool ShouldYieldAt(u32 address);
 
   void ClearCache() override;
   void Jit(u32 em_address) override {}
@@ -110,6 +112,7 @@ private:
 
   void OnICacheInvalidate(u32 address, u32 length);
   int ChunkIndexOf(u32 address) const;
+  bool ChunkContainsHostCall(u32 index) const;
   void VerifyChunk(u32 index);
 
   static void SetPPCStateFromGuestState(const CPUState& s, PowerPC::PowerPCState& ppc);
@@ -127,6 +130,7 @@ private:
   static void HookExternalWrite32(CPUState* cpu, u32 ea, u32 value, u8 rid);
   static void* HookExternalPointer(CPUState* cpu, u32 ea, u32 size);
   static void HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia);
+  static bool HookHostCall(CPUState* cpu, u32 address);
 
   // Keep Dolphin's MSR-derived state (translation mode, feature flags) in step
   // with the guest MSR before any MMU access or exception delivery.
@@ -141,6 +145,8 @@ private:
   StaticRecompModuleSource m_module_source;
   const StaticRecompModuleDesc* m_module = nullptr;
   bool m_module_active = false;
+  u32 m_host_call_passthrough_pc = 0;
+  bool m_host_call_passthrough = false;
   std::unique_ptr<JitBase> m_fallback_jit;
 
   u64 m_native_dispatches = 0;
@@ -152,6 +158,7 @@ private:
 
   // D4 guard state: parallel to m_module->chunk_ranges.
   std::vector<u8> m_chunk_state;
+  mutable std::vector<u8> m_chunk_host_call_state;
   u32 m_failed_chunks = 0;    // chunks currently failing verification (real SMC)
   u64 m_verifications = 0;    // chunk hash checks performed
   u64 m_reverify_events = 0;  // invalidations that reset a chunk to Unverified
@@ -171,3 +178,4 @@ private:
 };
 
 extern StaticRecompCore* g_static_recomp_core;
+u32 StaticRecompShouldYieldAt(u32 address);

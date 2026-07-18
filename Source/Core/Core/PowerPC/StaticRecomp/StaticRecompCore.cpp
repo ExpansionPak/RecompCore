@@ -26,6 +26,11 @@
 
 StaticRecompCore* g_static_recomp_core = nullptr;
 
+u32 StaticRecompShouldYieldAt(u32 address)
+{
+  return g_static_recomp_core && g_static_recomp_core->ShouldYieldAt(address);
+}
+
 namespace
 {
 bool RangesAreSorted(const StaticRecompRange* ranges, u32 count)
@@ -78,6 +83,29 @@ bool StaticRecompCore::IsModuleActive() const
   return m_module_active;
 }
 
+bool StaticRecompCore::IsHostCallAddress(u32 address) const
+{
+  if (!m_module_source.host_call_contains)
+    return false;
+  if (m_module_source.host_call_contains(address, m_module_source.host_call_user))
+    return true;
+  return address < m_guest.ram_size &&
+         m_module_source.host_call_contains(address | 0x80000000u,
+                                            m_module_source.host_call_user);
+}
+
+bool StaticRecompCore::ShouldYieldAt(u32 address)
+{
+  if (m_host_call_passthrough && m_host_call_passthrough_pc == address)
+  {
+    m_host_call_passthrough = false;
+    return false;
+  }
+  if (m_module_active && DispatchableAt(address))
+    return true;
+  return IsHostCallAddress(address);
+}
+
 StaticRecompCore::StaticRecompCore(Core::System& system, StaticRecompModuleSource module_source)
     : JitBase(system), m_module_source(std::move(module_source))
 {
@@ -102,7 +130,7 @@ void StaticRecompCore::Init()
   m_guest.external_write32 = HookExternalWrite32;
   m_guest.external_pointer = HookExternalPointer;
   m_guest.instruction_fallback = HookInstructionFallback;
-  m_guest.host_call = nullptr;
+  m_guest.host_call = m_module_source.host_call ? HookHostCall : nullptr;
   m_guest.external_user_data = this;
 
   std::fprintf(stderr, "[staticrecomp] core init\n");
@@ -118,7 +146,10 @@ void StaticRecompCore::Init()
   m_fallback_jit = std::make_unique<Jit64>(m_system);
 #endif
   if (m_fallback_jit)
+  {
+    m_fallback_jit->SetStaticRecompFallback(true);
     m_fallback_jit->Init();
+  }
 }
 
 void StaticRecompCore::Shutdown()
@@ -215,10 +246,17 @@ void StaticRecompCore::LoadModule()
   m_module = desc;
   m_module_active = (desc != nullptr);
   m_chunk_state.assign(desc->num_chunk_ranges, CHUNK_UNVERIFIED);
+  m_chunk_host_call_state.assign(desc->num_chunk_ranges, 0);
   m_failed_chunks = 0;
   m_lookup_ram_size = 0;
   m_lookup_exram_size = 0;
   m_chunk_lookup_table.clear();
+
+  if (m_module_source.host_call_range_contains)
+  {
+    for (u32 i = 0; i < desc->num_chunk_ranges; ++i)
+      ChunkContainsHostCall(i);
+  }
 
   std::fprintf(stderr, "[staticrecomp] module loaded: %s entry=0x%08X\n", path.c_str(),
                desc->entry_point);

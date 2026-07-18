@@ -36,7 +36,7 @@ void StaticRecompCore::Run()
   const std::string initial_game_id = SConfig::GetInstance().GetGameID();
   m_module_active = m_module && (initial_game_id.empty() || initial_game_id == m_module->game_id);
 
-  if (!m_module_active && m_fallback_jit)
+  if (!m_module_active && m_fallback_jit && !m_guest.host_call)
   {
     m_fallback_jit->Run();
     return;
@@ -52,7 +52,8 @@ void StaticRecompCore::Run()
     {
       // MSR.FP needs no gate here: generated FPU instructions raise the
       // FP-unavailable exception themselves (ppc_fp_available).
-      if (m_module_active && DispatchableAt(ppc.pc))
+      if (m_module_active && DispatchableAt(ppc.pc) &&
+          !(m_guest.host_call && IsHostCallAddress(ppc.pc)))
       {
         SyncIn();
         ++m_bursts;
@@ -104,7 +105,8 @@ void StaticRecompCore::Run()
           }
           if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
-        } while (m_module_active && FastDispatchableAt(m_guest.pc) && ppc.downcount > 0 &&
+        } while (m_module_active && FastDispatchableAt(m_guest.pc) &&
+                 !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
@@ -112,6 +114,30 @@ void StaticRecompCore::Run()
       }
       else
       {
+        if (m_guest.host_call && IsHostCallAddress(ppc.pc))
+        {
+          SyncIn();
+          bool handled = m_guest.host_call(&m_guest, m_guest.pc);
+          if (!handled && m_guest.pc < m_guest.ram_size)
+            handled = m_guest.host_call(&m_guest, m_guest.pc | 0x80000000u);
+          if (m_fallback_jit && IsHostCallAddress(m_guest.lr))
+            m_fallback_jit->GetBlockCache()->InvalidateICache(m_guest.lr, 4, true);
+          if (handled)
+          {
+            const s64 charge = -m_guest.downcount;
+            m_guest.downcount = 0;
+            ppc.downcount -= static_cast<int>(charge > 0 ? charge : 1);
+            m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
+            SyncOut();
+            continue;
+          }
+          SyncOut();
+          if (m_fallback_jit)
+          {
+            m_host_call_passthrough_pc = ppc.pc;
+            m_host_call_passthrough = true;
+          }
+        }
         // SingleStepInner delivers synchronous exceptions itself; external
         // interrupts are delivered at slice start, as in Interpreter::Run.
         if (m_fallback_jit)
@@ -124,7 +150,8 @@ void StaticRecompCore::Run()
           {
             ppc.downcount -= interpreter.SingleStepInner();
             ++m_fallback_steps;
-          } while (!(m_module_active && DispatchableAt(ppc.pc)) && ppc.downcount > 0 &&
+          } while (!(m_module_active && DispatchableAt(ppc.pc)) &&
+                   !IsHostCallAddress(ppc.pc) && ppc.downcount > 0 &&
                    *state_ptr == CPU::State::Running);
         }
       }
