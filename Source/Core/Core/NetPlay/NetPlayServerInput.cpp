@@ -1,11 +1,15 @@
 // Copyright 2026 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "Core/NetPlay/NetPlayServer.h"
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <ranges>
 #include "Common/Config/Config.h"
 #include "Common/Logging/Log.h"
 #include "Common/SFMLHelper.h"
 #include "Core/Config/MainSettings.h"
+#include "Core/NetPlay/NetPlayServer.h"
 #ifdef HAS_LIBMGBA
 #include "Core/HW/GBACore.h"
 #endif
@@ -107,6 +111,70 @@ void NetPlayServer::AdjustPadBufferSize(unsigned int size)
     spac << m_target_buffer_size;
 
     SendAsyncToClients(std::move(spac));
+  }
+}
+
+void NetPlayServer::SetAdaptiveBuffer(const bool enable)
+{
+  m_adaptive_buffer = enable;
+  m_adaptive_recommended_buffer_size = std::clamp(m_target_buffer_size, 2u, 20u);
+  m_adaptive_boost_buffer_size = 0;
+  m_last_adaptive_buffer_update = {};
+  m_last_adaptive_buffer_decrease = std::chrono::steady_clock::now();
+  m_adaptive_buffer_boost_until = {};
+}
+
+void NetPlayServer::UpdateAdaptiveBuffer()
+{
+  if (!m_adaptive_buffer)
+    return;
+
+  const auto now = std::chrono::steady_clock::now();
+  if (m_last_adaptive_buffer_update.time_since_epoch().count() != 0 &&
+      now - m_last_adaptive_buffer_update < std::chrono::milliseconds(500))
+  {
+    return;
+  }
+  m_last_adaptive_buffer_update = now;
+
+  std::array<u32, 2> links{};
+  for (const auto& player : std::views::values(m_players))
+  {
+    const u32 ping = std::min(player.ping, 1000u);
+    const u32 variance =
+        player.socket ? std::min(player.socket->roundTripTimeVariance, ping / 2) : 0;
+    const u32 link = ping + variance;
+    if (link >= links[0])
+    {
+      links[1] = links[0];
+      links[0] = link;
+    }
+    else if (link > links[1])
+    {
+      links[1] = link;
+    }
+  }
+
+  const u32 relay_ms = (links[0] + links[1] + 1) / 2;
+  m_adaptive_recommended_buffer_size =
+      std::clamp(static_cast<unsigned int>((relay_ms * 60 + 999) / 1000 + 1), 2u, 20u);
+
+  unsigned int desired = m_adaptive_recommended_buffer_size;
+  if (now < m_adaptive_buffer_boost_until)
+    desired = std::max(desired, m_adaptive_boost_buffer_size);
+  else
+    m_adaptive_boost_buffer_size = 0;
+
+  if (m_target_buffer_size < desired)
+  {
+    AdjustPadBufferSize(desired);
+    m_last_adaptive_buffer_decrease = now;
+  }
+  else if (m_target_buffer_size > desired &&
+           now - m_last_adaptive_buffer_decrease >= std::chrono::seconds(2))
+  {
+    AdjustPadBufferSize(m_target_buffer_size - 1);
+    m_last_adaptive_buffer_decrease = now;
   }
 }
 

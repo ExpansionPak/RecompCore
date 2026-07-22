@@ -5,6 +5,7 @@
 
 #include <SFML/Network/Packet.hpp>
 
+#include <chrono>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -63,11 +64,13 @@ public:
   void SetWiimoteMapping(const PadMappingArray& mappings);
 
   void AdjustPadBufferSize(unsigned int size);
+  void SetAdaptiveBuffer(bool enable);
   void SetHostInputAuthority(bool enable);
 
   void KickPlayer(PlayerId player);
 
   u16 GetPort() const;
+  bool CanStart();
 
   std::unordered_set<std::string> GetInterfaceSet() const;
   std::string GetInterfaceHost(const std::string& inter) const;
@@ -88,6 +91,8 @@ private:
     ENetPeer* socket = nullptr;
     u32 ping = 0;
     u32 current_game = 0;
+    u8 controller_count = 0;
+    bool ready = false;
 
     Common::QoSSession qos_session;
 
@@ -132,10 +137,12 @@ private:
   void SendResponseToAllPlayers(const MessageID message_id, Data&&... data_to_send);
   void SendToClients(const sf::Packet& packet, PlayerId skip_pid = 0,
                      u8 channel_id = DEFAULT_CHANNEL);
+  bool SendToClients(ENetPacket* packet, PlayerId skip_pid, u8 channel_id);
   void Send(ENetPeer* socket, const sf::Packet& packet, u8 channel_id = DEFAULT_CHANNEL);
   ConnectionError OnConnect(ENetPeer* socket, sf::Packet& received_packet);
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
+  unsigned int ValidateWiimoteData(const ENetPacket& packet, const Client& player) const;
 
   void OnTraversalStateChanged() override;
   void OnConnectReady(ENetAddress) override {}
@@ -144,6 +151,7 @@ private:
   void UpdatePadMapping();
   void UpdateGBAConfig();
   void UpdateWiimoteMapping();
+  void UpdateAdaptiveBuffer();
   std::vector<std::pair<std::string, std::string>> GetInterfaceListInternal() const;
   void ChunkedDataThreadFunc();
   void ChunkedDataSend(sf::Packet&& packet, PlayerId pid, const TargetMode target_mode);
@@ -151,6 +159,9 @@ private:
 
   void SetupIndex();
   bool PlayerHasControllerMapped(PlayerId pid) const;
+  void SetControllerCount(Client& player, u8 requested_count);
+  void SetReady(Client& player, bool ready);
+  void SendPlayerState(const Client& player, PlayerId target_pid = 0);
 
   // pulled from OnConnect()
   void AssignNewUserAPad(const Client& player);
@@ -167,6 +178,12 @@ private:
   bool m_update_pings = false;
   u32 m_current_game = 0;
   unsigned int m_target_buffer_size = 0;
+  bool m_adaptive_buffer = false;
+  unsigned int m_adaptive_recommended_buffer_size = 2;
+  unsigned int m_adaptive_boost_buffer_size = 0;
+  std::chrono::steady_clock::time_point m_last_adaptive_buffer_update{};
+  std::chrono::steady_clock::time_point m_last_adaptive_buffer_decrease{};
+  std::chrono::steady_clock::time_point m_adaptive_buffer_boost_until{};
   PadMappingArray m_pad_map;
   GBAConfigArray m_gba_config;
   PadMappingArray m_wiimote_map;
@@ -183,6 +200,7 @@ private:
 
   std::unordered_map<u32, std::vector<std::pair<PlayerId, u64>>> m_timebase_by_frame;
   bool m_desync_detected = false;
+  unsigned int m_desync_mismatch_count = 0;
 
   struct
   {
@@ -207,8 +225,10 @@ private:
   bool m_abort_chunked_data = false;
 
   ENetHost* m_server = nullptr;
+  bool m_enet_initialized = false;
   Common::TraversalClient* m_traversal_client = nullptr;
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;
+  std::string m_compatibility_fingerprint;
 };
 }  // namespace NetPlay

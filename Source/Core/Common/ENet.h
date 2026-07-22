@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <span>
 
 #include <SFML/Network/Packet.hpp>
 #include <enet/enet.h>
@@ -21,6 +22,7 @@ using ENetHostPtr = std::unique_ptr<ENetHost, ENetHostDeleter>;
 void WakeupThread(ENetHost* host);
 int ENET_CALLBACK InterceptCallback(ENetHost* host, ENetEvent* event);
 bool SendPacket(ENetPeer* socket, const sf::Packet& packet, u8 channel_id);
+bool SendPacket(std::span<ENetPeer* const> sockets, const sf::Packet& packet, u8 channel_id);
 
 // used for traversal packets and wake-up packets
 constexpr int SKIPPABLE_EVENT = 42;
