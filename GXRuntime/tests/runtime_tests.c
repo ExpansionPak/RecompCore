@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-_Static_assert(GXRUNTIME_CPU_ABI_VERSION == 2u,
+_Static_assert(GXRUNTIME_CPU_ABI_VERSION == 3u,
                "update runtime ABI tests when the CPU ABI changes");
 _Static_assert(GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX == 1u,
                "GXRuntime generated-code prefix must stay explicit");
@@ -49,6 +49,10 @@ _Static_assert(offsetof(CPUState, downcount) > offsetof(CPUState, external_point
                "ABI v2 downcount must remain the tail field");
 _Static_assert(sizeof(((CPUState*)0)->downcount) == 8u,
                "downcount is s64 so unconsumed charges cannot wrap");
+_Static_assert(offsetof(CPUState, spr_read) > offsetof(CPUState, exram_size),
+               "ABI v3 callbacks must remain tail fields");
+_Static_assert(offsetof(CPUState, cache_control) > offsetof(CPUState, spr_write),
+               "ABI v3 callback order changed");
 _Static_assert(sizeof(((CPUState*)0)->gpr) / sizeof(((CPUState*)0)->gpr[0]) == 32u,
                "generated code requires 32 GPRs");
 _Static_assert(sizeof(((CPUState*)0)->fpr) / sizeof(((CPUState*)0)->fpr[0]) == 32u,
@@ -83,6 +87,36 @@ static unsigned g_platform_array_guest_calls;
 static unsigned g_platform_texture_guest_calls;
 static unsigned g_platform_tlut_guest_calls;
 static unsigned g_platform_copy_guest_calls;
+static unsigned g_spr_reads;
+static unsigned g_spr_writes;
+static unsigned g_cache_controls;
+static u16 g_last_spr;
+static u32 g_last_spr_value;
+static u8 g_last_cache_operation;
+
+static u32 test_spr_read(CPUState* cpu, u16 spr, u32 cia) {
+    (void)cpu;
+    (void)cia;
+    g_spr_reads++;
+    g_last_spr = spr;
+    return 0xA5000000u | spr;
+}
+
+static void test_spr_write(CPUState* cpu, u16 spr, u32 value, u32 cia) {
+    (void)cpu;
+    (void)cia;
+    g_spr_writes++;
+    g_last_spr = spr;
+    g_last_spr_value = value;
+}
+
+static void test_cache_control(CPUState* cpu, u8 operation, u32 ea, u32 cia) {
+    (void)cpu;
+    (void)cia;
+    g_cache_controls++;
+    g_last_cache_operation = operation;
+    g_last_spr_value = ea;
+}
 
 static void put_be32(u8* p, u32 value) {
     p[0] = (u8)(value >> 24);
@@ -2199,8 +2233,57 @@ static void test_savestate_roundtrip(void) {
     cpu_free(&cpu);
 }
 
+static void test_native_system_helpers(void) {
+    CPUState cpu;
+    assert(cpu_init(&cpu));
+    cpu.spr_read = test_spr_read;
+    cpu.spr_write = test_spr_write;
+    cpu.cache_control = test_cache_control;
+    cpu_reset(&cpu);
+    assert(cpu.spr_read == test_spr_read);
+    assert(cpu.spr_write == test_spr_write);
+    assert(cpu.cache_control == test_cache_control);
+
+    cpu.lr = 0x12345678u;
+    assert(ppc_mfspr(&cpu, 8, 0x80001000u) == cpu.lr);
+    g_spr_reads = 0;
+    assert(ppc_mfspr(&cpu, 1008, 0x80001004u) == 0xA50003F0u);
+    assert(g_spr_reads == 1 && g_last_spr == 1008);
+
+    g_spr_writes = 0;
+    ppc_mtspr(&cpu, 1008, 0xCAFEBABEu, 0x80001008u);
+    assert(g_spr_writes == 1 && g_last_spr == 1008);
+    assert(g_last_spr_value == 0xCAFEBABEu);
+
+    cpu.xer = 5;
+    cpu.gpr[10] = 0x80000100u;
+    cpu.gpr[11] = 0;
+    cpu.ram[0x100] = 0x12;
+    cpu.ram[0x101] = 0x34;
+    cpu.ram[0x102] = 0x56;
+    cpu.ram[0x103] = 0x78;
+    cpu.ram[0x104] = 0x9A;
+    ppc_lswx(&cpu, 3, 10, 11, 0x8000100Cu);
+    assert(cpu.gpr[3] == 0x12345678u);
+    assert(cpu.gpr[4] == 0x9A000000u);
+
+    g_cache_controls = 0;
+    ppc_cache_control(&cpu, PPC_CACHE_DCBF, 0x80000100u, 0x80001010u);
+    assert(g_cache_controls == 1);
+    assert(g_last_cache_operation == PPC_CACHE_DCBF);
+    assert(g_last_spr_value == 0x80000100u);
+
+    cpu.msr = PPC_MSR_PR;
+    cpu.exception = 0;
+    ppc_cache_control(&cpu, PPC_CACHE_DCBI, 0x80000100u, 0x80001014u);
+    assert(g_cache_controls == 1);
+    assert((cpu.program_exception & PPC_PROGRAM_PRIV) != 0);
+    cpu_free(&cpu);
+}
+
 int main(void) {
     test_guest_memory();
+    test_native_system_helpers();
     test_savestate_roundtrip();
     test_gx_recomp_modules();
     test_gx_recomp_all_module_replay();

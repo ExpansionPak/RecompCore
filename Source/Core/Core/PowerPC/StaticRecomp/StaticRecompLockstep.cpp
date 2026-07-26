@@ -74,6 +74,8 @@ void StaticRecompLockstepVerifier::Init()
     m_ls_step_cap = std::atoi(s);
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_TRACE"))
     m_ls_trace_pc = static_cast<u32>(std::strtoull(s, nullptr, 0));
+  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_REPEAT"))
+    m_ls_repeat_pc = static_cast<u32>(std::strtoull(s, nullptr, 0));
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_WHITELIST"))
   {
     const char* p = s;
@@ -103,7 +105,7 @@ bool StaticRecompLockstepVerifier::ShouldCheck(u32 address) const
     return false;
   if (!LockstepWindowOpen())
     return false;
-  return m_ls_checked.find(address) == m_ls_checked.end();
+  return address == m_ls_repeat_pc || m_ls_checked.find(address) == m_ls_checked.end();
 }
 
 bool StaticRecompLockstepVerifier::LockstepWindowOpen() const

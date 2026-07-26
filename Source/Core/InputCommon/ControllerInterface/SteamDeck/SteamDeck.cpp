@@ -109,6 +109,7 @@ private:
 
 public:
   Device(hid_device* device);
+  ~Device() override;
   std::string GetName() const final override;
   std::string GetSource() const final override;
   Core::DeviceRemoval UpdateInput() override;
@@ -181,6 +182,7 @@ void InputBackend::PopulateDevices()
   if (hid_set_nonblocking(deck_dev, 1) != 0)
   {
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "Steam Deck controls could not be set nonblocking");
+    hid_close(deck_dev);
     return;
   }
 
@@ -265,6 +267,11 @@ Device::Device(hid_device* device) : m_device{device}
   AddInput(new MotionInput("Gyro Yaw Left",   m_latest_input.gyro_yaw,   gyro_scale));
   AddInput(new MotionInput("Gyro Yaw Right",  m_latest_input.gyro_yaw,   -gyro_scale));
   // clang-format on
+}
+
+Device::~Device()
+{
+  hid_close(m_device);
 }
 
 std::string Device::GetName() const

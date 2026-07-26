@@ -192,7 +192,7 @@ void PlatformX11::ProcessEvents()
     {
     case KeyPress:
       key = XLookupKeysym((XKeyEvent*)&event, 0);
-      if (key == XK_Escape)
+      if (key == XK_Escape && (event.xkey.state & ControlMask))
       {
         RequestShutdown();
       }

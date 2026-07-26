@@ -12,6 +12,8 @@
 #include "Core/Config/ConfigManager.h"
 #include "Core/HW/SystemTimers.h"
 
+#include <cstdio>
+
 namespace
 {
 constexpr u32 SYNC_EXCEPTION_MASK = ~static_cast<u32>(
@@ -59,13 +61,24 @@ void StaticRecompCore::Run()
         ++m_bursts;
         do
         {
+          if (m_guest.pc == 0x80191ee8u || m_guest.pc == 0x80191f00u ||
+              m_guest.pc == 0x80191858u)
+            std::fprintf(stderr, "[freeze-trace] pc=%08x r3=%08x r4=%08x lr=%08x\n",
+                         m_guest.pc, m_guest.gpr[3], m_guest.gpr[4], m_guest.lr);
           const bool do_ls = m_lockstep_verifier->ShouldCheck(m_guest.pc);
           if (do_ls)
           {
             m_lockstep_verifier->Prepare(m_guest);
           }
 
-          m_module->dispatch(&m_guest, m_guest.pc);
+          if ((m_native_dispatches & 4095u) == 0)
+            ++m_dispatch_samples[m_guest.pc];
+          const u32 runtime_dispatch_address = m_guest.pc;
+          u32 linked_dispatch_address = runtime_dispatch_address;
+          ResolveNativeAddress(runtime_dispatch_address, &linked_dispatch_address, nullptr);
+          m_guest.pc = linked_dispatch_address;
+          m_module->dispatch(&m_guest, linked_dispatch_address);
+          m_guest.pc = TranslateRelAddress(m_guest.pc);
           ++m_native_dispatches;
 
           if (do_ls)
@@ -140,7 +153,12 @@ void StaticRecompCore::Run()
         }
         // SingleStepInner delivers synchronous exceptions itself; external
         // interrupts are delivered at slice start, as in Interpreter::Run.
-        if (m_fallback_jit)
+        if (m_module_active && IsForcedFallbackAddress(ppc.pc))
+        {
+          ppc.downcount -= interpreter.SingleStepInner();
+          ++m_fallback_steps;
+        }
+        else if (m_fallback_jit)
         {
           m_fallback_jit->Run();
         }

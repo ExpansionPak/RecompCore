@@ -62,6 +62,9 @@ void cpu_reset(CPUState* cpu) {
     void* external_user_data = cpu->external_user_data;
     u8* exram = cpu->exram;
     u32 exram_size = cpu->exram_size;
+    PPCSPRRead spr_read = cpu->spr_read;
+    PPCSPRWrite spr_write = cpu->spr_write;
+    PPCCacheControl cache_control = cpu->cache_control;
 
     memset(cpu, 0, sizeof(*cpu));
     cpu->ram = ram;
@@ -76,28 +79,12 @@ void cpu_reset(CPUState* cpu) {
     cpu->external_user_data = external_user_data;
     cpu->exram = exram;
     cpu->exram_size = exram_size;
+    cpu->spr_read = spr_read;
+    cpu->spr_write = spr_write;
+    cpu->cache_control = cache_control;
 
     if (cpu->ram)
         memset(cpu->ram, 0, cpu->ram_size);
-}
-
-static u32 exception_vector_address(u32 msr, u32 vector) {
-
-    return ((msr & PPC_MSR_IP) ? 0xFFF00000u : 0u) + vector;
-}
-
-static u32 exception_msr(u32 old_msr, u32 exception) {
-    u32 clear = PPC_MSR_POW | PPC_MSR_EE | PPC_MSR_PR | PPC_MSR_FP |
-                PPC_MSR_FE0 | PPC_MSR_SE | PPC_MSR_BE | PPC_MSR_FE1 |
-                PPC_MSR_IR | PPC_MSR_DR | PPC_MSR_PM | PPC_MSR_RI |
-                PPC_MSR_LE;
-    if (exception & PPC_EXC_MACHINE_CHECK)
-        clear |= PPC_MSR_ME;
-
-    u32 next = old_msr & ~clear;
-    if (old_msr & PPC_MSR_ILE)
-        next |= PPC_MSR_LE;
-    return next;
 }
 
 bool ppc_add_overflowed(u32 a, u32 b, u32 result) {
@@ -108,20 +95,6 @@ void ppc_set_xer_ov(CPUState* cpu, bool ov) {
     cpu->xer = (cpu->xer & ~0x40000000u) | (ov ? 0x40000000u : 0u);
     if (ov)
         cpu->xer |= 0x80000000u;
-}
-
-void ppc_take_exception(CPUState* cpu, u32 exception, u32 vector, u32 srr0, u32 srr1_info) {
-    u32 old_msr = cpu->msr;
-    cpu->srr0 = srr0;
-    cpu->srr1 = (old_msr & PPC_MSR_RFI_MASK) | srr1_info;
-    cpu->exception |= exception;
-    cpu->msr = exception_msr(old_msr, exception);
-    cpu->pc = exception_vector_address(cpu->msr, vector);
-}
-
-void ppc_program_exception(CPUState* cpu, u32 cause, u32 cia) {
-    cpu->program_exception |= cause;
-    ppc_take_exception(cpu, PPC_EXC_PROGRAM, PPC_VECTOR_PROGRAM, cia, cause);
 }
 
 static bool g_ppc_lazy_fp_enabled = true;

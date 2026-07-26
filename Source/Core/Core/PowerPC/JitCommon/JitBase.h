@@ -204,7 +204,17 @@ public:
   bool IsProfilingEnabled() const { return m_enable_profiling && m_enable_debugging; }
   bool IsDebuggingEnabled() const { return m_enable_debugging; }
   bool IsStaticRecompFallback() const { return m_is_static_recomp_fallback; }
-  void SetStaticRecompFallback(bool enabled) { m_is_static_recomp_fallback = enabled; }
+  void SetStaticRecompFallback(bool enabled)
+  {
+    m_is_static_recomp_fallback = enabled;
+    if (enabled)
+    {
+      m_fastmem_enabled = false;
+      m_page_table_fastmem_enabled = false;
+      jo.fastmem = false;
+      jo.fastmem_arena = false;
+    }
+  }
   bool IsBranchWatchEnabled() const
   {
     auto& branch_watch = m_system.GetPowerPC().GetBranchWatch();

@@ -3,8 +3,11 @@
 
 #include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <sstream>
 
 #include "Common/Config/Config.h"
 #include "Common/DynamicLibrary.h"
@@ -76,6 +79,33 @@ bool ChunksTileCode(const StaticRecompModuleDesc& desc)
   }
   return chunk == desc.num_chunk_ranges;
 }
+
+bool RelModulesValid(const StaticRecompModuleDesc& desc)
+{
+  if (desc.num_rel_modules == 0)
+    return desc.rel_modules == nullptr;
+  if (!desc.rel_modules)
+    return false;
+  for (u32 i = 0; i < desc.num_rel_modules; ++i)
+  {
+    const StaticRecompRelModule& module = desc.rel_modules[i];
+    if (module.module_id == 0 || module.section_count == 0 ||
+        module.section_info_offset < 0x40 || module.file_size < 0x40 ||
+        !module.sections || module.num_sections == 0)
+      return false;
+    for (u32 j = 0; j < module.num_sections; ++j)
+    {
+      const StaticRecompRelSection& section = module.sections[j];
+      const u64 end = static_cast<u64>(section.linked_start) + section.size;
+      if (section.module_id != module.module_id || section.section_index >= module.section_count ||
+          section.size == 0 || end > 0x100000000ull ||
+          !AddressIsCovered(desc.code_ranges, desc.num_code_ranges, section.linked_start) ||
+          !AddressIsCovered(desc.code_ranges, desc.num_code_ranges, static_cast<u32>(end - 1)))
+        return false;
+    }
+  }
+  return true;
+}
 }  // namespace
 
 bool StaticRecompCore::IsModuleActive() const
@@ -117,6 +147,17 @@ void StaticRecompCore::Init()
 {
   g_static_recomp_core = this;
   RefreshConfig();
+  const char* fallback_override = std::getenv("STATICRECOMP_FALLBACK_RANGES");
+  std::istringstream fallback_ranges(fallback_override ? fallback_override :
+                                                         Config::Get(Config::MAIN_STATICRECOMP_FALLBACK_RANGES));
+  std::string fallback_range;
+  while (std::getline(fallback_ranges, fallback_range, ','))
+  {
+    StaticRecompRange range{};
+    if (std::sscanf(fallback_range.c_str(), "%x-%x", &range.start, &range.end) == 2 &&
+        range.start < range.end)
+      m_forced_fallback_ranges.push_back(range);
+  }
   jo.enableBlocklink = false;
   jo.fastmem = false;
   jo.fastmem_arena = false;
@@ -129,6 +170,9 @@ void StaticRecompCore::Init()
   m_guest.external_read32 = HookExternalRead32;
   m_guest.external_write32 = HookExternalWrite32;
   m_guest.external_pointer = HookExternalPointer;
+  m_guest.spr_read = HookSPRRead;
+  m_guest.spr_write = HookSPRWrite;
+  m_guest.cache_control = HookCacheControl;
   m_guest.instruction_fallback = HookInstructionFallback;
   m_guest.host_call = m_module_source.host_call ? HookHostCall : nullptr;
   m_guest.external_user_data = this;
@@ -149,6 +193,7 @@ void StaticRecompCore::Init()
   {
     m_fallback_jit->SetStaticRecompFallback(true);
     m_fallback_jit->Init();
+    m_fallback_jit->SetStaticRecompFallback(true);
   }
 }
 
@@ -157,11 +202,22 @@ void StaticRecompCore::Shutdown()
   g_static_recomp_core = nullptr;
   std::fprintf(stderr,
                "[staticrecomp] shutdown: native=%llu fallback=%llu native_exc=%llu hook_fb=%llu "
-               "smc_failed=%u verifications=%llu reverify_events=%llu\n",
+               "smc_failed=%u verifications=%llu reverify_events=%llu bursts=%llu cycles=%llu\n",
                (unsigned long long)m_native_dispatches, (unsigned long long)m_fallback_steps,
                (unsigned long long)m_native_exceptions,
                (unsigned long long)m_hook_fallback_instructions, m_failed_chunks,
-               (unsigned long long)m_verifications, (unsigned long long)m_reverify_events);
+               (unsigned long long)m_verifications, (unsigned long long)m_reverify_events,
+               (unsigned long long)m_bursts, (unsigned long long)m_charged_cycles);
+  std::vector<std::pair<u32, u64>> dispatch_samples(m_dispatch_samples.begin(),
+                                                    m_dispatch_samples.end());
+  std::sort(dispatch_samples.begin(), dispatch_samples.end(),
+            [](const auto& left, const auto& right) { return left.second > right.second; });
+  for (std::size_t i = 0; i < std::min<std::size_t>(dispatch_samples.size(), 16); ++i)
+  {
+    std::fprintf(stderr, "[staticrecomp] dispatch-site pc=%08x samples=%llu\n",
+                 dispatch_samples[i].first,
+                 static_cast<unsigned long long>(dispatch_samples[i].second));
+  }
   NOTICE_LOG_FMT(POWERPC,
                  "StaticRecomp: shutdown. native_dispatches={} fallback_steps={} "
                  "native_exceptions={} hook_fallback_instructions={} smc_failed_chunks={} "
@@ -238,6 +294,8 @@ void StaticRecompCore::LoadModule()
     return reject("no chunk ranges/hashes (required for the SMC guard)");
   if (!ChunksTileCode(*desc))
     return reject("chunk ranges do not exactly tile code ranges");
+  if (!RelModulesValid(*desc))
+    return reject("malformed REL module metadata");
   if (!AddressIsCovered(desc->code_ranges, desc->num_code_ranges, desc->entry_point))
     return reject("entry point is not covered by the module");
   if (!game_id.empty() && game_id != desc->game_id)
@@ -247,6 +305,27 @@ void StaticRecompCore::LoadModule()
   m_module_active = (desc != nullptr);
   m_chunk_state.assign(desc->num_chunk_ranges, CHUNK_UNVERIFIED);
   m_chunk_host_call_state.assign(desc->num_chunk_ranges, 0);
+  m_effective_chunk_hashes.assign(desc->chunk_hashes,
+                                  desc->chunk_hashes + desc->num_chunk_ranges);
+  m_chunk_rel_sections.assign(desc->num_chunk_ranges, -1);
+  for (u32 chunk_index = 0; chunk_index < desc->num_chunk_ranges; ++chunk_index)
+  {
+    const StaticRecompRange& chunk = desc->chunk_ranges[chunk_index];
+    u32 flat_section = 0;
+    for (u32 module_index = 0; module_index < desc->num_rel_modules; ++module_index)
+    {
+      const StaticRecompRelModule& module = desc->rel_modules[module_index];
+      for (u32 section_index = 0; section_index < module.num_sections; ++section_index, ++flat_section)
+      {
+        const StaticRecompRelSection& section = module.sections[section_index];
+        const u64 section_end = static_cast<u64>(section.linked_start) + section.size;
+        if (chunk.start >= section.linked_start && chunk.end <= section_end)
+          m_chunk_rel_sections[chunk_index] = static_cast<int>(flat_section);
+      }
+    }
+  }
+  m_active_rel_sections.clear();
+  m_rel_mapping_generation = 0;
   m_failed_chunks = 0;
   m_lookup_ram_size = 0;
   m_lookup_exram_size = 0;

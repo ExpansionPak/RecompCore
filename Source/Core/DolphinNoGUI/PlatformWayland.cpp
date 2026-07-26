@@ -617,7 +617,7 @@ bool PlatformWayland::ModifierActive(const char* name) const
 void PlatformWayland::HandleHotkey(xkb_keysym_t symbol)
 {
   auto& system = Core::System::GetInstance();
-  if (symbol == XKB_KEY_Escape)
+  if (symbol == XKB_KEY_Escape && ModifierActive(XKB_MOD_NAME_CTRL))
   {
     RequestShutdown();
   }

@@ -22,6 +22,12 @@ set(GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated" CACHE PATH "DolRecomp 
 if(NOT EXISTS "${GENERATED_DIR}")
   message(FATAL_ERROR "Generated directory not found at ${GENERATED_DIR}. Set -DGENERATED_DIR=<path to DolRecomp output>")
 endif()
+foreach(REQUIRED_GENERATED_FILE generated.h generated_smc.txt main.dol)
+  if(NOT EXISTS "${GENERATED_DIR}/${REQUIRED_GENERATED_FILE}")
+    message(FATAL_ERROR
+      "DolRecomp output is incomplete: ${GENERATED_DIR}/${REQUIRED_GENERATED_FILE} is missing")
+  endif()
+endforeach()
 set(GXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../GXRuntime" CACHE PATH "GXRuntime checkout")
 if(NOT EXISTS "${GXRUNTIME_DIR}")
   message(FATAL_ERROR "GXRuntime not found at ${GXRUNTIME_DIR}. Set -DGXRUNTIME_DIR=<path to GXRuntime>")
@@ -44,19 +50,56 @@ add_custom_command(
           "${GENERATED_DIR}/main.dol"
   COMMENT "Generating module_tables.inc")
 
-file(GLOB CHUNK_SOURCES "${GENERATED_DIR}/chunks/*.c")
+file(READ "${GENERATED_DIR}/generated.h" GENERATED_HEADER_TEXT)
+if(GENERATED_HEADER_TEXT MATCHES "DOLRECOMP_BACKEND_LLVM")
+  set(GENERATED_MANIFEST)
+  foreach(MANIFEST_CANDIDATE
+          "${GENERATED_DIR}/${GAME_ID}.c"
+          "${GENERATED_DIR}/generated.c")
+    if(EXISTS "${MANIFEST_CANDIDATE}")
+      set(GENERATED_MANIFEST "${MANIFEST_CANDIDATE}")
+      break()
+    endif()
+  endforeach()
+  if(NOT GENERATED_MANIFEST)
+    message(FATAL_ERROR "DolRecomp LLVM object manifest is missing")
+  endif()
+  file(STRINGS "${GENERATED_MANIFEST}" CHUNK_OBJECT_LINES
+       REGEX "^// object: ")
+  foreach(CHUNK_OBJECT_LINE IN LISTS CHUNK_OBJECT_LINES)
+    string(REGEX REPLACE "^// object: " "" CHUNK_OBJECT
+           "${CHUNK_OBJECT_LINE}")
+    list(APPEND CHUNK_INPUTS "${GENERATED_DIR}/${CHUNK_OBJECT}")
+  endforeach()
+  foreach(CHUNK_INPUT IN LISTS CHUNK_INPUTS)
+    if(NOT EXISTS "${CHUNK_INPUT}")
+      message(FATAL_ERROR "DolRecomp LLVM object is missing: ${CHUNK_INPUT}")
+    endif()
+  endforeach()
+  set_source_files_properties(${CHUNK_INPUTS} PROPERTIES EXTERNAL_OBJECT TRUE)
+else()
+  file(GLOB CHUNK_INPUTS CONFIGURE_DEPENDS "${GENERATED_DIR}/chunks/*.c")
+endif()
+if(NOT CHUNK_INPUTS)
+  message(FATAL_ERROR "DolRecomp output has no generated chunks in ${GENERATED_DIR}/chunks")
+endif()
 
 add_library(${MODULE_NAME} SHARED
   module_export.c
   "${MODULE_TABLES}"
   "${GXRUNTIME_DIR}/src/core/cpu.c"
+  "${GXRUNTIME_DIR}/src/core/cpu_exception.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_table.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_float.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_integer.c"
-  ${CHUNK_SOURCES})
+  ${CHUNK_INPUTS})
 
-set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "" OUTPUT_NAME "${MODULE_NAME}" UNITY_BUILD OFF)
+set_target_properties(${MODULE_NAME} PROPERTIES
+  PREFIX ""
+  OUTPUT_NAME "${MODULE_NAME}"
+  UNITY_BUILD OFF
+  C_VISIBILITY_PRESET hidden)
 set_source_files_properties("${MODULE_TABLES}" PROPERTIES HEADER_FILE_ONLY TRUE GENERATED TRUE)
 
 target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
@@ -70,19 +113,42 @@ target_include_directories(${MODULE_NAME} PRIVATE
 if(NOT WIN32)
   target_link_libraries(${MODULE_NAME} PRIVATE m)
 endif()
+if(UNIX AND NOT APPLE)
+  target_link_options(${MODULE_NAME} PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/module.exports")
+  set_property(TARGET ${MODULE_NAME} APPEND PROPERTY LINK_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/module.exports")
+endif()
 
-# Keep each generated chunk as its own translation unit. Clang uses ThinLTO and
-# lld; GCC deliberately avoids LTO until the differential parity gate covers it.
-if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  target_compile_options(${MODULE_NAME} PRIVATE -O2 -flto=thin -fvisibility=hidden
-                         -ffp-contract=off -fno-fast-math)
-  target_link_options(${MODULE_NAME} PRIVATE -flto=thin)
-  if(UNIX AND NOT APPLE)
-    target_link_options(${MODULE_NAME} PRIVATE -fuse-ld=lld)
+option(RECOMPCORE_MODULE_ENABLE_IPO "Enable Clang module interprocedural optimization when supported" ON)
+set(RECOMPCORE_MODULE_OPT_LEVEL "2" CACHE STRING
+    "Optimization level for generated module translation units (0, 1, 2, or 3)")
+set_property(CACHE RECOMPCORE_MODULE_OPT_LEVEL PROPERTY STRINGS 0 1 2 3)
+if(NOT RECOMPCORE_MODULE_OPT_LEVEL MATCHES "^[0-3]$")
+  message(FATAL_ERROR
+    "RECOMPCORE_MODULE_OPT_LEVEL must be one of 0, 1, 2, or 3")
+endif()
+if(RECOMPCORE_MODULE_ENABLE_IPO AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT RECOMPCORE_MODULE_IPO_SUPPORTED
+                      OUTPUT RECOMPCORE_MODULE_IPO_ERROR LANGUAGES C)
+  if(RECOMPCORE_MODULE_IPO_SUPPORTED)
+    set_property(TARGET ${MODULE_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  else()
+    message(STATUS "Module IPO disabled: ${RECOMPCORE_MODULE_IPO_ERROR}")
   endif()
+endif()
+
+if(MSVC)
+  if(RECOMPCORE_MODULE_OPT_LEVEL STREQUAL "0")
+    target_compile_options(${MODULE_NAME} PRIVATE /Od /fp:strict)
+  else()
+    target_compile_options(${MODULE_NAME} PRIVATE /O2 /fp:strict)
+  endif()
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  target_compile_options(${MODULE_NAME} PRIVATE
+    -O${RECOMPCORE_MODULE_OPT_LEVEL} -ffp-contract=off -fno-fast-math)
 elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(${MODULE_NAME} PRIVATE -O2 -fvisibility=hidden
-                         -ffp-contract=off -fno-fast-math)
-elseif(MSVC)
-  target_compile_options(${MODULE_NAME} PRIVATE /fp:strict)
+  target_compile_options(${MODULE_NAME} PRIVATE
+    -O${RECOMPCORE_MODULE_OPT_LEVEL} -ffp-contract=off -fno-fast-math)
 endif()

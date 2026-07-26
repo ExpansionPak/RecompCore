@@ -52,7 +52,7 @@ public:
   void SingleStep() override;
   bool IsModuleActive() const;
   bool DispatchableAt(u32 address);
-  bool FastDispatchableAt(u32 address) const;
+  bool FastDispatchableAt(u32 address);
   bool IsHostCallAddress(u32 address) const;
   bool ShouldYieldAt(u32 address);
 
@@ -111,9 +111,14 @@ private:
   };
 
   void OnICacheInvalidate(u32 address, u32 length);
-  int ChunkIndexOf(u32 address) const;
+  int ChunkIndexOf(u32 address);
+  bool IsForcedFallbackAddress(u32 address) const;
   bool ChunkContainsHostCall(u32 index) const;
   void VerifyChunk(u32 index);
+  bool ResolveNativeAddress(u32 runtime_address, u32* linked_address, u32* rel_section_index);
+  bool ResolveRuntimeAddress(u32 linked_address, u32* runtime_address) const;
+  u32 TranslateRelAddress(u32 linked_address);
+  void RefreshRelSections();
 
   static void SetPPCStateFromGuestState(const CPUState& s, PowerPC::PowerPCState& ppc);
 
@@ -129,6 +134,9 @@ private:
   static u32 HookExternalRead32(CPUState* cpu, u32 ea, u8 rid);
   static void HookExternalWrite32(CPUState* cpu, u32 ea, u32 value, u8 rid);
   static void* HookExternalPointer(CPUState* cpu, u32 ea, u32 size);
+  static u32 HookSPRRead(CPUState* cpu, u16 spr, u32 cia);
+  static void HookSPRWrite(CPUState* cpu, u16 spr, u32 value, u32 cia);
+  static void HookCacheControl(CPUState* cpu, u8 operation, u32 ea, u32 cia);
   static void HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia);
   static bool HookHostCall(CPUState* cpu, u32 address);
 
@@ -153,12 +161,26 @@ private:
   u64 m_fallback_steps = 0;
   u64 m_native_exceptions = 0;
   u64 m_hook_fallback_instructions = 0;
+  std::unordered_map<u32, u64> m_dispatch_samples;
   u64 m_bursts = 0;          // SyncIn..SyncOut native runs (diagnostic)
   u64 m_charged_cycles = 0;  // cycles flushed from module charges (diagnostic)
 
   // D4 guard state: parallel to m_module->chunk_ranges.
   std::vector<u8> m_chunk_state;
   mutable std::vector<u8> m_chunk_host_call_state;
+  std::vector<StaticRecompRange> m_forced_fallback_ranges;
+  struct ActiveRelSection
+  {
+    u32 module_id;
+    u32 section_index;
+    u32 linked_start;
+    u32 runtime_start;
+    u32 size;
+  };
+  std::vector<ActiveRelSection> m_active_rel_sections;
+  std::vector<int> m_chunk_rel_sections;
+  std::vector<u64> m_effective_chunk_hashes;
+  u64 m_rel_mapping_generation = 0;
   u32 m_failed_chunks = 0;    // chunks currently failing verification (real SMC)
   u64 m_verifications = 0;    // chunk hash checks performed
   u64 m_reverify_events = 0;  // invalidations that reset a chunk to Unverified

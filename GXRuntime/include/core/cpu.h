@@ -3,6 +3,9 @@
 #define DOLRECOMP_CPU_H
 
 #include "types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 // more msvc shit fuck msvc
 #if defined(_MSC_VER)
 #define GXRUNTIME_ALWAYS_INLINE __forceinline
@@ -27,7 +30,7 @@
 //   consumes and resets it (Dolphin chassis: per-dispatch flush into
 //   ppc_state.downcount). Hosts that do not meter guest time may ignore it
 //   (s64: it cannot wrap in any realistic session).
-#define GXRUNTIME_CPU_ABI_VERSION 2u
+#define GXRUNTIME_CPU_ABI_VERSION 3u
 #define GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX 1u
 #define GXRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION 1u
 
@@ -93,6 +96,16 @@ typedef void (*PPCExternalWrite32)(CPUState* cpu, u32 ea, u32 value, u8 rid);
 typedef void* (*PPCExternalPointer)(CPUState* cpu, u32 ea, u32 size);
 typedef void (*PPCInstructionFallback)(CPUState* cpu, u32 raw, u32 cia);
 typedef bool (*PPCHostCall)(CPUState* cpu, u32 address);
+typedef u32 (*PPCSPRRead)(CPUState* cpu, u16 spr, u32 cia);
+typedef void (*PPCSPRWrite)(CPUState* cpu, u16 spr, u32 value, u32 cia);
+typedef void (*PPCCacheControl)(CPUState* cpu, u8 operation, u32 ea, u32 cia);
+
+enum {
+    PPC_CACHE_DCBST,
+    PPC_CACHE_DCBF,
+    PPC_CACHE_DCBI,
+    PPC_CACHE_ICBI,
+};
 
 struct CPUState {
     u32 gpr[32];
@@ -142,6 +155,9 @@ struct CPUState {
     s64 downcount;
     u8* exram;
     u32 exram_size;
+    PPCSPRRead spr_read;
+    PPCSPRWrite spr_write;
+    PPCCacheControl cache_control;
 };
 
 #include <stdio.h>
@@ -332,6 +348,10 @@ void ppc_stsw(CPUState* cpu, u32 ea, u32 n, u8 r, u32 cia);
 void ppc_fpscr_control_updated(CPUState* cpu);
 void ppc_mtfsb0_op(CPUState* cpu, u8 bit);
 void ppc_mtfsb1_op(CPUState* cpu, u8 bit);
+u32 ppc_mfspr(CPUState* cpu, u16 spr, u32 cia);
+void ppc_mtspr(CPUState* cpu, u16 spr, u32 value, u32 cia);
+void ppc_lswx(CPUState* cpu, u8 rD, u8 rA, u8 rB, u32 cia);
+void ppc_cache_control(CPUState* cpu, u8 operation, u32 ea, u32 cia);
 
 bool ppc_add_overflowed(u32 a, u32 b, u32 result);
 bool ppc_trap_condition(u8 to, u32 a, u32 b);
@@ -362,5 +382,9 @@ void ppc_ecowx(CPUState* cpu, u32 ea, u32 value, u32 cia);
 void ppc_tlbie(CPUState* cpu, u32 ea, u32 cia);
 void ppc_fpscr_updated(CPUState* cpu);
 void ppc_memory_fence(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DOLRECOMP_CPU_H */
