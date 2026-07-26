@@ -48,7 +48,11 @@ int CurrentThreadId()
 
 void SetThreadAffinity(std::thread::native_handle_type thread, u32 mask)
 {
+#ifdef __MINGW32__
+  SetThreadAffinityMask(reinterpret_cast<HANDLE>(thread), mask);
+#else
   SetThreadAffinityMask(thread, mask);
+#endif
 }
 
 void SetCurrentThreadAffinity(u32 mask)
