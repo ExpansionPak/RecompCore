@@ -170,6 +170,11 @@ add_library(common
 
 add_dependencies(common dolphin_scmrev)
 
+if(MINGW)
+  set_source_files_properties(FilesystemWatcher.cpp PROPERTIES
+    COMPILE_OPTIONS "-fexceptions")
+endif()
+
 if(NOT MSVC AND _M_ARM_64)
   set_source_files_properties(
     Crypto/AES.cpp
