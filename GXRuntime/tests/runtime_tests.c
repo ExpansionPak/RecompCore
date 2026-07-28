@@ -394,6 +394,23 @@ static void test_guest_memory(void) {
     cpu_free(&cpu);
 }
 
+static void test_store_reservation(void) {
+    CPUState cpu;
+    assert(cpu_init(&cpu));
+
+    cpu.reserve_addr = GC_RAM_BASE + 0x100u;
+    cpu.reserve_valid = true;
+    mem_write32(&cpu, GC_RAM_UNCACHED + 0x11Cu, 0x12345678u);
+    assert(!cpu.reserve_valid);
+
+    cpu.reserve_addr = GC_RAM_BASE + 0x100u;
+    cpu.reserve_valid = true;
+    mem_write8(&cpu, GC_RAM_BASE + 0x120u, 0xABu);
+    assert(cpu.reserve_valid);
+
+    cpu_free(&cpu);
+}
+
 static u32 tex_image0(u16 width, u16 height, u32 format) {
     return ((u32)(width - 1u)) | ((u32)(height - 1u) << 10) |
            ((format & 0xFu) << 20);
@@ -2283,6 +2300,7 @@ static void test_native_system_helpers(void) {
 
 int main(void) {
     test_guest_memory();
+    test_store_reservation();
     test_native_system_helpers();
     test_savestate_roundtrip();
     test_gx_recomp_modules();
