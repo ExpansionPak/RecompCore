@@ -20,6 +20,9 @@ namespace
 {
 constexpr u32 SYNC_EXCEPTION_MASK = ~static_cast<u32>(
     EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR);
+constexpr u32 ASYNC_EXCEPTION_MASK =
+    EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR;
+constexpr u32 MSR_EE = 0x00008000u;
 
 struct FileCloser
 {
@@ -153,12 +156,16 @@ void StaticRecompCore::Run()
           }
           if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
+          if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0 && (m_guest.msr & MSR_EE) != 0)
+            break;  // rfi/mtmsr re-enabled interrupts while one was pending.
         } while (m_module_active && FastDispatchableAt(m_guest.pc) &&
                  !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
           power_pc.CheckExceptions();
+        else if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0)
+          power_pc.CheckExternalExceptions();
       }
       else
       {

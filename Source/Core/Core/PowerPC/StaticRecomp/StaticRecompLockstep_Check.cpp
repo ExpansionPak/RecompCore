@@ -152,9 +152,10 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
         std::fprintf(stderr, " %02X", ram[o + k]);
       std::fprintf(stderr, "\n");
     };
-    std::fprintf(stderr, "[ls-trace] ENTRY r3=0x%08X r4=0x%08X r5=0x%08X charge=%lld\n",
+    std::fprintf(stderr,
+                 "[ls-trace] ENTRY r3=0x%08X r4=0x%08X r5=0x%08X r13=0x%08X charge=%lld\n",
                  entry_state.gpr[3], entry_state.gpr[4], entry_state.gpr[5],
-                 (long long)native_charge);
+                 entry_state.gpr[13], (long long)native_charge);
     if ((entry_state.gpr[3] >> 28) == 8)
       dump("r3", entry_state.gpr[3]);
     if ((entry_state.gpr[4] >> 28) == 8)
@@ -171,8 +172,10 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
 
     if (m_ls_trace_pc != 0 && entry_pc == m_ls_trace_pc)
     {
-      std::fprintf(stderr, "[ls-trace] step %d: pc=0x%08X r3=0x%08X r4=0x%08X r5=0x%08X msr=0x%08X xer=0x%08X cr=0x%08X lr=0x%08X ctr=0x%08X\n",
-                   steps, before, ppc.gpr[3], ppc.gpr[4], ppc.gpr[5], ppc.msr.Hex,
+      std::fprintf(stderr,
+                   "[ls-trace] step %d: pc=0x%08X r3=0x%08X r4=0x%08X r5=0x%08X r13=0x%08X "
+                   "msr=0x%08X xer=0x%08X cr=0x%08X lr=0x%08X ctr=0x%08X\n",
+                   steps, before, ppc.gpr[3], ppc.gpr[4], ppc.gpr[5], ppc.gpr[13], ppc.msr.Hex,
                    ppc.GetXER().Hex, ppc.cr.Get(), ppc.spr[SPR_LR], ppc.spr[SPR_CTR]);
     }
     if (ppc.pc == end_pc)
