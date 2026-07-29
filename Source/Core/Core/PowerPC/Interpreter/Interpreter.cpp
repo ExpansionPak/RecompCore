@@ -4,6 +4,7 @@
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 
 #include <array>
+#include <cstdio>
 #include <string>
 
 #include <fmt/format.h>
@@ -290,6 +291,48 @@ void Interpreter::unknown_instruction(Interpreter& interpreter, UGeckoInstructio
   Core::CPUThreadGuard guard(system);
 
   const u32 last_pc = interpreter.m_last_pc;
+  if (g_static_recomp_core && g_static_recomp_core->IsModuleActive())
+  {
+    std::fprintf(
+        stderr,
+        "[staticrecomp] unknown guest instruction pc=0x%08x opcode=0x%08x last_pc=0x%08x "
+        "lr=0x%08x ctr=0x%08x sp=0x%08x cr=0x%08x msr=0x%08x\n",
+        ppc_state.pc, inst.hex, last_pc, LR(ppc_state), ppc_state.spr[SPR_CTR],
+        ppc_state.gpr[1], ppc_state.cr.Get(), ppc_state.msr.Hex);
+    for (int i = 0; i < 32; i += 4)
+    {
+      std::fprintf(stderr,
+                   "[staticrecomp] regs r%-2d=%08x r%-2d=%08x r%-2d=%08x r%-2d=%08x\n", i,
+                   ppc_state.gpr[i], i + 1, ppc_state.gpr[i + 1], i + 2,
+                   ppc_state.gpr[i + 2], i + 3, ppc_state.gpr[i + 3]);
+    }
+
+    const u32 code_start = ppc_state.pc >= 16 ? ppc_state.pc - 16 : ppc_state.pc;
+    for (u32 address = code_start; address <= ppc_state.pc + 32; address += 4)
+    {
+      if (!PowerPC::MMU::HostIsRAMAddress(guard, address))
+        break;
+      std::fprintf(stderr, "[staticrecomp] code%s 0x%08x: 0x%08x\n",
+                   address == ppc_state.pc ? "*" : " ", address,
+                   PowerPC::MMU::HostRead<u32>(guard, address));
+    }
+
+    std::vector<Dolphin_Debugger::CallstackEntry> callstack;
+    if (Dolphin_Debugger::GetCallstack(guard, callstack))
+    {
+      for (size_t depth = 0; depth < callstack.size(); ++depth)
+      {
+        std::fprintf(stderr, "[staticrecomp] stack[%zu]=0x%08x %s", depth,
+                     callstack[depth].vAddress, callstack[depth].Name.c_str());
+      }
+    }
+    else
+    {
+      std::fprintf(stderr, "[staticrecomp] guest stack unavailable\n");
+    }
+    std::fflush(stderr);
+  }
+
   const u32 opcode = PowerPC::MMU::HostRead<u32>(guard, last_pc);
   const std::string disasm = Common::GekkoDisassembler::Disassemble(opcode, last_pc);
   NOTICE_LOG_FMT(POWERPC, "Last PC = {:08x} : {}", last_pc, disasm);
