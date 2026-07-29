@@ -851,11 +851,10 @@ if(WIN32)
     setupapi.lib
     iphlpapi.lib
   )
-  if(TARGET videod3d12)
-    target_link_libraries(core PUBLIC videod3d12)
-  endif()
-  if(TARGET videod3d)
-    target_link_libraries(core PUBLIC videod3d)
+  # VideoBackends is configured after Core, so if(TARGET ...) is always false
+  # here. D3D/D3D12 are added whenever WIN32 AND MSVC, mirror that condition.
+  if(MSVC)
+    target_link_libraries(core PUBLIC videod3d12 videod3d)
   endif()
   target_compile_definitions(core PRIVATE "-D_WINSOCK_DEPRECATED_NO_WARNINGS")
 elseif(APPLE)

@@ -725,7 +725,7 @@ void ppc_fcmp(CPUState* cpu, u8 crfd, f64 a, f64 b, bool ordered) {
         compare = 0x2u;
     }
 
-    cpu->fpscr |= (compare << 12);
+    cpu->fpscr = (cpu->fpscr & ~(0xFu << 12)) | (compare << 12);
     u32 shift = 4u * (7u - crfd);
     cpu->cr = (cpu->cr & ~(0xFu << shift)) | (compare << shift);
 }

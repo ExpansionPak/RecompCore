@@ -12,12 +12,40 @@
 #include "Core/Config/ConfigManager.h"
 #include "Core/HW/SystemTimers.h"
 
+#include <cstdlib>
 #include <cstdio>
+#include <memory>
 
 namespace
 {
 constexpr u32 SYNC_EXCEPTION_MASK = ~static_cast<u32>(
     EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR);
+
+struct FileCloser
+{
+  void operator()(std::FILE* file) const
+  {
+    if (file)
+      std::fclose(file);
+  }
+};
+
+using FilePtr = std::unique_ptr<std::FILE, FileCloser>;
+
+FilePtr OpenDispatchTrace()
+{
+  const char* path = std::getenv("STATICRECOMP_TRACE_FILE");
+  if (!path || !*path)
+    return {};
+
+  FilePtr file(std::fopen(path, "w"));
+  if (file)
+  {
+    std::fprintf(file.get(), "dispatch,pc,lr,ctr,cr,timebase,ppc_downcount\n");
+    std::fflush(file.get());
+  }
+  return file;
+}
 }
 
 void StaticRecompCore::Run()
@@ -28,6 +56,7 @@ void StaticRecompCore::Run()
   auto& interpreter = m_system.GetInterpreter();
   auto& memory = m_system.GetMemory();
   const CPU::State* state_ptr = m_system.GetCPU().GetStatePtr();
+  FilePtr dispatch_trace = OpenDispatchTrace();
 
   m_guest.ram = memory.GetRAM();
   m_guest.ram_size = memory.GetRamSizeReal();
@@ -61,10 +90,15 @@ void StaticRecompCore::Run()
         ++m_bursts;
         do
         {
-          if (m_guest.pc == 0x80191ee8u || m_guest.pc == 0x80191f00u ||
-              m_guest.pc == 0x80191858u)
-            std::fprintf(stderr, "[freeze-trace] pc=%08x r3=%08x r4=%08x lr=%08x\n",
-                         m_guest.pc, m_guest.gpr[3], m_guest.gpr[4], m_guest.lr);
+          if (dispatch_trace && (m_native_dispatches & 0xFFFFFu) == 0)
+          {
+            std::fprintf(
+                dispatch_trace.get(), "%llu,%08x,%08x,%08x,%08x,%llu,%d\n",
+                static_cast<unsigned long long>(m_native_dispatches), m_guest.pc, m_guest.lr,
+                m_guest.ctr, m_guest.cr, static_cast<unsigned long long>(m_guest.timebase),
+                ppc.downcount);
+            std::fflush(dispatch_trace.get());
+          }
           const bool do_ls = m_lockstep_verifier->ShouldCheck(m_guest.pc);
           if (do_ls)
           {
@@ -95,9 +129,10 @@ void StaticRecompCore::Run()
           // external-interrupt latency matches stock.
           const s64 charge = -m_guest.downcount;
           m_guest.downcount = 0;
-          ppc.downcount -= static_cast<int>(charge > 0 ? charge : 1);
-          m_charged_cycles += static_cast<u64>(charge > 0 ? charge : 1);
-          m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
+          const u64 effective_charge = static_cast<u64>(charge > 0 ? charge : 1);
+          ppc.downcount -= static_cast<int>(effective_charge);
+          m_charged_cycles += effective_charge;
+          AdvanceGuestTimebase(effective_charge);
 
           // Idle loop skipping for configured target loops (e.g. Wii Menu OSIdleThread)
           if (m_guest.pc == m_idle_pc && m_idle_pc != 0)
@@ -139,8 +174,9 @@ void StaticRecompCore::Run()
           {
             const s64 charge = -m_guest.downcount;
             m_guest.downcount = 0;
-            ppc.downcount -= static_cast<int>(charge > 0 ? charge : 1);
-            m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
+            const u64 effective_charge = static_cast<u64>(charge > 0 ? charge : 1);
+            ppc.downcount -= static_cast<int>(effective_charge);
+            AdvanceGuestTimebase(effective_charge);
             SyncOut();
             continue;
           }

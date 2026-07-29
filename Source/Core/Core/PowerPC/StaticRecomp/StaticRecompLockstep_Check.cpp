@@ -176,7 +176,15 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
                    ppc.GetXER().Hex, ppc.cr.Get(), ppc.spr[SPR_LR], ppc.spr[SPR_CTR]);
     }
     if (ppc.pc == end_pc)
-      break;
+    {
+      // A native dispatch can fall through into a loop body and return at its
+      // back-edge with PC set to the loop header. In that one case the shadow
+      // must execute the inlined iteration before stopping. An arrival by any
+      // branch (including a call to an address which also happens to be a loop
+      // header) is already the native dispatch boundary.
+      if (!end_is_loop_header || before + 4u != end_pc)
+        break;
+    }
     if (ppc.Exceptions != 0)
       break;
   }

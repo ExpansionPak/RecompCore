@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
+#include "Core/CoreTiming.h"
 #include "Core/System.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/HW/SystemTimers.h"
@@ -36,6 +37,13 @@ void StaticRecompCore::SetPPCStateFromGuestState(const CPUState& s, PowerPC::Pow
   ppc.reserve = s.reserve_valid;
 }
 
+void StaticRecompCore::AdvanceGuestTimebase(u64 cpu_cycles)
+{
+  const u64 total_cycles = m_timebase_cycle_remainder + cpu_cycles;
+  m_guest.timebase += total_cycles / SystemTimers::TIMER_RATIO;
+  m_timebase_cycle_remainder = total_cycles % SystemTimers::TIMER_RATIO;
+}
+
 void StaticRecompCore::SyncIn()
 {
   auto& power_pc = m_system.GetPowerPC();
@@ -67,6 +75,10 @@ void StaticRecompCore::SyncIn()
   // Dolphin materializes TB lazily on read (spr[TL/TU] is a stale cache);
   // GetFakeTimeBase() is the live value, matching the interpreter's mftb.
   m_guest.timebase = m_system.GetSystemTimers().GetFakeTimeBase();
+  const auto& core_timing = m_system.GetCoreTiming();
+  m_timebase_cycle_remainder =
+      (core_timing.GetTicks() - core_timing.GetFakeTBStartTicks()) %
+      SystemTimers::TIMER_RATIO;
   m_guest.reserve_addr = ppc.reserve_address;
   m_guest.reserve_valid = ppc.reserve;
   m_guest.exception = 0;

@@ -126,6 +126,7 @@ private:
   // full sync at every native-burst boundary.
   void SyncIn();   // Dolphin PowerPCState -> m_guest
   void SyncOut();  // m_guest -> Dolphin PowerPCState
+  void AdvanceGuestTimebase(u64 cpu_cycles);
 
   // CPUState hooks (module -> chassis environment). `cpu->external_user_data`
   // is the StaticRecompCore*.
@@ -161,6 +162,7 @@ private:
   u64 m_fallback_steps = 0;
   u64 m_native_exceptions = 0;
   u64 m_hook_fallback_instructions = 0;
+  u64 m_timebase_cycle_remainder = 0;
   std::unordered_map<u32, u64> m_dispatch_samples;
   u64 m_bursts = 0;          // SyncIn..SyncOut native runs (diagnostic)
   u64 m_charged_cycles = 0;  // cycles flushed from module charges (diagnostic)
