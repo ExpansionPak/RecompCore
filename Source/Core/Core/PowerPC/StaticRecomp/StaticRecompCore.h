@@ -198,6 +198,8 @@ private:
   // last hit short-circuits the chunk binary search on the hot path.
   mutable u32 m_last_chunk_index = 0;
 
+  bool m_collect_dispatch_samples = false;
+  bool m_has_rel_modules = false;
   u32 m_idle_pc = 0;
 };
 

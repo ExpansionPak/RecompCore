@@ -66,6 +66,28 @@ void StaticRecompCore::Run()
   m_guest.exram = memory.GetEXRAM();
   m_guest.exram_size = memory.GetExRamSizeReal();
   InitLookupTable(m_guest.ram_size, m_guest.exram_size);
+  const bool lockstep_enabled = m_lockstep_verifier->IsEnabled();
+  const auto fast_dispatchable_at = [this](u32 address) {
+    if (m_has_rel_modules || !m_forced_fallback_ranges.empty())
+      return FastDispatchableAt(address);
+    if (!m_module_active || m_chunk_lookup_table.empty())
+      return false;
+
+    int lookup_index = -1;
+    if (address >= 0x80000000u && address < 0x80000000u + m_lookup_ram_size)
+    {
+      lookup_index = static_cast<int>((address - 0x80000000u) >> 2);
+    }
+    else if (address >= 0x90000000u && address < 0x90000000u + m_lookup_exram_size)
+    {
+      lookup_index = static_cast<int>((m_lookup_ram_size >> 2) +
+                                      ((address - 0x90000000u) >> 2));
+    }
+    if (lookup_index < 0 || lookup_index >= static_cast<int>(m_chunk_lookup_table.size()))
+      return false;
+    const int chunk = m_chunk_lookup_table[lookup_index];
+    return chunk >= 0 && m_chunk_state[chunk] == CHUNK_VERIFIED;
+  };
 
   const std::string initial_game_id = SConfig::GetInstance().GetGameID();
   m_module_active = m_module && (initial_game_id.empty() || initial_game_id == m_module->game_id);
@@ -102,20 +124,23 @@ void StaticRecompCore::Run()
                 ppc.downcount);
             std::fflush(dispatch_trace.get());
           }
-          const bool do_ls = m_lockstep_verifier->ShouldCheck(m_guest.pc);
+          const bool do_ls =
+              lockstep_enabled && m_lockstep_verifier->ShouldCheck(m_guest.pc);
           if (do_ls)
           {
             m_lockstep_verifier->Prepare(m_guest);
           }
 
-          if ((m_native_dispatches & 4095u) == 0)
+          if (m_collect_dispatch_samples && (m_native_dispatches & 4095u) == 0)
             ++m_dispatch_samples[m_guest.pc];
           const u32 runtime_dispatch_address = m_guest.pc;
           u32 linked_dispatch_address = runtime_dispatch_address;
-          ResolveNativeAddress(runtime_dispatch_address, &linked_dispatch_address, nullptr);
+          if (m_has_rel_modules)
+            ResolveNativeAddress(runtime_dispatch_address, &linked_dispatch_address, nullptr);
           m_guest.pc = linked_dispatch_address;
           m_module->dispatch(&m_guest, linked_dispatch_address);
-          m_guest.pc = TranslateRelAddress(m_guest.pc);
+          if (m_has_rel_modules)
+            m_guest.pc = TranslateRelAddress(m_guest.pc);
           ++m_native_dispatches;
 
           if (do_ls)
@@ -135,7 +160,9 @@ void StaticRecompCore::Run()
           const u64 effective_charge = static_cast<u64>(charge > 0 ? charge : 1);
           ppc.downcount -= static_cast<int>(effective_charge);
           m_charged_cycles += effective_charge;
-          AdvanceGuestTimebase(effective_charge);
+          const u64 total_cycles = m_timebase_cycle_remainder + effective_charge;
+          m_guest.timebase += total_cycles / SystemTimers::TIMER_RATIO;
+          m_timebase_cycle_remainder = total_cycles % SystemTimers::TIMER_RATIO;
 
           // Idle loop skipping for configured target loops (e.g. Wii Menu OSIdleThread)
           if (m_guest.pc == m_idle_pc && m_idle_pc != 0)
@@ -158,7 +185,7 @@ void StaticRecompCore::Run()
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
           if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0 && (m_guest.msr & MSR_EE) != 0)
             break;  // rfi/mtmsr re-enabled interrupts while one was pending.
-        } while (m_module_active && FastDispatchableAt(m_guest.pc) &&
+        } while (m_module_active && fast_dispatchable_at(m_guest.pc) &&
                  !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();

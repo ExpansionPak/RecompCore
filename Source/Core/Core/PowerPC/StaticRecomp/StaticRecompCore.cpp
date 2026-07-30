@@ -147,6 +147,7 @@ void StaticRecompCore::Init()
 {
   g_static_recomp_core = this;
   RefreshConfig();
+  m_collect_dispatch_samples = std::getenv("STATICRECOMP_DISPATCH_SAMPLES") != nullptr;
   const char* fallback_override = std::getenv("STATICRECOMP_FALLBACK_RANGES");
   std::istringstream fallback_ranges(fallback_override ? fallback_override :
                                                          Config::Get(Config::MAIN_STATICRECOMP_FALLBACK_RANGES));
@@ -303,6 +304,7 @@ void StaticRecompCore::LoadModule()
 
   m_module = desc;
   m_module_active = (desc != nullptr);
+  m_has_rel_modules = desc->num_rel_modules != 0;
   m_chunk_state.assign(desc->num_chunk_ranges, CHUNK_UNVERIFIED);
   m_chunk_host_call_state.assign(desc->num_chunk_ranges, 0);
   m_effective_chunk_hashes.assign(desc->chunk_hashes,
