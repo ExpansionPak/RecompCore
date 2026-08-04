@@ -23,6 +23,7 @@
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PPCTables.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
 #include "Core/System.h"
 
 namespace
@@ -290,6 +291,9 @@ void Interpreter::unknown_instruction(Interpreter& interpreter, UGeckoInstructio
   auto& system = interpreter.m_system;
   Core::CPUThreadGuard guard(system);
 
+  // Hoisted: the staticrecomp diagnostic block below was inserted above the
+  // original declaration site and reads ppc_state, so the branch did not build.
+  const auto& ppc_state = interpreter.m_ppc_state;
   const u32 last_pc = interpreter.m_last_pc;
   if (g_static_recomp_core && g_static_recomp_core->IsModuleActive())
   {
@@ -337,7 +341,6 @@ void Interpreter::unknown_instruction(Interpreter& interpreter, UGeckoInstructio
   Dolphin_Debugger::PrintCallstack(guard, Common::Log::LogType::POWERPC,
                                    Common::Log::LogLevel::LNOTICE);
 
-  const auto& ppc_state = interpreter.m_ppc_state;
   NOTICE_LOG_FMT(
       POWERPC,
       "\nIntCPU: Unknown instruction {:08x} at PC = {:08x}  last_PC = {:08x}  LR = {:08x}\n",
