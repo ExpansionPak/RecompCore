@@ -62,7 +62,8 @@ target_link_libraries(use_pch INTERFACE build_pch)
 # targets which use the pch need these compile options
 # /Yu - Use precompiled header named "pch.h"
 # /FI - Force include "pch.h" at top of every source file
-target_compile_options(use_pch INTERFACE /Yupch.h /FIpch.h)
+# The PCH is C++; C sources (e.g. GXRuntime) must not try to consume it.
+target_compile_options(use_pch INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:/Yupch.h;/FIpch.h>")
 
 # For ninja, we need to depend on force_build_pch
 add_dependencies(use_pch force_build_pch)

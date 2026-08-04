@@ -394,9 +394,9 @@ void StaticRecompCore::HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia)
       const u32 rb = (raw >> 11) & 31u;
       const u32 ea = (ra ? cpu->gpr[ra] : 0u) + cpu->gpr[rb];
       if (xo == 982u)
-      {
+        ppc.iCache.Invalidate(system.GetMemory(), system.GetJitInterface(), ea);
+      else
         system.GetJitInterface().InvalidateICacheLine(ea);
-      }
       // These bypass SingleStepInner, so charge Dolphin's PPCTables cost
       // here (icbi 4, dcbf/dcbst/dcbi 5); their emitted block cost is zero.
       ppc.downcount -= (xo == 982u) ? 4 : 5;

@@ -24,7 +24,11 @@
  * offset (into cpu->ram) about to be written, `size` the width in bytes. */
 PPCMemWriteJournal g_mem_write_journal = NULL;
 void* g_mem_write_journal_user = NULL;
+#if defined(_MSC_VER)
+__declspec(dllexport) void ppc_set_mem_write_journal(PPCMemWriteJournal fn, void* user) {
+#else
 __attribute__((visibility("default"))) void ppc_set_mem_write_journal(PPCMemWriteJournal fn, void* user) {
+#endif
     g_mem_write_journal = fn;
     g_mem_write_journal_user = user;
 }

@@ -13,11 +13,42 @@
 #include "Core/HW/SystemTimers.h"
 
 #include <cstdio>
+#include <cstdlib>
+#include <memory>
 
 namespace
 {
 constexpr u32 SYNC_EXCEPTION_MASK = ~static_cast<u32>(
     EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR);
+constexpr u32 ASYNC_EXCEPTION_MASK =
+    EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR;
+constexpr u32 MSR_EE = 0x00008000u;
+
+struct FileCloser
+{
+  void operator()(std::FILE* file) const
+  {
+    if (file)
+      std::fclose(file);
+  }
+};
+
+using FilePtr = std::unique_ptr<std::FILE, FileCloser>;
+
+FilePtr OpenDispatchTrace()
+{
+  const char* path = std::getenv("STATICRECOMP_TRACE_FILE");
+  if (!path || !*path)
+    return {};
+
+  FilePtr file(std::fopen(path, "w"));
+  if (file)
+  {
+    std::fprintf(file.get(), "dispatch,pc,lr,ctr,cr,timebase,ppc_downcount\n");
+    std::fflush(file.get());
+  }
+  return file;
+}
 }
 
 void StaticRecompCore::Run()
@@ -28,12 +59,34 @@ void StaticRecompCore::Run()
   auto& interpreter = m_system.GetInterpreter();
   auto& memory = m_system.GetMemory();
   const CPU::State* state_ptr = m_system.GetCPU().GetStatePtr();
+  FilePtr dispatch_trace = OpenDispatchTrace();
 
   m_guest.ram = memory.GetRAM();
   m_guest.ram_size = memory.GetRamSizeReal();
   m_guest.exram = memory.GetEXRAM();
   m_guest.exram_size = memory.GetExRamSizeReal();
   InitLookupTable(m_guest.ram_size, m_guest.exram_size);
+  const bool lockstep_enabled = m_lockstep_verifier->IsEnabled();
+  const auto fast_dispatchable_at = [this](u32 address) {
+    if (m_has_rel_modules || !m_forced_fallback_ranges.empty())
+      return FastDispatchableAt(address);
+    if (!m_module_active || m_chunk_lookup_table.empty())
+      return false;
+
+    int lookup_index = -1;
+    if (address >= 0x80000000u && address < 0x80000000u + m_lookup_ram_size)
+    {
+      lookup_index = static_cast<int>((address - 0x80000000u) >> 2);
+    }
+    else if (address >= 0x90000000u && address < 0x90000000u + m_lookup_exram_size)
+    {
+      lookup_index = static_cast<int>((m_lookup_ram_size >> 2) + ((address - 0x90000000u) >> 2));
+    }
+    if (lookup_index < 0 || lookup_index >= static_cast<int>(m_chunk_lookup_table.size()))
+      return false;
+    const int chunk = m_chunk_lookup_table[lookup_index];
+    return chunk >= 0 && m_chunk_state[chunk] == CHUNK_VERIFIED;
+  };
 
   const std::string initial_game_id = SConfig::GetInstance().GetGameID();
   m_module_active = m_module && (initial_game_id.empty() || initial_game_id == m_module->game_id);
@@ -61,24 +114,30 @@ void StaticRecompCore::Run()
         ++m_bursts;
         do
         {
-          if (m_guest.pc == 0x80191ee8u || m_guest.pc == 0x80191f00u ||
-              m_guest.pc == 0x80191858u)
-            std::fprintf(stderr, "[freeze-trace] pc=%08x r3=%08x r4=%08x lr=%08x\n",
-                         m_guest.pc, m_guest.gpr[3], m_guest.gpr[4], m_guest.lr);
-          const bool do_ls = m_lockstep_verifier->ShouldCheck(m_guest.pc);
+          if (dispatch_trace && (m_native_dispatches & 0xFFFFFu) == 0)
+          {
+            std::fprintf(dispatch_trace.get(), "%llu,%08x,%08x,%08x,%08x,%llu,%d\n",
+                         static_cast<unsigned long long>(m_native_dispatches), m_guest.pc,
+                         m_guest.lr, m_guest.ctr, m_guest.cr,
+                         static_cast<unsigned long long>(m_guest.timebase), ppc.downcount);
+            std::fflush(dispatch_trace.get());
+          }
+          const bool do_ls = lockstep_enabled && m_lockstep_verifier->ShouldCheck(m_guest.pc);
           if (do_ls)
           {
             m_lockstep_verifier->Prepare(m_guest);
           }
 
-          if ((m_native_dispatches & 4095u) == 0)
+          if (m_collect_dispatch_samples && (m_native_dispatches & 4095u) == 0)
             ++m_dispatch_samples[m_guest.pc];
           const u32 runtime_dispatch_address = m_guest.pc;
           u32 linked_dispatch_address = runtime_dispatch_address;
-          ResolveNativeAddress(runtime_dispatch_address, &linked_dispatch_address, nullptr);
+          if (m_has_rel_modules)
+            ResolveNativeAddress(runtime_dispatch_address, &linked_dispatch_address, nullptr);
           m_guest.pc = linked_dispatch_address;
           m_module->dispatch(&m_guest, linked_dispatch_address);
-          m_guest.pc = TranslateRelAddress(m_guest.pc);
+          if (m_has_rel_modules)
+            m_guest.pc = TranslateRelAddress(m_guest.pc);
           ++m_native_dispatches;
 
           if (do_ls)
@@ -95,9 +154,12 @@ void StaticRecompCore::Run()
           // external-interrupt latency matches stock.
           const s64 charge = -m_guest.downcount;
           m_guest.downcount = 0;
-          ppc.downcount -= static_cast<int>(charge > 0 ? charge : 1);
-          m_charged_cycles += static_cast<u64>(charge > 0 ? charge : 1);
-          m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
+          const u64 effective_charge = static_cast<u64>(charge > 0 ? charge : 1);
+          ppc.downcount -= static_cast<int>(effective_charge);
+          m_charged_cycles += effective_charge;
+          const u64 total_cycles = m_timebase_cycle_remainder + effective_charge;
+          m_guest.timebase += total_cycles / SystemTimers::TIMER_RATIO;
+          m_timebase_cycle_remainder = total_cycles % SystemTimers::TIMER_RATIO;
 
           // Idle loop skipping for configured target loops (e.g. Wii Menu OSIdleThread)
           if (m_guest.pc == m_idle_pc && m_idle_pc != 0)
@@ -118,12 +180,16 @@ void StaticRecompCore::Run()
           }
           if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
-        } while (m_module_active && FastDispatchableAt(m_guest.pc) &&
+          if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0 && (m_guest.msr & MSR_EE) != 0)
+            break;  // rfi/mtmsr re-enabled interrupts while one was pending.
+        } while (m_module_active && fast_dispatchable_at(m_guest.pc) &&
                  !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
           power_pc.CheckExceptions();
+        else if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0)
+          power_pc.CheckExternalExceptions();
       }
       else
       {
@@ -139,8 +205,9 @@ void StaticRecompCore::Run()
           {
             const s64 charge = -m_guest.downcount;
             m_guest.downcount = 0;
-            ppc.downcount -= static_cast<int>(charge > 0 ? charge : 1);
-            m_guest.timebase += static_cast<u64>(charge > 0 ? charge : 1);
+            const u64 effective_charge = static_cast<u64>(charge > 0 ? charge : 1);
+            ppc.downcount -= static_cast<int>(effective_charge);
+            AdvanceGuestTimebase(effective_charge);
             SyncOut();
             continue;
           }

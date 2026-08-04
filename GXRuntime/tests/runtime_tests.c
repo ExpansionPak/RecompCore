@@ -2261,6 +2261,14 @@ static void test_native_system_helpers(void) {
     assert(cpu.spr_write == test_spr_write);
     assert(cpu.cache_control == test_cache_control);
 
+    cpu.fpscr = 0x0001F000u;
+    ppc_fcmp(&cpu, 2, 1.0, 2.0, false);
+    assert((cpu.fpscr & 0x0001F000u) == 0x00018000u);
+    assert(((cpu.cr >> 20) & 0xFu) == 0x8u);
+    ppc_fcmp(&cpu, 2, 2.0, 1.0, false);
+    assert((cpu.fpscr & 0x0001F000u) == 0x00014000u);
+    assert(((cpu.cr >> 20) & 0xFu) == 0x4u);
+
     cpu.lr = 0x12345678u;
     assert(ppc_mfspr(&cpu, 8, 0x80001000u) == cpu.lr);
     g_spr_reads = 0;
