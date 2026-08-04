@@ -1,12 +1,12 @@
 // RecompCore: StaticRecomp CPU core - State synchronization.
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
-#include "Core/CoreTiming.h"
-#include "Core/System.h"
-#include "Core/PowerPC/PowerPC.h"
-#include "Core/HW/SystemTimers.h"
 #include <cstring>
+#include "Core/CoreTiming.h"
+#include "Core/HW/SystemTimers.h"
+#include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
+#include "Core/System.h"
 
 void StaticRecompCore::SetPPCStateFromGuestState(const CPUState& s, PowerPC::PowerPCState& ppc)
 {
@@ -77,8 +77,7 @@ void StaticRecompCore::SyncIn()
   m_guest.timebase = m_system.GetSystemTimers().GetFakeTimeBase();
   const auto& core_timing = m_system.GetCoreTiming();
   m_timebase_cycle_remainder =
-      (core_timing.GetTicks() - core_timing.GetFakeTBStartTicks()) %
-      SystemTimers::TIMER_RATIO;
+      (core_timing.GetTicks() - core_timing.GetFakeTBStartTicks()) % SystemTimers::TIMER_RATIO;
   m_guest.reserve_addr = ppc.reserve_address;
   m_guest.reserve_valid = ppc.reserve;
   m_guest.exception = 0;

@@ -152,10 +152,9 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
         std::fprintf(stderr, " %02X", ram[o + k]);
       std::fprintf(stderr, "\n");
     };
-    std::fprintf(stderr,
-                 "[ls-trace] ENTRY r3=0x%08X r4=0x%08X r5=0x%08X r13=0x%08X charge=%lld\n",
-                 entry_state.gpr[3], entry_state.gpr[4], entry_state.gpr[5],
-                 entry_state.gpr[13], (long long)native_charge);
+    std::fprintf(stderr, "[ls-trace] ENTRY r3=0x%08X r4=0x%08X r5=0x%08X r13=0x%08X charge=%lld\n",
+                 entry_state.gpr[3], entry_state.gpr[4], entry_state.gpr[5], entry_state.gpr[13],
+                 (long long)native_charge);
     if ((entry_state.gpr[3] >> 28) == 8)
       dump("r3", entry_state.gpr[3]);
     if ((entry_state.gpr[4] >> 28) == 8)

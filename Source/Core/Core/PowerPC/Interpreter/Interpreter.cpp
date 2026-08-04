@@ -293,18 +293,16 @@ void Interpreter::unknown_instruction(Interpreter& interpreter, UGeckoInstructio
   const u32 last_pc = interpreter.m_last_pc;
   if (g_static_recomp_core && g_static_recomp_core->IsModuleActive())
   {
-    std::fprintf(
-        stderr,
-        "[staticrecomp] unknown guest instruction pc=0x%08x opcode=0x%08x last_pc=0x%08x "
-        "lr=0x%08x ctr=0x%08x sp=0x%08x cr=0x%08x msr=0x%08x\n",
-        ppc_state.pc, inst.hex, last_pc, LR(ppc_state), ppc_state.spr[SPR_CTR],
-        ppc_state.gpr[1], ppc_state.cr.Get(), ppc_state.msr.Hex);
+    std::fprintf(stderr,
+                 "[staticrecomp] unknown guest instruction pc=0x%08x opcode=0x%08x last_pc=0x%08x "
+                 "lr=0x%08x ctr=0x%08x sp=0x%08x cr=0x%08x msr=0x%08x\n",
+                 ppc_state.pc, inst.hex, last_pc, LR(ppc_state), ppc_state.spr[SPR_CTR],
+                 ppc_state.gpr[1], ppc_state.cr.Get(), ppc_state.msr.Hex);
     for (int i = 0; i < 32; i += 4)
     {
-      std::fprintf(stderr,
-                   "[staticrecomp] regs r%-2d=%08x r%-2d=%08x r%-2d=%08x r%-2d=%08x\n", i,
-                   ppc_state.gpr[i], i + 1, ppc_state.gpr[i + 1], i + 2,
-                   ppc_state.gpr[i + 2], i + 3, ppc_state.gpr[i + 3]);
+      std::fprintf(stderr, "[staticrecomp] regs r%-2d=%08x r%-2d=%08x r%-2d=%08x r%-2d=%08x\n", i,
+                   ppc_state.gpr[i], i + 1, ppc_state.gpr[i + 1], i + 2, ppc_state.gpr[i + 2],
+                   i + 3, ppc_state.gpr[i + 3]);
     }
 
     const u32 code_start = ppc_state.pc >= 16 ? ppc_state.pc - 16 : ppc_state.pc;

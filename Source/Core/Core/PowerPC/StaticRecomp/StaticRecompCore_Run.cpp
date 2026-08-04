@@ -12,8 +12,8 @@
 #include "Core/Config/ConfigManager.h"
 #include "Core/HW/SystemTimers.h"
 
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 
 namespace
@@ -80,8 +80,7 @@ void StaticRecompCore::Run()
     }
     else if (address >= 0x90000000u && address < 0x90000000u + m_lookup_exram_size)
     {
-      lookup_index = static_cast<int>((m_lookup_ram_size >> 2) +
-                                      ((address - 0x90000000u) >> 2));
+      lookup_index = static_cast<int>((m_lookup_ram_size >> 2) + ((address - 0x90000000u) >> 2));
     }
     if (lookup_index < 0 || lookup_index >= static_cast<int>(m_chunk_lookup_table.size()))
       return false;
@@ -117,15 +116,13 @@ void StaticRecompCore::Run()
         {
           if (dispatch_trace && (m_native_dispatches & 0xFFFFFu) == 0)
           {
-            std::fprintf(
-                dispatch_trace.get(), "%llu,%08x,%08x,%08x,%08x,%llu,%d\n",
-                static_cast<unsigned long long>(m_native_dispatches), m_guest.pc, m_guest.lr,
-                m_guest.ctr, m_guest.cr, static_cast<unsigned long long>(m_guest.timebase),
-                ppc.downcount);
+            std::fprintf(dispatch_trace.get(), "%llu,%08x,%08x,%08x,%08x,%llu,%d\n",
+                         static_cast<unsigned long long>(m_native_dispatches), m_guest.pc,
+                         m_guest.lr, m_guest.ctr, m_guest.cr,
+                         static_cast<unsigned long long>(m_guest.timebase), ppc.downcount);
             std::fflush(dispatch_trace.get());
           }
-          const bool do_ls =
-              lockstep_enabled && m_lockstep_verifier->ShouldCheck(m_guest.pc);
+          const bool do_ls = lockstep_enabled && m_lockstep_verifier->ShouldCheck(m_guest.pc);
           if (do_ls)
           {
             m_lockstep_verifier->Prepare(m_guest);
