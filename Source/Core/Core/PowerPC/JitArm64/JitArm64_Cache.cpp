@@ -3,6 +3,8 @@
 
 #include "Core/PowerPC/JitArm64/Jit.h"
 
+#include <cstdlib>
+
 #include <cstdio>
 #include <optional>
 #include <span>
@@ -79,9 +81,32 @@ void JitArm64::Init()
   GenerateAsmAndResetFreeMemoryRanges();
 }
 
+
+// On by default, matching x86-64 where StaticRecomp is already the default CPU
+// core. Set MODERNGEKKO_ARM64_STATICRECOMP=0 to run Dolphin's JitArm64 instead.
+// Shared with JitAsm.cpp: both the block-linking policy and the dispatcher hook
+// must agree, and reading the variable in each translation unit separately
+// would let them disagree if one were ever changed alone.
+bool JitArm64StaticRecompEnabled()
+{
+  static const bool enabled = [] {
+    const char* v = std::getenv("MODERNGEKKO_ARM64_STATICRECOMP");
+    return !v || !*v || *v != '0';
+  }();
+  return enabled;
+}
+
 void JitArm64::SetBlockLinkingEnabled(bool enabled)
 {
-  jo.enableBlocklink = enabled && !SConfig::GetInstance().bJITNoBlockLinking;
+  // As the StaticRecomp fallback, blocks must not link to each other. Linked
+  // blocks chain without returning to the dispatcher, so control would never
+  // get back to StaticRecompCore to check whether the recompiled module covers
+  // the next address -- which is exactly why the module was entered once at
+  // boot and never again on arm64. Jit64 has always done this; JitArm64 did
+  // not, which made the whole static recompilation inert on Apple Silicon.
+  jo.enableBlocklink =
+      enabled && !SConfig::GetInstance().bJITNoBlockLinking &&
+      !(IsStaticRecompFallback() && JitArm64StaticRecompEnabled());
 }
 
 void JitArm64::SetOptimizationEnabled(bool enabled)
