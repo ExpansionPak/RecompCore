@@ -378,6 +378,25 @@ void ppc_program_exception(CPUState* cpu, u32 cause, u32 cia);
  * themselves (StrikersRecomp standalone; see recomp-codegen.md Lazy FPU). */
 bool ppc_fp_available(CPUState* cpu, u32 cia);
 void ppc_lazy_fp_set_enabled(bool enabled);
+
+/* Same contract, inlined. The emitter puts this in front of every FPU
+ * instruction, so on a float-heavy title it is one of the hottest things in the
+ * module: a `sample` of a Mario Kart race showed the out-of-line call at ~7% of
+ * self time inside StaticRecompCore::Run, second only to the hottest guest loop.
+ * Nearly every call takes the fast path -- a running game has MSR[FP] set -- so
+ * the work was the call itself, not the test. Only the raise stays out of line.
+ *
+ * ppc_fp_available() is deliberately kept as a real symbol: the LLVM backend
+ * emits calls to it by name (llvm_runtime_lowering.cpp), so it cannot become
+ * header-only. */
+extern bool g_ppc_lazy_fp_enabled;
+bool ppc_fp_raise_unavailable(CPUState* cpu, u32 cia);
+
+static inline bool ppc_fp_available_inline(CPUState* cpu, u32 cia) {
+    if (!g_ppc_lazy_fp_enabled || (cpu->msr & PPC_MSR_FP))
+        return true;
+    return ppc_fp_raise_unavailable(cpu, cia);
+}
 void ppc_fallback_instruction(CPUState* cpu, u32 raw, u32 cia);
 bool ppc_host_call(CPUState* cpu, u32 address);
 void ppc_system_call_exception(CPUState* cpu, u32 cia);
@@ -388,6 +407,41 @@ void ppc_rfi(CPUState* cpu, u32 cia);
 void ppc_dcbz_l(CPUState* cpu, u32 ea, u32 cia);
 bool ppc_psq_load(CPUState* cpu, u8 frD, u32 ea, bool w, u8 gqr, bool indexed, u32 cia);
 bool ppc_psq_store(CPUState* cpu, u8 frS, u32 ea, bool w, u8 gqr, bool indexed, u32 cia);
+
+/* Inlined fast path for the unquantised case. A `sample` of a Mario Kart race
+ * put psq_load_value and psq_store_value at ~9% of self time inside
+ * StaticRecompCore::Run, on top of ppc_psq_load's own frame.
+ *
+ * Almost all of that is GQR type 0 -- plain IEEE singles, no quantisation and
+ * no scale -- which reduces to two 32-bit accesses and a float conversion.
+ * Quantised types (4..7), an invalid type, and the LSQE illegal-instruction
+ * check all fall through to the out-of-line version, so behaviour is unchanged.
+ *
+ * The win is bigger than skipping a call: at every generated site w, gqr_index,
+ * indexed and cia are literals, so inlining lets the compiler fold the LSQE
+ * test and the w branch away per site, which it cannot do across a call. */
+static inline bool ppc_psq_load_inline(CPUState* cpu, u8 frD, u32 ea, bool w,
+                                       u8 gqr_index, bool indexed, u32 cia) {
+    const u32 gqr = cpu->gqr[gqr_index & 7u];
+    if (((gqr >> 16) & 7u) == 0u && (indexed || (cpu->hid2 & PPC_HID2_LSQE) != 0u)) {
+        cpu->fpr[frD] = f64_value(convert_to_double(mem_read32(cpu, ea)));
+        cpu->ps1[frD] = w ? 1.0 : f64_value(convert_to_double(mem_read32(cpu, ea + 4u)));
+        return true;
+    }
+    return ppc_psq_load(cpu, frD, ea, w, gqr_index, indexed, cia);
+}
+
+static inline bool ppc_psq_store_inline(CPUState* cpu, u8 frS, u32 ea, bool w,
+                                        u8 gqr_index, bool indexed, u32 cia) {
+    const u32 gqr = cpu->gqr[gqr_index & 7u];
+    if ((gqr & 7u) == 0u && (indexed || (cpu->hid2 & PPC_HID2_LSQE) != 0u)) {
+        mem_write32(cpu, ea, convert_to_single_ftz(f64_bits(cpu->fpr[frS])));
+        if (!w)
+            mem_write32(cpu, ea + 4u, convert_to_single_ftz(f64_bits(cpu->ps1[frS])));
+        return true;
+    }
+    return ppc_psq_store(cpu, frS, ea, w, gqr_index, indexed, cia);
+}
 u32 ppc_eciwx(CPUState* cpu, u32 ea, u32 cia);
 void ppc_ecowx(CPUState* cpu, u32 ea, u32 value, u32 cia);
 void ppc_tlbie(CPUState* cpu, u32 ea, u32 cia);
