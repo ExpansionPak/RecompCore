@@ -120,7 +120,17 @@ if(UNIX AND NOT APPLE)
     "${CMAKE_CURRENT_SOURCE_DIR}/module.exports")
 endif()
 
-option(RECOMPCORE_MODULE_ENABLE_IPO "Enable Clang module interprocedural optimization when supported" ON)
+# Off by default because it was measured and it did not pay. On MKDD/arm64,
+# same PGO profile, only -flto=thin differing, alternating A/B on one scene:
+# 1.1826 without against 1.1733 with, i.e. -0.8% with overlapping ranges. It
+# also makes the link markedly slower. Turn it on with -D...=ON to re-measure.
+#
+# It was ON here for a long time and did nothing on macOS anyway: the support
+# check below could not pass. See the comment on it. Anyone who was getting IPO
+# before -- Linux builds, where GNU ar makes the check succeed -- loses it with
+# this default, which is a deliberate choice and not a measured one on that
+# platform.
+option(RECOMPCORE_MODULE_ENABLE_IPO "Enable Clang module interprocedural optimization when supported" OFF)
 set(RECOMPCORE_MODULE_OPT_LEVEL "2" CACHE STRING
     "Optimization level for generated module translation units (0, 1, 2, or 3)")
 set_property(CACHE RECOMPCORE_MODULE_OPT_LEVEL PROPERTY STRINGS 0 1 2 3)
@@ -130,8 +140,22 @@ if(NOT RECOMPCORE_MODULE_OPT_LEVEL MATCHES "^[0-3]$")
 endif()
 if(RECOMPCORE_MODULE_ENABLE_IPO AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   include(CheckIPOSupported)
+  # moderngekko-port configures with CMAKE_NINJA_FORCE_RESPONSE_FILE=1, which the
+  # module needs: it links thousands of chunk objects and the command line does
+  # not fit in ARG_MAX. But check_ipo_supported's try-compile inherits the
+  # environment, and its static-library step then runs `ar qc libfoo.a @foo.rsp`
+  # -- Apple's /usr/bin/ar has no @file support, so the check fails with
+  # "ar: @CMakeFiles/foo.rsp: No such file or directory" and IPO is silently
+  # disabled. The manifest still records -flto=thin. Every module built this way
+  # had NO cross-translation-unit inlining. Scope the variable off for the check
+  # only, then restore it before the generator reads it.
+  set(_module_forced_rsp "$ENV{CMAKE_NINJA_FORCE_RESPONSE_FILE}")
+  unset(ENV{CMAKE_NINJA_FORCE_RESPONSE_FILE})
   check_ipo_supported(RESULT RECOMPCORE_MODULE_IPO_SUPPORTED
                       OUTPUT RECOMPCORE_MODULE_IPO_ERROR LANGUAGES C)
+  if(_module_forced_rsp)
+    set(ENV{CMAKE_NINJA_FORCE_RESPONSE_FILE} "${_module_forced_rsp}")
+  endif()
   if(RECOMPCORE_MODULE_IPO_SUPPORTED)
     set_property(TARGET ${MODULE_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
   else()
