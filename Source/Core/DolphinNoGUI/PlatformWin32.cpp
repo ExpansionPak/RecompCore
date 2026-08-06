@@ -6,6 +6,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/ConfigManager.h"
 #include "Core/Core.h"
+#include "Core/SavestateLayout.h"
 #include "Core/State.h"
 #include "Core/System.h"
 
@@ -185,27 +186,10 @@ void PlatformWin32::RefreshMenu(const HMENU menu)
   }
   m_load_state_paths.clear();
 
-  const std::string directory = File::GetUserPath(D_STATESAVES_IDX);
-  std::vector<std::filesystem::path> states;
-  std::error_code ec;
-  for (const auto& entry : std::filesystem::directory_iterator(directory, ec))
-  {
-    if (entry.is_regular_file(ec) && entry.path().extension() == ".sav")
-      states.push_back(entry.path());
-  }
-  // Newest first: the state wanted next is nearly always the one just written.
-  // Filename breaks ties so the order does not shuffle between opens on a
-  // filesystem whose timestamps are coarse.
-  std::sort(states.begin(), states.end(),
-            [](const std::filesystem::path& left, const std::filesystem::path& right) {
-              std::error_code left_ec;
-              std::error_code right_ec;
-              const auto left_time = std::filesystem::last_write_time(left, left_ec);
-              const auto right_time = std::filesystem::last_write_time(right, right_ec);
-              if (!left_ec && !right_ec && left_time != right_time)
-                return left_time > right_time;
-              return left.filename().string() < right.filename().string();
-            });
+  // Location, extension and order all come from State::Layout, so this menu and
+  // any frontend listing the same directory cannot disagree.
+  const std::vector<std::filesystem::path> states =
+      State::Layout::List(File::GetUserPath(D_STATESAVES_IDX));
 
   if (states.empty())
   {
@@ -225,17 +209,10 @@ void PlatformWin32::RefreshMenu(const HMENU menu)
 
 void PlatformWin32::SaveStateToStatesDirectory()
 {
-  // Named by wall-clock rather than by slot, so repeated saves accumulate
-  // instead of overwriting one another, and sort meaningfully by name.
-  const std::time_t now = std::time(nullptr);
-  std::tm local{};
-  localtime_s(&local, &now);
-  char stamp[32];
-  std::strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%S", &local);
-
   const std::string directory = File::GetUserPath(D_STATESAVES_IDX);
   File::CreateFullPath(directory);
-  State::SaveAs(Core::System::GetInstance(), directory + "state-" + stamp + ".sav");
+  State::SaveAs(Core::System::GetInstance(),
+                directory + State::Layout::TimestampedName(std::time(nullptr)));
 }
 
 void PlatformWin32::ToggleFullscreen()
