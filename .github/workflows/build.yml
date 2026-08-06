@@ -1,9 +1,19 @@
 name: Build
 
 on:
+  # Pull requests were not covered, so nothing checked a change before it
+  # reached a branch other people vendor. A missing include that stopped `core`
+  # compiling got in that way.
+  pull_request:
   push:
-    branches: [main]
+    # moderngekko-vendor is the branch ModernGekko actually vendors, so it needs
+    # watching as much as main does.
+    branches: [main, moderngekko-vendor]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   nogui-macos:
@@ -36,3 +46,32 @@ jobs:
         run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
       - name: Build
         run: ninja -C build dolphin-emu-nogui
+      # The unit tests exist but nothing ran them. `tests` is EXCLUDE_FROM_ALL,
+      # so it has to be asked for by name.
+      - name: Build unit tests
+        run: ninja -C build tests
+      - name: Test
+        working-directory: build
+        run: ctest --output-on-failure --timeout 300
+
+  # Windows was not built at all, which is how PCH flags being applied to C
+  # sources -- GXRuntime handed a C++ precompiled header, fatal error C1853 --
+  # reached the vendored branch.
+  nogui-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: choco install ninja --no-progress -y
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+      - name: Build
+        run: ninja -C build dolphin-emu-nogui
+      - name: Build unit tests
+        run: ninja -C build tests
+      - name: Test
+        working-directory: build
+        run: ctest --output-on-failure --timeout 300
