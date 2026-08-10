@@ -25,9 +25,9 @@ jobs:
       - name: Install dependencies
         run: brew install ninja
       - name: Configure
-        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF -DUSE_RETRO_ACHIEVEMENTS=OFF
       - name: Build
-        run: ninja -C build dolphin-emu-nogui
+        run: ninja -C build core
 
   nogui-linux:
     runs-on: ubuntu-24.04
@@ -43,9 +43,9 @@ jobs:
             libbluetooth-dev libasound2-dev libpulse-dev libgl1-mesa-dev \
             libxrandr-dev libxi-dev
       - name: Configure
-        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF -DUSE_RETRO_ACHIEVEMENTS=OFF
       - name: Build
-        run: ninja -C build dolphin-emu-nogui
+        run: ninja -C build core
       # The unit tests exist but nothing ran them. `tests` is EXCLUDE_FROM_ALL,
       # so it has to be asked for by name.
       - name: Build unit tests
@@ -67,9 +67,9 @@ jobs:
         run: choco install ninja --no-progress -y
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
-        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF -DUSE_RETRO_ACHIEVEMENTS=OFF
       - name: Build
-        run: ninja -C build dolphin-emu-nogui
+        run: ninja -C build core
       - name: Build unit tests
         run: ninja -C build tests
       - name: Test
