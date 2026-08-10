@@ -12,6 +12,7 @@
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
+#include "Common/StringUtil.h"
 
 #include <algorithm>
 #include <chrono>
@@ -74,6 +75,8 @@ private:
   HMENU m_view_menu{};
   // Parallel to the Load State menu entries, rebuilt whenever it opens.
   std::vector<std::string> m_load_state_paths;
+  std::time_t m_last_save_time{};
+  std::size_t m_save_sequence{};
   bool m_fullscreen = false;
   LONG m_windowed_style = 0;
   RECT m_windowed_rect{};
@@ -189,7 +192,7 @@ void PlatformWin32::RefreshMenu(const HMENU menu)
   // Location, extension and order all come from State::Layout, so this menu and
   // any frontend listing the same directory cannot disagree.
   const std::vector<std::filesystem::path> states =
-      State::Layout::List(File::GetUserPath(D_STATESAVES_IDX));
+      State::Layout::List(StringToPath(File::GetUserPath(D_STATESAVES_IDX)));
 
   if (states.empty())
   {
@@ -203,7 +206,7 @@ void PlatformWin32::RefreshMenu(const HMENU menu)
   {
     AppendMenuW(m_load_menu, MF_STRING, ID_LOAD_STATE_FIRST + i,
                 states[i].filename().wstring().c_str());
-    m_load_state_paths.push_back(states[i].string());
+    m_load_state_paths.push_back(PathToString(states[i]));
   }
 }
 
@@ -211,8 +214,19 @@ void PlatformWin32::SaveStateToStatesDirectory()
 {
   const std::string directory = File::GetUserPath(D_STATESAVES_IDX);
   File::CreateFullPath(directory);
-  State::SaveAs(Core::System::GetInstance(),
-                directory + State::Layout::TimestampedName(std::time(nullptr)));
+  const std::time_t now = std::time(nullptr);
+  if (now == m_last_save_time)
+    ++m_save_sequence;
+  else
+  {
+    m_last_save_time = now;
+    m_save_sequence = 0;
+  }
+
+  const std::filesystem::path path =
+      StringToPath(directory) /
+      State::Layout::TimestampedName(now, m_save_sequence, State::Layout::MANUAL_PREFIX);
+  State::SaveAs(Core::System::GetInstance(), PathToString(path));
 }
 
 void PlatformWin32::ToggleFullscreen()

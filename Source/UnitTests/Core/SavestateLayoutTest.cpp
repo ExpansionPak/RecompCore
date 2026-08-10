@@ -153,4 +153,15 @@ TEST_F(SavestateLayoutTest, TimestampedNameSortsInTimeOrder)
   EXPECT_TRUE(first.starts_with(State::Layout::MANUAL_PREFIX));
   EXPECT_TRUE(first.ends_with(State::Layout::EXTENSION));
 }
+
+TEST_F(SavestateLayoutTest, TimestampedNamesCanBeDisambiguated)
+{
+  const std::time_t when = std::time(nullptr);
+  const std::string first = State::Layout::TimestampedName(when);
+  const std::string second =
+      State::Layout::TimestampedName(when, 1, State::Layout::MANUAL_PREFIX);
+
+  EXPECT_NE(first, second);
+  EXPECT_TRUE(second.ends_with("-1.sav"));
+}
 }  // namespace

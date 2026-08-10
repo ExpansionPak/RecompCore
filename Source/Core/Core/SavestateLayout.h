@@ -21,6 +21,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace State::Layout
@@ -63,36 +64,63 @@ inline std::string TimestampedName(std::time_t when,
   return std::string(prefix) + stamp + std::string(EXTENSION);
 }
 
-// Newest first: the state wanted next is nearly always the one just written.
-// Filename breaks ties so the order is stable when two states share a write
-// time, which happens on filesystems with coarse timestamp granularity -- without
-// it the same directory can list differently on consecutive reads.
-inline bool NewestFirst(const fs::path& left, const fs::path& right)
+// Adds a stable suffix when more than one state is written during the same
+// second. The unsuffixed overload above stays the common-case filename.
+inline std::string TimestampedName(std::time_t when, std::size_t sequence,
+                                   std::string_view prefix)
 {
-  std::error_code left_ec;
-  std::error_code right_ec;
-  const auto left_time = fs::last_write_time(left, left_ec);
-  const auto right_time = fs::last_write_time(right, right_ec);
-  if (!left_ec && !right_ec && left_time != right_time)
-    return left_time > right_time;
-  return left.filename().string() < right.filename().string();
+  if (sequence == 0)
+    return TimestampedName(when, prefix);
+
+  std::string name = TimestampedName(when, prefix);
+  name.insert(name.size() - EXTENSION.size(), "-" + std::to_string(sequence));
+  return name;
 }
 
 // A directory that is not there yields an empty list rather than throwing:
 // callers ask before anything has been saved.
 inline std::vector<fs::path> List(const fs::path& directory)
 {
-  std::vector<fs::path> paths;
+  struct StateFile
+  {
+    fs::path path;
+    fs::file_time_type write_time{};
+    bool has_write_time = false;
+  };
+
+  std::vector<StateFile> files;
   std::error_code ec;
   if (!fs::is_directory(directory, ec))
-    return paths;
+    return {};
 
-  for (const fs::directory_entry& entry : fs::directory_iterator(directory, ec))
+  fs::directory_iterator entry(directory, ec);
+  const fs::directory_iterator end;
+  while (!ec && entry != end)
   {
-    if (entry.is_regular_file(ec) && entry.path().extension() == EXTENSION)
-      paths.push_back(entry.path());
+    std::error_code type_ec;
+    if (entry->is_regular_file(type_ec) && entry->path().extension() == EXTENSION)
+    {
+      std::error_code time_ec;
+      const fs::file_time_type write_time = entry->last_write_time(time_ec);
+      files.push_back({entry->path(), write_time, !time_ec});
+    }
+    entry.increment(ec);
   }
-  std::sort(paths.begin(), paths.end(), NewestFirst);
+
+  // Snapshot metadata before sorting. Reading the filesystem from a comparator
+  // can change its answer midway through sort if a state is removed.
+  std::sort(files.begin(), files.end(), [](const StateFile& left, const StateFile& right) {
+    if (left.has_write_time != right.has_write_time)
+      return left.has_write_time;
+    if (left.has_write_time && left.write_time != right.write_time)
+      return left.write_time > right.write_time;
+    return left.path.filename().native() < right.path.filename().native();
+  });
+
+  std::vector<fs::path> paths;
+  paths.reserve(files.size());
+  for (StateFile& file : files)
+    paths.push_back(std::move(file.path));
   return paths;
 }
 
