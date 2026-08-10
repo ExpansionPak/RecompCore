@@ -184,7 +184,16 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
       // must execute the inlined iteration before stopping. An arrival by any
       // branch (including a call to an address which also happens to be a loop
       // header) is already the native dispatch boundary.
-      if (!end_is_loop_header || before + 4u != end_pc)
+      // ...and on a loop header, not until the shadow has done as much work as
+      // the native block did. A generated chunk leaves an inlined loop at its
+      // header once the block's charge crosses DOLRECOMP_C_LOOP_CYCLE_BUDGET
+      // (emitter.c:324), so the iteration it stops on is timing-determined and
+      // cannot be inferred from the code. Stopping at the first branch arrival
+      // compares two different iterations of the same loop at the same PC,
+      // which is the long-standing GPR divergence on both arm64 and x86-64.
+      if (!end_is_loop_header)
+        break;
+      if (interp_cycles >= native_charge)
         break;
     }
     if (ppc.Exceptions != 0)
