@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: brew install ninja
       - name: Configure
-        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF -DUSE_RETRO_ACHIEVEMENTS=OFF
       - name: Build
         run: ninja -C build dolphin-nogui
 
@@ -43,7 +43,7 @@ jobs:
             libbluetooth-dev libasound2-dev libpulse-dev libgl1-mesa-dev \
             libxrandr-dev libxi-dev
       - name: Configure
-        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF -DUSE_RETRO_ACHIEVEMENTS=OFF
       - name: Build
         run: ninja -C build dolphin-nogui
       # The unit tests exist but nothing ran them. `tests` is EXCLUDE_FROM_ALL,
@@ -67,7 +67,7 @@ jobs:
         run: choco install ninja --no-progress -y
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
-        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF
+        run: cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT=OFF -DENABLE_NOGUI=ON -DUSE_MGBA=OFF -DUSE_RETRO_ACHIEVEMENTS=OFF
       - name: Build
         run: ninja -C build dolphin-nogui
       - name: Build unit tests
