@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/PowerPC/JitArm64/Jit.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
+
+#include <cstdlib>
 
 #include <bit>
 #include <limits>
@@ -27,6 +30,11 @@
 #include "Core/System.h"
 
 using namespace Arm64Gen;
+
+
+// Defined in JitArm64_Cache.cpp. The block-linking policy there and the
+// dispatcher hook below must make the same decision, so they share one reader.
+bool JitArm64StaticRecompEnabled();
 
 void JitArm64::GenerateAsm()
 {
@@ -95,6 +103,25 @@ void JitArm64::GenerateAsm()
   }
 
   dispatcher_no_check = GetCodePtr();
+
+  // Ask StaticRecompCore whether the recompiled module wants this address
+  // before falling into the JIT's own block lookup. A non-zero answer leaves
+  // the dispatcher so the module can run it. DISPATCHER_PC (W26) and PPC_REG
+  // (X29) are callee-saved under AAPCS64, so they survive the call.
+  FixupBranch static_recomp_exit;
+  const bool static_recomp_yield = IsStaticRecompFallback() && JitArm64StaticRecompEnabled();
+  if (static_recomp_yield)
+  {
+    ABI_CallFunction(&StaticRecompShouldYieldAt, DISPATCHER_PC);
+    // Write the PC back before we can leave. JitArm64 keeps the PC in
+    // DISPATCHER_PC (W26) and only spills it to PPCSTATE at do_timing, which
+    // this exit path bypasses -- so StaticRecompCore was resuming from a stale
+    // ppcState.pc and dispatching the module at the wrong address. Jit64's
+    // identical hook is safe only because x86 keeps the PC in memory
+    // throughout. This is the one place the two JITs are not interchangeable.
+    STR(IndexType::Unsigned, DISPATCHER_PC, PPC_REG, PPCSTATE_OFF(pc));
+    static_recomp_exit = CBNZ(ARM64Reg::W0);
+  }
 
   bool assembly_dispatcher = true;
 
@@ -225,6 +252,8 @@ void JitArm64::GenerateAsm()
 
   dispatcher_exit = GetCodePtr();
   SetJumpTarget(exit);
+  if (static_recomp_yield)
+    SetJumpTarget(static_recomp_exit);
 
   // Reset the stack pointer, since the BLR optimization may have pushed things onto the stack
   // without popping them.
