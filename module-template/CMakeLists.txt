@@ -120,17 +120,7 @@ if(UNIX AND NOT APPLE)
     "${CMAKE_CURRENT_SOURCE_DIR}/module.exports")
 endif()
 
-# Off by default because it was measured and it did not pay. On MKDD/arm64,
-# same PGO profile, only -flto=thin differing, alternating A/B on one scene:
-# 1.1826 without against 1.1733 with, i.e. -0.8% with overlapping ranges. It
-# also makes the link markedly slower. Turn it on with -D...=ON to re-measure.
-#
-# It was ON here for a long time and did nothing on macOS anyway: the support
-# check below could not pass. See the comment on it. Anyone who was getting IPO
-# before -- Linux builds, where GNU ar makes the check succeed -- loses it with
-# this default, which is a deliberate choice and not a measured one on that
-# platform.
-option(RECOMPCORE_MODULE_ENABLE_IPO "Enable Clang module interprocedural optimization when supported" OFF)
+option(RECOMPCORE_MODULE_ENABLE_IPO "Enable Clang module interprocedural optimization when supported" ON)
 set(RECOMPCORE_MODULE_OPT_LEVEL "2" CACHE STRING
     "Optimization level for generated module translation units (0, 1, 2, or 3)")
 set_property(CACHE RECOMPCORE_MODULE_OPT_LEVEL PROPERTY STRINGS 0 1 2 3)
