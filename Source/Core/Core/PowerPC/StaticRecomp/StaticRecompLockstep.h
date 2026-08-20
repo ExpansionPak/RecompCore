@@ -145,7 +145,15 @@ private:
   u64 m_ls_start = 0;             // begin checking at this native-dispatch index
   u64 m_ls_limit = 0;            // stop checking after this index (0 = no bound)
   u64 m_ls_max_report = 0;      // cap divergence reports (0 = unlimited)
-  int m_ls_step_cap = 512;      // interpreter single-steps before giving up on end PC
+  // Interpreter single-steps before giving up on end PC. 512 is far too low,
+  // and it makes a default run misleading in BOTH directions: it manufactures
+  // CTRLFLOW "divergences" that are only the shadow running out of steps, and
+  // it hides real register divergences in every block longer than the cap,
+  // because the walk stops before it ever reaches the comparison. Measured on
+  // a full retail title, raising it to 20000 took CTRLFLOW reports 631 -> 22
+  // and FP divergences 463 -> 622 -- 159 real reports the old default hid.
+  int m_ls_step_cap = 20000;
+  u64 m_ls_cap_hits = 0;        // gave up on end PC at the step cap -- NOT a divergence
   u64 m_ls_checks = 0;          // distinct blocks differentially checked
   u64 m_ls_reports = 0;         // divergences reported
   u64 m_ls_skipped_fallback = 0;  // blocks skipped (native used instruction fallback)

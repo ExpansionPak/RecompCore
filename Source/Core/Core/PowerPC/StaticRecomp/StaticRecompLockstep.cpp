@@ -35,9 +35,12 @@ StaticRecompLockstepVerifier::~StaticRecompLockstepVerifier()
   {
     std::fprintf(stderr,
                  "[lockstep] summary: checks=%llu reports=%llu skipped_fallback=%llu "
-                 "skipped_zero=%llu undercharges=%llu max_deficit=%lld distinct_pcs=%zu\n",
+                 "skipped_zero=%llu cap_hits=%llu undercharges=%llu "
+                 "max_deficit=%lld distinct_pcs=%zu
+",
                  (unsigned long long)m_ls_checks, (unsigned long long)m_ls_reports,
                  (unsigned long long)m_ls_skipped_fallback, (unsigned long long)m_ls_skipped_zero,
+                 (unsigned long long)m_ls_cap_hits,
                  (unsigned long long)m_ls_undercharges, (long long)m_ls_max_undercharge,
                  m_ls_checked.size());
     if (m_set_mem_journal)
