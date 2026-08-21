@@ -8,9 +8,42 @@
 
 #include "StaticRecompABI.h"
 
+static int host_has_x86_64_v3(void)
+{
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+    static int supported = -1;
+    if (supported < 0)
+    {
+        __builtin_cpu_init();
+        supported = __builtin_cpu_supports("avx") &&
+            __builtin_cpu_supports("avx2") &&
+            __builtin_cpu_supports("fma") &&
+            __builtin_cpu_supports("bmi") &&
+            __builtin_cpu_supports("bmi2") &&
+            __builtin_cpu_supports("movbe") &&
+            __builtin_cpu_supports("lzcnt");
+    }
+    return supported;
+#else
+    return 0;
+#endif
+}
+
+static int selected_dispatch(CPUState* ctx, u32 address)
+{
+    if (host_has_x86_64_v3())
+        return dolrecomp_call__x86_64_v3(ctx, address);
+    return dolrecomp_call(ctx, address);
+}
+
+void dolrecomp_indirect_dispatch(CPUState* ctx, u32 address)
+{
+    (void)selected_dispatch(ctx, address);
+}
+
 static int chassis_dispatch(CPUState* ctx, u32 address)
 {
-    return dolrecomp_call(ctx, address);
+    return selected_dispatch(ctx, address);
 }
 
 static void chassis_on_state_loaded(CPUState* ctx)

@@ -294,6 +294,8 @@ add_library(core
   HW/MagCard/MagneticCardReader.h
   HW/Memmap.cpp
   HW/Memmap.h
+  HW/RelocationAliases.cpp
+  HW/RelocationAliases.h
   HW/MemoryInterface.cpp
   HW/MemoryInterface.h
   HW/MMIO.cpp

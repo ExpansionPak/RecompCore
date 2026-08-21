@@ -613,6 +613,11 @@ void MemoryManager::Clear()
     memset(m_exram, 0, GetExRamSize());
 }
 
+void MemoryManager::SetRelocationAliases(std::vector<RelocationAlias> aliases)
+{
+  m_relocation_aliases.Publish(std::move(aliases));
+}
+
 u8* MemoryManager::GetPointerForRange(u32 address, size_t size) const
 {
   std::span<u8> span = GetSpanForAddress(address);
@@ -705,9 +710,16 @@ std::string MemoryManager::GetString(u32 em_address, size_t size)
 
 std::span<u8> MemoryManager::GetSpanForAddress(u32 address) const
 {
-  // TODO: Should we be masking off more bits here?  Can all devices access
-  // EXRAM?
   address &= 0x3FFFFFFF;
+  if (address >= GetRamSizeReal())
+  {
+    const auto alias = m_relocation_aliases.Resolve(address);
+    if (alias && alias->address < GetRamSizeReal())
+    {
+      return std::span(m_ram + alias->address,
+                       std::min(alias->remaining, GetRamSizeReal() - alias->address));
+    }
+  }
   if (address < GetRamSizeReal())
     return std::span(m_ram + address, GetRamSizeReal() - address);
 

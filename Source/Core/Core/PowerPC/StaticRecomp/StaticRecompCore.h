@@ -52,7 +52,9 @@ public:
   void SingleStep() override;
   bool IsModuleActive() const;
   bool DispatchableAt(u32 address);
-  bool FastDispatchableAt(u32 address) const;
+  bool FastDispatchableAt(u32 address);
+  bool IsHostCallAddress(u32 address) const;
+  bool ShouldYieldAt(u32 address);
 
   void ClearCache() override;
   void Jit(u32 em_address) override {}
@@ -94,13 +96,13 @@ private:
   };
 
   void LoadModule();
+  bool IsBusyWaitLoop(u32 address);
 
   // D4 SMC guard, verify-on-entry model. Every chunk starts Unverified; the
-  // first native dispatch into it hashes its guest RAM against the module's
-  // recorded hash of the original text. An icache invalidation touching a
-  // chunk resets it to Unverified (Dolphin invalidates while *loading* code,
-  // so invalidation alone must not retire coverage); a hash mismatch (real
-  // SMC) marks it Failed, interpreter-only until the next invalidation.
+  // first native dispatch into it hashes guest RAM against the module's
+  // original text. A mismatch demotes the chunk; failed chunks are probed
+  // periodically so temporary startup patching can return to native execution
+  // only after the original bytes have been restored exactly.
   enum ChunkState : u8
   {
     CHUNK_UNVERIFIED = 0,
@@ -109,8 +111,16 @@ private:
   };
 
   void OnICacheInvalidate(u32 address, u32 length);
-  int ChunkIndexOf(u32 address) const;
+  int ChunkIndexOf(u32 address);
+  bool IsForcedFallbackAddress(u32 address) const;
+  bool ChunkContainsHostCall(u32 index) const;
+  bool NativeRegionAvailable(u32 start, u32 end);
+  void RefreshHostCalls();
   void VerifyChunk(u32 index);
+  bool ResolveNativeAddress(u32 runtime_address, u32* linked_address, u32* rel_section_index);
+  bool ResolveRuntimeAddress(u32 linked_address, u32* runtime_address) const;
+  u32 TranslateRelAddress(u32 linked_address);
+  void RefreshRelSections();
 
   static void SetPPCStateFromGuestState(const CPUState& s, PowerPC::PowerPCState& ppc);
 
@@ -118,6 +128,7 @@ private:
   // full sync at every native-burst boundary.
   void SyncIn();   // Dolphin PowerPCState -> m_guest
   void SyncOut();  // m_guest -> Dolphin PowerPCState
+  void AdvanceGuestTimebase(u64 cpu_cycles);
 
   // CPUState hooks (module -> chassis environment). `cpu->external_user_data`
   // is the StaticRecompCore*.
@@ -126,7 +137,11 @@ private:
   static u32 HookExternalRead32(CPUState* cpu, u32 ea, u8 rid);
   static void HookExternalWrite32(CPUState* cpu, u32 ea, u32 value, u8 rid);
   static void* HookExternalPointer(CPUState* cpu, u32 ea, u32 size);
+  static u32 HookSPRRead(CPUState* cpu, u16 spr, u32 cia);
+  static void HookSPRWrite(CPUState* cpu, u16 spr, u32 value, u32 cia);
+  static void HookCacheControl(CPUState* cpu, u8 operation, u32 ea, u32 cia);
   static void HookInstructionFallback(CPUState* cpu, u32 raw, u32 cia);
+  static bool HookHostCall(CPUState* cpu, u32 address);
 
   // Keep Dolphin's MSR-derived state (translation mode, feature flags) in step
   // with the guest MSR before any MMU access or exception delivery.
@@ -141,17 +156,39 @@ private:
   StaticRecompModuleSource m_module_source;
   const StaticRecompModuleDesc* m_module = nullptr;
   bool m_module_active = false;
+  u32 m_host_call_passthrough_pc = 0;
+  bool m_host_call_passthrough = false;
+  bool m_host_calls_active = false;
+  u64 m_host_call_generation = ~u64{0};
   std::unique_ptr<JitBase> m_fallback_jit;
 
   u64 m_native_dispatches = 0;
   u64 m_fallback_steps = 0;
   u64 m_native_exceptions = 0;
   u64 m_hook_fallback_instructions = 0;
+  u64 m_timebase_cycle_remainder = 0;
+  std::unordered_map<u32, u64> m_dispatch_samples;
   u64 m_bursts = 0;          // SyncIn..SyncOut native runs (diagnostic)
   u64 m_charged_cycles = 0;  // cycles flushed from module charges (diagnostic)
 
   // D4 guard state: parallel to m_module->chunk_ranges.
   std::vector<u8> m_chunk_state;
+  mutable std::vector<u8> m_chunk_host_call_state;
+  std::vector<StaticRecompRange> m_forced_fallback_ranges;
+  struct ActiveRelSection
+  {
+    u32 module_id;
+    u32 section_index;
+    u32 linked_start;
+    u32 runtime_start;
+    u32 size;
+  };
+  std::vector<ActiveRelSection> m_active_rel_sections;
+  std::vector<int> m_chunk_rel_sections;
+  std::vector<u64> m_effective_chunk_hashes;
+  std::vector<u64> m_chunk_retry_after;
+  u64 m_smc_probe_clock = 0;
+  u64 m_rel_mapping_generation = 0;
   u32 m_failed_chunks = 0;    // chunks currently failing verification (real SMC)
   u64 m_verifications = 0;    // chunk hash checks performed
   u64 m_reverify_events = 0;  // invalidations that reset a chunk to Unverified
@@ -167,7 +204,10 @@ private:
   // last hit short-circuits the chunk binary search on the hot path.
   mutable u32 m_last_chunk_index = 0;
 
+  bool m_collect_dispatch_samples = false;
+  std::unordered_map<u32, bool> m_busy_wait_cache;
   u32 m_idle_pc = 0;
 };
 
 extern StaticRecompCore* g_static_recomp_core;
+u32 StaticRecompShouldYieldAt(u32 address);

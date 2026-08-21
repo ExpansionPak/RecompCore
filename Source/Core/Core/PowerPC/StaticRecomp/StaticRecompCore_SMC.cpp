@@ -3,11 +3,169 @@
 
 #include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
 #include "Core/System.h"
+#include "Core/HW/RelocationAliases.h"
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/JitInterface.h"
 #include "Common/Logging/Log.h"
 #include <algorithm>
 #include <cstdio>
+
+namespace
+{
+u32 ReadGuestBE32(const u8* bytes)
+{
+  return (static_cast<u32>(bytes[0]) << 24) | (static_cast<u32>(bytes[1]) << 16) |
+         (static_cast<u32>(bytes[2]) << 8) | bytes[3];
+}
+}
+
+void StaticRecompCore::RefreshRelSections()
+{
+  if (!m_module || m_module->num_rel_modules == 0 || !m_guest.ram || m_guest.ram_size < 0x40)
+    return;
+
+  std::vector<ActiveRelSection> discovered;
+  for (u32 module_index = 0; module_index < m_module->num_rel_modules; ++module_index)
+  {
+    const StaticRecompRelModule& module = m_module->rel_modules[module_index];
+    const u64 table_end = static_cast<u64>(module.section_info_offset) +
+                          static_cast<u64>(module.section_count) * 8;
+    if (table_end > m_guest.ram_size)
+      continue;
+    for (u32 candidate = 0; static_cast<u64>(candidate) + table_end <= m_guest.ram_size;
+         candidate += 4)
+    {
+      const u8* header = m_guest.ram + candidate;
+      if (ReadGuestBE32(header) != module.module_id ||
+          ReadGuestBE32(header + 0x0c) != module.section_count ||
+          ReadGuestBE32(header + 0x10) != module.section_info_offset ||
+          ReadGuestBE32(header + 0x1c) != module.version)
+        continue;
+
+      std::vector<ActiveRelSection> candidate_sections;
+      bool valid = true;
+      for (u32 section_index = 0; section_index < module.num_sections; ++section_index)
+      {
+        const StaticRecompRelSection& section = module.sections[section_index];
+        const u8* entry = header + module.section_info_offset + section.section_index * 8;
+        u32 runtime_start = ReadGuestBE32(entry) & ~1u;
+        const u32 runtime_size = ReadGuestBE32(entry + 4);
+        if (runtime_size != section.size || runtime_start == 0)
+        {
+          valid = false;
+          break;
+        }
+        if (runtime_start < module.file_size)
+          runtime_start += 0x80000000u + candidate;
+        else if (runtime_start < m_guest.ram_size)
+          runtime_start |= 0x80000000u;
+        const u64 physical_start = static_cast<u64>(runtime_start - 0x80000000u);
+        if (runtime_start < 0x80000000u || physical_start + section.size > m_guest.ram_size)
+        {
+          valid = false;
+          break;
+        }
+        candidate_sections.push_back({module.module_id, section.section_index,
+                                      section.linked_start, runtime_start, section.size});
+      }
+      if (valid)
+      {
+        discovered.insert(discovered.end(), candidate_sections.begin(), candidate_sections.end());
+        break;
+      }
+    }
+  }
+
+  const bool changed = discovered.size() != m_active_rel_sections.size() ||
+                       !std::equal(discovered.begin(), discovered.end(),
+                                   m_active_rel_sections.begin(),
+                                   [](const ActiveRelSection& left, const ActiveRelSection& right) {
+                                     return left.module_id == right.module_id &&
+                                            left.section_index == right.section_index &&
+                                            left.linked_start == right.linked_start &&
+                                            left.runtime_start == right.runtime_start &&
+                                            left.size == right.size;
+                                   });
+  if (!changed)
+    return;
+  m_busy_wait_cache.clear();
+  std::fill(m_chunk_host_call_state.begin(), m_chunk_host_call_state.end(), u8{0});
+  m_active_rel_sections = std::move(discovered);
+  std::vector<Memory::RelocationAlias> aliases;
+  aliases.reserve(m_active_rel_sections.size());
+  for (const ActiveRelSection& section : m_active_rel_sections)
+    aliases.push_back({section.linked_start, section.runtime_start, section.size});
+  m_system.GetMemory().SetRelocationAliases(std::move(aliases));
+  ++m_rel_mapping_generation;
+  for (u32 i = 0; i < m_chunk_rel_sections.size(); ++i)
+  {
+    if (m_chunk_rel_sections[i] < 0)
+      continue;
+    if (m_chunk_state[i] == CHUNK_FAILED && m_failed_chunks != 0)
+      --m_failed_chunks;
+    m_chunk_state[i] = CHUNK_UNVERIFIED;
+    m_effective_chunk_hashes[i] = m_module->chunk_hashes[i];
+    m_chunk_retry_after[i] = 0;
+  }
+}
+
+bool StaticRecompCore::ResolveNativeAddress(u32 runtime_address, u32* linked_address,
+                                            u32* rel_section_index)
+{
+  const auto resolve_active = [&]() {
+    for (u32 i = 0; i < m_active_rel_sections.size(); ++i)
+    {
+      const ActiveRelSection& section = m_active_rel_sections[i];
+      if (runtime_address >= section.runtime_start &&
+          static_cast<u64>(runtime_address) < static_cast<u64>(section.runtime_start) + section.size)
+      {
+        *linked_address = section.linked_start + (runtime_address - section.runtime_start);
+        if (rel_section_index)
+          *rel_section_index = i;
+        return true;
+      }
+    }
+    return false;
+  };
+  if (resolve_active())
+    return true;
+  const int direct_index = GetAddressLookupIndex(runtime_address);
+  if (direct_index >= 0 && direct_index < static_cast<int>(m_chunk_lookup_table.size()))
+  {
+    const int chunk = m_chunk_lookup_table[direct_index];
+    if (chunk >= 0 && m_chunk_rel_sections[chunk] < 0)
+    {
+      *linked_address = runtime_address;
+      if (rel_section_index)
+        *rel_section_index = 0xffffffffu;
+      return true;
+    }
+  }
+  RefreshRelSections();
+  return resolve_active();
+}
+
+bool StaticRecompCore::ResolveRuntimeAddress(u32 linked_address, u32* runtime_address) const
+{
+  for (const ActiveRelSection& section : m_active_rel_sections)
+  {
+    if (linked_address >= section.linked_start &&
+        static_cast<u64>(linked_address) < static_cast<u64>(section.linked_start) + section.size)
+    {
+      *runtime_address = section.runtime_start + (linked_address - section.linked_start);
+      return true;
+    }
+  }
+  *runtime_address = linked_address;
+  return true;
+}
+
+u32 StaticRecompCore::TranslateRelAddress(u32 linked_address)
+{
+  u32 runtime_address = linked_address;
+  ResolveRuntimeAddress(linked_address, &runtime_address);
+  return runtime_address;
+}
 
 int StaticRecompCore::GetAddressLookupIndex(u32 address) const
 {
@@ -51,44 +209,165 @@ void StaticRecompCore::InitLookupTable(u32 ram_size, u32 exram_size)
   }
 }
 
-int StaticRecompCore::ChunkIndexOf(u32 address) const
+int StaticRecompCore::ChunkIndexOf(u32 address)
 {
   if (!m_module_active || m_chunk_lookup_table.empty())
     return -1;
 
-  int idx = GetAddressLookupIndex(address);
+  const int direct_index = GetAddressLookupIndex(address);
+  if (direct_index >= 0 &&
+      direct_index < static_cast<int>(m_chunk_lookup_table.size()))
+  {
+    const int direct_chunk = m_chunk_lookup_table[direct_index];
+    if (direct_chunk >= 0 && m_chunk_rel_sections[direct_chunk] < 0)
+      return direct_chunk;
+  }
+
+  u32 linked_address = address;
+  if (!ResolveNativeAddress(address, &linked_address, nullptr))
+    return -1;
+  int idx = GetAddressLookupIndex(linked_address);
   if (idx < 0 || idx >= static_cast<int>(m_chunk_lookup_table.size()))
     return -1;
 
   return m_chunk_lookup_table[idx];
 }
 
-bool StaticRecompCore::FastDispatchableAt(u32 address) const
+bool StaticRecompCore::FastDispatchableAt(u32 address)
 {
+  RefreshHostCalls();
+  if (!m_forced_fallback_ranges.empty() && IsForcedFallbackAddress(address))
+    return false;
   const int index = ChunkIndexOf(address);
-  return index >= 0 && m_chunk_state[index] == CHUNK_VERIFIED;
+  return index >= 0 && !ChunkContainsHostCall(static_cast<u32>(index)) &&
+         m_chunk_state[index] == CHUNK_VERIFIED;
 }
 
 bool StaticRecompCore::DispatchableAt(u32 address)
 {
-  const int index = ChunkIndexOf(address);
-  if (index < 0)
+  RefreshHostCalls();
+  if (!m_forced_fallback_ranges.empty() && IsForcedFallbackAddress(address))
     return false;
+  const int index = ChunkIndexOf(address);
+  if (index < 0 || ChunkContainsHostCall(static_cast<u32>(index)))
+    return false;
+  ++m_smc_probe_clock;
   if (m_chunk_state[index] == CHUNK_UNVERIFIED)
     VerifyChunk(static_cast<u32>(index));
+  else if (m_chunk_state[index] == CHUNK_FAILED &&
+           m_smc_probe_clock >= m_chunk_retry_after[index])
+    VerifyChunk(static_cast<u32>(index));
   return m_chunk_state[index] == CHUNK_VERIFIED;
+}
+
+bool StaticRecompCore::IsForcedFallbackAddress(u32 address) const
+{
+  for (const StaticRecompRange& range : m_forced_fallback_ranges)
+  {
+    if (address >= range.start && address < range.end)
+      return true;
+  }
+  return false;
+}
+
+bool StaticRecompCore::ChunkContainsHostCall(u32 index) const
+{
+  if (!m_host_calls_active || !m_module_source.host_call_contains ||
+      index >= m_chunk_host_call_state.size())
+    return false;
+
+  u8& state = m_chunk_host_call_state[index];
+  if (state != 0)
+    return state == 2;
+
+  const auto& chunk = m_module->chunk_ranges[index];
+  bool found = false;
+  if (m_module_source.host_call_range_contains)
+  {
+    found = m_module_source.host_call_range_contains(
+        chunk.start, chunk.end, m_module_source.host_call_user);
+    u32 runtime_start = chunk.start;
+    ResolveRuntimeAddress(chunk.start, &runtime_start);
+    if (!found && runtime_start != chunk.start)
+    {
+      found = m_module_source.host_call_range_contains(
+          runtime_start, runtime_start + (chunk.end - chunk.start),
+          m_module_source.host_call_user);
+    }
+  }
+  else
+  {
+    for (u32 address = chunk.start; address < chunk.end; address += 4)
+    {
+      if (IsHostCallAddress(address))
+      {
+        found = true;
+        break;
+      }
+    }
+  }
+  state = found ? 2 : 1;
+  if (found)
+    std::fprintf(stderr, "[staticrecomp] mod fallback: chunk [0x%08X,0x%08X)\n", chunk.start,
+                 chunk.end);
+  return found;
+}
+
+void StaticRecompCore::RefreshHostCalls()
+{
+  const u64 generation = m_module_source.host_call_generation ?
+                             m_module_source.host_call_generation(m_module_source.host_call_user) :
+                             0;
+  if (generation != m_host_call_generation)
+  {
+    m_host_call_generation = generation;
+    std::fill(m_chunk_host_call_state.begin(), m_chunk_host_call_state.end(), u8{0});
+  }
+
+  m_host_calls_active = m_module_source.host_call &&
+                        (m_module_source.host_call_active ?
+                             m_module_source.host_call_active(m_module_source.host_call_user) :
+                             true);
+  m_guest.host_call = m_host_calls_active && m_module_source.host_call ? HookHostCall : nullptr;
+}
+
+bool StaticRecompCore::NativeRegionAvailable(u32 start, u32 end)
+{
+  RefreshHostCalls();
+  if (!m_host_calls_active)
+    return true;
+  if (!m_module || start >= end)
+    return false;
+
+  const StaticRecompRange* begin = m_module->chunk_ranges;
+  const StaticRecompRange* finish = begin + m_module->num_chunk_ranges;
+  const StaticRecompRange* chunk = std::lower_bound(
+      begin, finish, start,
+      [](const StaticRecompRange& range, u32 address) { return range.end <= address; });
+  if (chunk == finish || chunk->start >= end)
+    return false;
+
+  for (; chunk != finish && chunk->start < end; ++chunk)
+  {
+    if (ChunkContainsHostCall(static_cast<u32>(chunk - begin)))
+      return false;
+  }
+  return true;
 }
 
 void StaticRecompCore::VerifyChunk(u32 index)
 {
   const auto& chunk = m_module->chunk_ranges[index];
+  const bool was_failed = m_chunk_state[index] == CHUNK_FAILED;
   auto& memory = m_system.GetMemory();
   const u32 ram_size = memory.GetRamSizeReal();
-  const u32 offset = chunk.start - 0x80000000u;
+  u32 runtime_start = chunk.start;
+  ResolveRuntimeAddress(chunk.start, &runtime_start);
+  const u32 offset = runtime_start - 0x80000000u;
   const u32 length = chunk.end - chunk.start;
   ++m_verifications;
 
-  if (chunk.start < 0x80000000u || offset >= ram_size || length > ram_size - offset)
+  if (runtime_start < 0x80000000u || offset >= ram_size || length > ram_size - offset)
   {
     m_chunk_state[index] = CHUNK_FAILED;
     ++m_failed_chunks;
@@ -106,27 +385,43 @@ void StaticRecompCore::VerifyChunk(u32 index)
     hash *= 0x100000001B3ull;
   }
 
-  if (hash == m_module->chunk_hashes[index])
+  if (m_effective_chunk_hashes[index] == 0)
+    m_effective_chunk_hashes[index] = hash;
+
+  if (hash == m_effective_chunk_hashes[index])
   {
     m_chunk_state[index] = CHUNK_VERIFIED;
+    m_chunk_retry_after[index] = 0;
+    if (was_failed && m_failed_chunks != 0)
+    {
+      --m_failed_chunks;
+      std::fprintf(stderr, "[staticrecomp] SMC: chunk [0x%08X,0x%08X) restored; "
+                           "native execution resumed\n",
+                   chunk.start, chunk.end);
+    }
   }
   else
   {
     m_chunk_state[index] = CHUNK_FAILED;
-    ++m_failed_chunks;
-    std::fprintf(stderr,
-                 "[staticrecomp] SMC: chunk [0x%08X,0x%08X) hash mismatch; interpreter until "
-                 "next invalidation (%u failed)\n",
-                 chunk.start, chunk.end, m_failed_chunks);
-    WARN_LOG_FMT(POWERPC,
-                 "StaticRecomp: chunk [0x{:08X},0x{:08X}) failed verification (guest code "
-                 "differs from module); interpreter until next invalidation",
-                 chunk.start, chunk.end);
+    m_chunk_retry_after[index] = m_smc_probe_clock + 64;
+    if (!was_failed)
+    {
+      ++m_failed_chunks;
+      std::fprintf(stderr,
+                   "[staticrecomp] SMC: chunk [0x%08X,0x%08X) hash mismatch; interpreter until "
+                   "the original code is restored (%u failed)\n",
+                   chunk.start, chunk.end, m_failed_chunks);
+      WARN_LOG_FMT(POWERPC,
+                   "StaticRecomp: chunk [0x{:08X},0x{:08X}) failed verification (guest code "
+                   "differs from module); interpreter until the original code is restored",
+                   chunk.start, chunk.end);
+    }
   }
 }
 
 void StaticRecompCore::OnICacheInvalidate(u32 address, u32 length)
 {
+  m_busy_wait_cache.clear();
   if (m_fallback_jit)
   {
     m_fallback_jit->GetBlockCache()->InvalidateICache(address, length, false);
@@ -134,6 +429,9 @@ void StaticRecompCore::OnICacheInvalidate(u32 address, u32 length)
 
   if (!m_module_active || length == 0)
     return;
+  u32 linked_address = address;
+  ResolveNativeAddress(address, &linked_address, nullptr);
+  address = linked_address;
   const u32 last = address + (length - 1u);
 
   // Binary search to find the first chunk index that could possibly overlap (chunk.end > address)
@@ -159,6 +457,7 @@ void StaticRecompCore::OnICacheInvalidate(u32 address, u32 length)
       if (m_chunk_state[i] == CHUNK_FAILED)
         --m_failed_chunks;
       m_chunk_state[i] = CHUNK_UNVERIFIED;
+      m_chunk_retry_after[i] = 0;
       ++m_reverify_events;
     }
   }

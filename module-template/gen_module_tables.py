@@ -48,6 +48,18 @@ def load_dol_text(dol_path: Path):
     return read_range
 
 
+def merge_ranges(ranges):
+    merged = []
+    for start, end in sorted(ranges):
+        if start >= end:
+            continue
+        if not merged or merged[-1][1] < start:
+            merged.append([start, end])
+        elif end > merged[-1][1]:
+            merged[-1][1] = end
+    return [(a, b) for a, b in merged]
+
+
 def main() -> int:
     generated_h = Path(sys.argv[1])
     smc_txt = Path(sys.argv[2])
@@ -71,7 +83,7 @@ def main() -> int:
     if not code_ranges:
         print("error: no coverage ranges found in", generated_h, file=sys.stderr)
         return 1
-    code_ranges = sorted(code_ranges)
+    code_ranges = merge_ranges(code_ranges)
 
     # Chunk table: one range per generated func_XXXXXXXX translation unit.
     # A chunk is the demotion granule for the chassis SMC guard: an icache

@@ -15,9 +15,8 @@
 #include "Common/MathUtil.h"
 #include "Common/MemArena.h"
 #include "Common/Swap.h"
+#include "Core/HW/RelocationAliases.h"
 #include "Core/PowerPC/MMU.h"
-
-// Global declarations
 class PointerWrap;
 namespace Core
 {
@@ -119,6 +118,7 @@ public:
   // host address corresponding to the specified address and ending where the memory region ends.
   // Otherwise, returns a 0-length span starting at nullptr.
   std::span<u8> GetSpanForAddress(u32 address) const;
+  void SetRelocationAliases(std::vector<RelocationAlias> aliases);
 
   // If the specified range is within a single valid memory region, returns a pointer to the start
   // of the corresponding range in host memory. Otherwise, returns nullptr.
@@ -283,6 +283,7 @@ private:
   std::map<u32, std::vector<u32>> m_large_writeable_pages;
 
   Core::System& m_system;
+  RelocationAliases m_relocation_aliases;
 
   static HostPageType GetHostPageTypeForPageSize(u32 page_size);
 

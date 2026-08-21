@@ -10,6 +10,12 @@
 
 struct StaticRecompModuleSource
 {
+  using HostCall = bool (*)(CPUState*, u32, void*);
+  using HostCallContains = bool (*)(u32, void*);
+  using HostCallRangeContains = bool (*)(u32, u32, void*);
+  using HostCallActive = bool (*)(void*);
+  using HostCallGeneration = u64 (*)(void*);
+
   enum class Kind
   {
     None,
@@ -36,4 +42,10 @@ struct StaticRecompModuleSource
   Kind kind = Kind::None;
   std::string path;
   const StaticRecompModuleDesc* descriptor = nullptr;
+  HostCall host_call = nullptr;
+  HostCallContains host_call_contains = nullptr;
+  HostCallRangeContains host_call_range_contains = nullptr;
+  HostCallActive host_call_active = nullptr;
+  HostCallGeneration host_call_generation = nullptr;
+  void* host_call_user = nullptr;
 };

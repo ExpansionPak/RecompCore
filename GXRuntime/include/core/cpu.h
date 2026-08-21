@@ -3,6 +3,9 @@
 #define DOLRECOMP_CPU_H
 
 #include "types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 // more msvc shit fuck msvc
 #if defined(_MSC_VER)
 #define GXRUNTIME_ALWAYS_INLINE __forceinline
@@ -27,7 +30,7 @@
 //   consumes and resets it (Dolphin chassis: per-dispatch flush into
 //   ppc_state.downcount). Hosts that do not meter guest time may ignore it
 //   (s64: it cannot wrap in any realistic session).
-#define GXRUNTIME_CPU_ABI_VERSION 2u
+#define GXRUNTIME_CPU_ABI_VERSION 4u
 #define GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX 1u
 #define GXRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION 1u
 
@@ -94,6 +97,20 @@ typedef void* (*PPCExternalPointer)(CPUState* cpu, u32 ea, u32 size);
 typedef void (*PPCInstructionFallback)(CPUState* cpu, u32 raw, u32 cia);
 typedef bool (*PPCHostCall)(CPUState* cpu, u32 address);
 
+#define PPC_HOST_CALL_NATIVE_REGION_QUERY 0xFFFFFFFCu
+#define PPC_NATIVE_REGION_QUERY_PENDING 0xFEu
+#define PPC_NATIVE_REGION_QUERY_HANDLED 0xFFu
+typedef u32 (*PPCSPRRead)(CPUState* cpu, u16 spr, u32 cia);
+typedef void (*PPCSPRWrite)(CPUState* cpu, u16 spr, u32 value, u32 cia);
+typedef void (*PPCCacheControl)(CPUState* cpu, u8 operation, u32 ea, u32 cia);
+
+enum {
+    PPC_CACHE_DCBST,
+    PPC_CACHE_DCBF,
+    PPC_CACHE_DCBI,
+    PPC_CACHE_ICBI,
+};
+
 struct CPUState {
     u32 gpr[32];
     f64 fpr[32];
@@ -140,8 +157,12 @@ struct CPUState {
     u32 ram_size;
     PPCExternalPointer external_pointer;
     s64 downcount;
+    s64 cycle_budget;
     u8* exram;
     u32 exram_size;
+    PPCSPRRead spr_read;
+    PPCSPRWrite spr_write;
+    PPCCacheControl cache_control;
 };
 
 #include <stdio.h>
@@ -172,6 +193,13 @@ static GXRUNTIME_ALWAYS_INLINE u8* get_ram_ptr(CPUState* cpu, u32 addr, u32 size
     return NULL;
 }
 
+static GXRUNTIME_ALWAYS_INLINE void clear_matching_reservation(CPUState* cpu, u32 addr) {
+    u32 reserve_addr = cpu->reserve_addr & ~0x40000000u;
+    u32 store_addr = addr & ~0x40000000u;
+    if (cpu->reserve_valid && ((reserve_addr ^ store_addr) & ~31u) == 0)
+        cpu->reserve_valid = false;
+}
+
 static GXRUNTIME_ALWAYS_INLINE u64 mem_read64(CPUState* cpu, u32 addr) {
     u8* ptr = get_ram_ptr(cpu, addr, 8, NULL);
     if (ptr == NULL) {
@@ -191,6 +219,7 @@ static GXRUNTIME_ALWAYS_INLINE void mem_write64(CPUState* cpu, u32 addr, u64 val
         }
         return;
     }
+    clear_matching_reservation(cpu, addr);
     if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 8, g_mem_write_journal_user);
     write_be64(ptr, value);
 }
@@ -214,6 +243,7 @@ static GXRUNTIME_ALWAYS_INLINE void mem_write32(CPUState* cpu, u32 addr, u32 val
         }
         return;
     }
+    clear_matching_reservation(cpu, addr);
     if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 4, g_mem_write_journal_user);
     write_be32(ptr, value);
 }
@@ -237,6 +267,7 @@ static GXRUNTIME_ALWAYS_INLINE void mem_write16(CPUState* cpu, u32 addr, u16 val
         }
         return;
     }
+    clear_matching_reservation(cpu, addr);
     if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 2, g_mem_write_journal_user);
     write_be16(ptr, value);
 }
@@ -260,6 +291,7 @@ static GXRUNTIME_ALWAYS_INLINE void mem_write8(CPUState* cpu, u32 addr, u8 value
         }
         return;
     }
+    clear_matching_reservation(cpu, addr);
     if (g_mem_write_journal && offset != (u32)-1) g_mem_write_journal(offset, 1, g_mem_write_journal_user);
     *ptr = value;
 }
@@ -332,6 +364,10 @@ void ppc_stsw(CPUState* cpu, u32 ea, u32 n, u8 r, u32 cia);
 void ppc_fpscr_control_updated(CPUState* cpu);
 void ppc_mtfsb0_op(CPUState* cpu, u8 bit);
 void ppc_mtfsb1_op(CPUState* cpu, u8 bit);
+u32 ppc_mfspr(CPUState* cpu, u16 spr, u32 cia);
+void ppc_mtspr(CPUState* cpu, u16 spr, u32 value, u32 cia);
+void ppc_lswx(CPUState* cpu, u8 rD, u8 rA, u8 rB, u32 cia);
+void ppc_cache_control(CPUState* cpu, u8 operation, u32 ea, u32 cia);
 
 bool ppc_add_overflowed(u32 a, u32 b, u32 result);
 bool ppc_trap_condition(u8 to, u32 a, u32 b);
@@ -349,6 +385,7 @@ bool ppc_fp_available(CPUState* cpu, u32 cia);
 void ppc_lazy_fp_set_enabled(bool enabled);
 void ppc_fallback_instruction(CPUState* cpu, u32 raw, u32 cia);
 bool ppc_host_call(CPUState* cpu, u32 address);
+bool ppc_native_region_available(CPUState* cpu, u32 start, u32 end);
 void ppc_system_call_exception(CPUState* cpu, u32 cia);
 void ppc_dsi_exception(CPUState* cpu, u32 ea, u32 cia, u32 dsisr);
 void ppc_alignment_exception(CPUState* cpu, u32 ea, u32 cia);
@@ -362,5 +399,9 @@ void ppc_ecowx(CPUState* cpu, u32 ea, u32 value, u32 cia);
 void ppc_tlbie(CPUState* cpu, u32 ea, u32 cia);
 void ppc_fpscr_updated(CPUState* cpu);
 void ppc_memory_fence(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DOLRECOMP_CPU_H */
