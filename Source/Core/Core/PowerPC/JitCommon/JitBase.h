@@ -156,6 +156,7 @@ protected:
   bool m_enable_branch_following = false;
   bool m_enable_float_exceptions = false;
   bool m_enable_div_by_zero_exceptions = false;
+  bool m_is_static_recomp_fallback = false;
   bool m_low_dcbz_hack = false;
   bool m_fprf = false;
   bool m_accurate_nans = false;
@@ -202,6 +203,18 @@ public:
 
   bool IsProfilingEnabled() const { return m_enable_profiling && m_enable_debugging; }
   bool IsDebuggingEnabled() const { return m_enable_debugging; }
+  bool IsStaticRecompFallback() const { return m_is_static_recomp_fallback; }
+  void SetStaticRecompFallback(bool enabled)
+  {
+    m_is_static_recomp_fallback = enabled;
+    if (enabled)
+    {
+      m_fastmem_enabled = false;
+      m_page_table_fastmem_enabled = false;
+      jo.fastmem = false;
+      jo.fastmem_arena = false;
+    }
+  }
   bool IsBranchWatchEnabled() const
   {
     auto& branch_watch = m_system.GetPowerPC().GetBranchWatch();

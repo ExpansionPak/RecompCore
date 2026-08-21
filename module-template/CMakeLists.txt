@@ -50,20 +50,50 @@ add_custom_command(
           "${GENERATED_DIR}/main.dol"
   COMMENT "Generating module_tables.inc")
 
-file(GLOB CHUNK_SOURCES CONFIGURE_DEPENDS "${GENERATED_DIR}/chunks/*.c")
-if(NOT CHUNK_SOURCES)
-  message(FATAL_ERROR "DolRecomp output has no chunk sources in ${GENERATED_DIR}/chunks")
+file(READ "${GENERATED_DIR}/generated.h" GENERATED_HEADER_TEXT)
+if(GENERATED_HEADER_TEXT MATCHES "DOLRECOMP_BACKEND_LLVM")
+  set(GENERATED_MANIFEST)
+  foreach(MANIFEST_CANDIDATE
+          "${GENERATED_DIR}/${GAME_ID}.c"
+          "${GENERATED_DIR}/generated.c")
+    if(EXISTS "${MANIFEST_CANDIDATE}")
+      set(GENERATED_MANIFEST "${MANIFEST_CANDIDATE}")
+      break()
+    endif()
+  endforeach()
+  if(NOT GENERATED_MANIFEST)
+    message(FATAL_ERROR "DolRecomp LLVM object manifest is missing")
+  endif()
+  file(STRINGS "${GENERATED_MANIFEST}" CHUNK_OBJECT_LINES
+       REGEX "^// object: ")
+  foreach(CHUNK_OBJECT_LINE IN LISTS CHUNK_OBJECT_LINES)
+    string(REGEX REPLACE "^// object: " "" CHUNK_OBJECT
+           "${CHUNK_OBJECT_LINE}")
+    list(APPEND CHUNK_INPUTS "${GENERATED_DIR}/${CHUNK_OBJECT}")
+  endforeach()
+  foreach(CHUNK_INPUT IN LISTS CHUNK_INPUTS)
+    if(NOT EXISTS "${CHUNK_INPUT}")
+      message(FATAL_ERROR "DolRecomp LLVM object is missing: ${CHUNK_INPUT}")
+    endif()
+  endforeach()
+  set_source_files_properties(${CHUNK_INPUTS} PROPERTIES EXTERNAL_OBJECT TRUE)
+else()
+  file(GLOB CHUNK_INPUTS CONFIGURE_DEPENDS "${GENERATED_DIR}/chunks/*.c")
+endif()
+if(NOT CHUNK_INPUTS)
+  message(FATAL_ERROR "DolRecomp output has no generated chunks in ${GENERATED_DIR}/chunks")
 endif()
 
 add_library(${MODULE_NAME} SHARED
   module_export.c
   "${MODULE_TABLES}"
   "${GXRUNTIME_DIR}/src/core/cpu.c"
+  "${GXRUNTIME_DIR}/src/core/cpu_exception.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_table.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_float.c"
   "${GXRUNTIME_DIR}/src/core/cpu_interpreter_integer.c"
-  ${CHUNK_SOURCES})
+  ${CHUNK_INPUTS})
 
 set_target_properties(${MODULE_NAME} PROPERTIES
   PREFIX ""
@@ -72,8 +102,7 @@ set_target_properties(${MODULE_NAME} PROPERTIES
   C_VISIBILITY_PRESET hidden)
 set_source_files_properties("${MODULE_TABLES}" PROPERTIES HEADER_FILE_ONLY TRUE GENERATED TRUE)
 
-target_compile_definitions(${MODULE_NAME} PRIVATE
-  MODULE_GAME_ID="${GAME_ID}")
+target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
 
 target_include_directories(${MODULE_NAME} PRIVATE
   "${GENERATED_DIR}"
@@ -84,10 +113,13 @@ target_include_directories(${MODULE_NAME} PRIVATE
 if(NOT WIN32)
   target_link_libraries(${MODULE_NAME} PRIVATE m)
 endif()
+if(UNIX AND NOT APPLE)
+  target_link_options(${MODULE_NAME} PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/module.exports")
+  set_property(TARGET ${MODULE_NAME} APPEND PROPERTY LINK_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/module.exports")
+endif()
 
-# Keep each generated chunk as its own translation unit. IPO is enabled only
-# when CMake proves that the active compiler and linker support it; a fresh
-# install must not require lld or an LLVMgold plugin merely to build a module.
 option(RECOMPCORE_MODULE_ENABLE_IPO "Enable Clang module interprocedural optimization when supported" ON)
 set(RECOMPCORE_MODULE_OPT_LEVEL "2" CACHE STRING
     "Optimization level for generated module translation units (0, 1, 2, or 3)")

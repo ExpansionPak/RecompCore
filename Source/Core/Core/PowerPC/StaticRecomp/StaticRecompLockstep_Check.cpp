@@ -175,7 +175,7 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
                    steps, before, ppc.gpr[3], ppc.gpr[4], ppc.gpr[5], ppc.msr.Hex,
                    ppc.GetXER().Hex, ppc.cr.Get(), ppc.spr[SPR_LR], ppc.spr[SPR_CTR]);
     }
-    if (ppc.pc == end_pc && interp_cycles >= native_charge)
+    if (ppc.pc == end_pc)
       break;
     if (ppc.Exceptions != 0)
       break;

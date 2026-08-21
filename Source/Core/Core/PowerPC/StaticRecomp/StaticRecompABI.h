@@ -24,13 +24,32 @@ extern "C" {
 
 #ifndef MODERNGEKKO_MODULE_ABI_H
 
-#define STATICRECOMP_ABI_VERSION 2u
+#define STATICRECOMP_ABI_VERSION 3u
 
 typedef struct StaticRecompRange
 {
   u32 start;  // guest effective address, inclusive
   u32 end;    // guest effective address, exclusive
 } StaticRecompRange;
+
+typedef struct StaticRecompRelSection
+{
+  u32 module_id;
+  u32 section_index;
+  u32 linked_start;
+  u32 size;
+} StaticRecompRelSection;
+
+typedef struct StaticRecompRelModule
+{
+  u32 module_id;
+  u32 version;
+  u32 section_count;
+  u32 section_info_offset;
+  u32 file_size;
+  const StaticRecompRelSection* sections;
+  u32 num_sections;
+} StaticRecompRelModule;
 
 typedef struct StaticRecompModuleDesc
 {
@@ -67,6 +86,8 @@ typedef struct StaticRecompModuleDesc
   const StaticRecompRange* chunk_ranges;
   u32 num_chunk_ranges;
   const u64* chunk_hashes;
+  const StaticRecompRelModule* rel_modules;
+  u32 num_rel_modules;
 } StaticRecompModuleDesc;
 
 // The single symbol a module must export:
