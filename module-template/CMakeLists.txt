@@ -103,6 +103,10 @@ set_target_properties(${MODULE_NAME} PROPERTIES
 set_source_files_properties("${MODULE_TABLES}" PROPERTIES HEADER_FILE_ONLY TRUE GENERATED TRUE)
 
 target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
+# Generated sources default DOLRECOMP_CPU_HEADER to "cpu/cpu.h", which is
+# DolRecomp's standalone layout. A module compiles against GXRuntime, where the
+# same header is core/cpu.h. The override hook exists for exactly this case.
+target_compile_definitions(${MODULE_NAME} PRIVATE DOLRECOMP_CPU_HEADER="core/cpu.h")
 
 target_include_directories(${MODULE_NAME} PRIVATE
   "${GENERATED_DIR}"
