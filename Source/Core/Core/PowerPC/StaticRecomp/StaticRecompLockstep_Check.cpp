@@ -194,6 +194,18 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
   StaticRecompLockstep::g_tb_override_active = false;
 
   const bool reached = (ppc.pc == end_pc && ppc.Exceptions == 0);
+
+  // Running out of steps is the shadow interpreter giving up, not the module
+  // diverging. No register has been compared at this point, so there is no
+  // evidence either way. Reporting it as CTRLFLOW made a default run show
+  // hundreds of faults that no codegen change could fix, and buried the real
+  // ones among them. Count it separately and stay quiet.
+  if (!reached && ppc.Exceptions == 0 && steps >= m_ls_step_cap)
+  {
+    ++m_ls_cap_hits;
+    return;
+  }
+
   const bool undercharged = reached && (interp_cycles > native_charge + LS_UNDERCHARGE_GRACE) && !end_is_loop_header;
 
   std::string diff;
