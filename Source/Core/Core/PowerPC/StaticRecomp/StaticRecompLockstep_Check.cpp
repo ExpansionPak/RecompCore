@@ -287,11 +287,18 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
 
   if (!diff.empty() && m_ls_whitelist.find(entry_pc) == m_ls_whitelist.end())
   {
+    if (!m_ls_filter.empty() && diff.find(m_ls_filter) == std::string::npos)
+    {
+      ++m_ls_filtered;
+    }
+    else
+    {
     ++m_ls_reports;
     if (m_ls_max_report == 0 || m_ls_reports <= m_ls_max_report)
     {
       std::fprintf(stderr, "[lockstep] DIVERGE #%llu entry=0x%08X end=0x%08X:%s\n",
                    (unsigned long long)m_ls_reports, entry_pc, end_pc, diff.c_str());
+    }
     }
   }
   else if (undercharged)

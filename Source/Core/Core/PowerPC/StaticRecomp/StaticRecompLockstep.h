@@ -145,6 +145,9 @@ private:
   u64 m_ls_start = 0;             // begin checking at this native-dispatch index
   u64 m_ls_limit = 0;            // stop checking after this index (0 = no bound)
   u64 m_ls_max_report = 0;      // cap divergence reports (0 = unlimited)
+  std::string m_ls_filter;      // STATICRECOMP_LOCKSTEP_FILTER: only report diffs containing this
+  u64 m_ls_filtered = 0;        // divergences suppressed by the filter
+  bool m_ls_nodedup = false;    // STATICRECOMP_LOCKSTEP_NODEDUP: re-check entry PCs
   int m_ls_step_cap = 512;      // interpreter single-steps before giving up on end PC
   u64 m_ls_checks = 0;          // distinct blocks differentially checked
   u64 m_ls_reports = 0;         // divergences reported

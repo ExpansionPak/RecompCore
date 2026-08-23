@@ -68,6 +68,10 @@ void StaticRecompLockstepVerifier::Init()
     m_ls_start = std::strtoull(s, nullptr, 0);
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_LIMIT"))
     m_ls_limit = std::strtoull(s, nullptr, 0);
+  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_FILTER"))
+    m_ls_filter = s;
+  if (std::getenv("STATICRECOMP_LOCKSTEP_NODEDUP"))
+    m_ls_nodedup = true;
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_MAXREPORT"))
     m_ls_max_report = std::strtoull(s, nullptr, 0);
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_STEPCAP"))
@@ -105,7 +109,8 @@ bool StaticRecompLockstepVerifier::ShouldCheck(u32 address) const
     return false;
   if (!LockstepWindowOpen())
     return false;
-  return address == m_ls_repeat_pc || m_ls_checked.find(address) == m_ls_checked.end();
+  return m_ls_nodedup || address == m_ls_repeat_pc ||
+         m_ls_checked.find(address) == m_ls_checked.end();
 }
 
 bool StaticRecompLockstepVerifier::LockstepWindowOpen() const
