@@ -143,12 +143,24 @@ void StaticRecompCore::Run()
           }
           if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
+          // A pending external interrupt with MSR.EE now set is deliverable
+          // immediately. Native code surfaces here as soon as the guest
+          // re-enables interrupts (mtmsr side exit, or the unwind after an
+          // rfi), so delivering now instead of at the next timing slice
+          // matches the interpreter, where every block boundary between an
+          // enable and the following disable is a delivery point.
+          if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 &&
+              (m_guest.msr & 0x8000u) != 0)
+            break;
         } while (m_module_active && fast_dispatchable_at(m_guest.pc) &&
                  !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
           power_pc.CheckExceptions();
+        else if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 &&
+                 ppc.msr.EE)
+          power_pc.CheckExternalExceptions();
       }
       else
       {

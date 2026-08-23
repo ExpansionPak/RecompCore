@@ -61,6 +61,17 @@ public:
   bool HandleFault(uintptr_t access_address, SContext* ctx) override { return false; }
 
   JitBaseBlockCache* GetBlockCache() override { return &m_block_cache; }
+
+  // Gather-pipe and quantize hooks do not only fire from module code: anything
+  // the module does not cover runs on m_fallback_jit, a real Jit64/JitArm64.
+  // That core reads fifoWriteAddresses at compile time and owns the block that
+  // has to be invalidated, so registering against this core instead left the
+  // check uncompiled and the hook firing on every gather-pipe store forever.
+  JitBase* GetExceptionCheckTarget() override
+  {
+    return m_fallback_jit ? m_fallback_jit.get() : this;
+  }
+
   void EraseSingleBlock(const JitBlock& block) override {}
   std::vector<MemoryStats> GetMemoryStats() const override { return {}; }
   std::size_t DisassembleNearCode(const JitBlock& block, std::ostream& stream) const override

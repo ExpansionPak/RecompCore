@@ -237,6 +237,14 @@ public:
 
   virtual const CommonAsmRoutinesBase* GetAsmRoutines() = 0;
 
+  // The core that compiled the block a runtime hook fired from, and therefore
+  // the one whose js sets and block cache a registration belongs in. That is
+  // normally this core. A core that mostly executes prebuilt code but keeps a
+  // JIT for whatever it does not cover must name that JIT instead: the JIT is
+  // what reads those sets at compile time, and the only thing that can retire
+  // the hook by recompiling the block with the check folded in.
+  virtual JitBase* GetExceptionCheckTarget() { return this; }
+
   virtual bool WantsPageTableMappings() const;
 
   virtual bool HandleFault(uintptr_t access_address, SContext* ctx) = 0;
