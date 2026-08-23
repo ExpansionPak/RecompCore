@@ -11,5 +11,11 @@ set(ZLIB_INCLUDE_DIR ${CMAKE_BINARY_DIR}/zlib-ng CACHE STRING "Path to zlib incl
 set(ZLIB_LIBRARY ZLIB::ZLIB CACHE STRING "Path to zlib library")
 
 # Setup zlib alias project so FindZLIB doesn't recreate it
-add_library(ZLIB::ZLIB ALIAS zlib)
-dolphin_disable_warnings(zlib)
+if(NOT TARGET ZLIB::ZLIB)
+    if(TARGET zlib-ng)
+        add_library(ZLIB::ZLIB ALIAS zlib-ng)
+    elseif(TARGET zlib)
+        add_library(ZLIB::ZLIB ALIAS zlib)
+    endif()
+endif()
+# dolphin_disable_warnings(zlib)
