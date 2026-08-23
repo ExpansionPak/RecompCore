@@ -6,6 +6,6 @@ if (NOT MSVC)
   target_compile_features(tinygltf PRIVATE cxx_std_20)
 endif()
 target_sources(tinygltf PRIVATE
-  tinygltf/tiny_gltf.cc)
+  tinygltf/attic/tiny_gltf.cc)
 target_include_directories(tinygltf INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 dolphin_disable_warnings(tinygltf)
