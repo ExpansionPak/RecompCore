@@ -145,7 +145,11 @@ private:
   u64 m_ls_start = 0;             // begin checking at this native-dispatch index
   u64 m_ls_limit = 0;            // stop checking after this index (0 = no bound)
   u64 m_ls_max_report = 0;      // cap divergence reports (0 = unlimited)
-  int m_ls_step_cap = 512;      // interpreter single-steps before giving up on end PC
+  std::string m_ls_filter;
+  u64 m_ls_filtered = 0;
+  bool m_ls_nodedup = false;
+  int m_ls_step_cap = 20000;
+  u64 m_ls_cap_hits = 0;
   u64 m_ls_checks = 0;          // distinct blocks differentially checked
   u64 m_ls_reports = 0;         // divergences reported
   u64 m_ls_skipped_fallback = 0;  // blocks skipped (native used instruction fallback)

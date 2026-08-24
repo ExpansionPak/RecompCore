@@ -20,9 +20,6 @@ namespace
 {
 constexpr u32 SYNC_EXCEPTION_MASK = ~static_cast<u32>(
     EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR);
-constexpr u32 ASYNC_EXCEPTION_MASK =
-    EXCEPTION_EXTERNAL_INT | EXCEPTION_DECREMENTER | EXCEPTION_PERFORMANCE_MONITOR;
-constexpr u32 MSR_EE = 0x00008000u;
 
 struct FileCloser
 {
@@ -89,6 +86,29 @@ void StaticRecompCore::Run()
   };
 
   const std::string initial_game_id = SConfig::GetInstance().GetGameID();
+  const auto after_mtmsr = [this](u32 pc) {
+    if (pc < 4u || (pc & 3u) != 0)
+      return false;
+
+    const u32 instruction_pc = pc - 4u;
+    const u8* code = nullptr;
+    if (instruction_pc >= 0x80000000u &&
+        instruction_pc - 0x80000000u + 4u <= m_guest.ram_size)
+    {
+      code = m_guest.ram + instruction_pc - 0x80000000u;
+    }
+    else if (instruction_pc >= 0x90000000u &&
+             instruction_pc - 0x90000000u + 4u <= m_guest.exram_size)
+    {
+      code = m_guest.exram + instruction_pc - 0x90000000u;
+    }
+    if (!code)
+      return false;
+
+    const u32 raw = static_cast<u32>(code[0]) << 24 | static_cast<u32>(code[1]) << 16 |
+                    static_cast<u32>(code[2]) << 8 | code[3];
+    return (raw & 0xFC0007FEu) == 0x7C000124u;
+  };
   m_module_active = m_module && (initial_game_id.empty() || initial_game_id == m_module->game_id);
 
   if (!m_module_active && m_fallback_jit && !m_guest.host_call)
@@ -180,15 +200,17 @@ void StaticRecompCore::Run()
           }
           if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
             break;  // Hook-raised synchronous exception: deliver via Dolphin below.
-          if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0 && (m_guest.msr & MSR_EE) != 0)
-            break;  // rfi/mtmsr re-enabled interrupts while one was pending.
+          if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 &&
+              (m_guest.msr & 0x8000u) != 0 && after_mtmsr(m_guest.pc))
+            break;
         } while (m_module_active && fast_dispatchable_at(m_guest.pc) &&
                  !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
                  *state_ptr == CPU::State::Running);
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
           power_pc.CheckExceptions();
-        else if ((ppc.Exceptions & ASYNC_EXCEPTION_MASK) != 0)
+        else if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 && ppc.msr.EE &&
+                 after_mtmsr(ppc.pc))
           power_pc.CheckExternalExceptions();
       }
       else

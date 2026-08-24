@@ -102,7 +102,13 @@ set_target_properties(${MODULE_NAME} PROPERTIES
   C_VISIBILITY_PRESET hidden)
 set_source_files_properties("${MODULE_TABLES}" PROPERTIES HEADER_FILE_ONLY TRUE GENERATED TRUE)
 
-target_compile_definitions(${MODULE_NAME} PRIVATE MODULE_GAME_ID="${GAME_ID}")
+target_compile_definitions(${MODULE_NAME} PRIVATE
+  MODULE_GAME_ID="${GAME_ID}"
+  DOLRECOMP_CPU_HEADER="core/cpu.h")
+if(GENERATED_HEADER_TEXT MATCHES "dolrecomp_call__x86_64_v3")
+  target_compile_definitions(${MODULE_NAME} PRIVATE
+    DOLRECOMP_MODULE_HAVE_X86_64_V3=1)
+endif()
 
 target_include_directories(${MODULE_NAME} PRIVATE
   "${GENERATED_DIR}"
