@@ -1,6 +1,7 @@
 // RecompCore: StaticRecomp CPU core - Main execution loop.
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdlib>
 #include "Core/Config/ConfigManager.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/CoreTiming.h"
@@ -59,6 +60,22 @@ void StaticRecompCore::Run()
   };
 
   const std::string initial_game_id = SConfig::GetInstance().GetGameID();
+  // External interrupts are delivered only at boundaries the guest created
+  // by executing mtmsr -- the same delivery points the block-ending JITs
+  // use (they end the block at mtmsr and check there). Delivering at every
+  // EE=1 boundary preempts handlers that run callbacks with interrupts
+  // enabled (the AX frame callback) mid-work, and re-entering them each
+  // boundary storms the guest instead of letting the callback finish.
+  const auto after_mtmsr = [this](u32 pc) {
+    if (pc < 0x80000004u || (pc & 3u) != 0)
+      return false;
+    const u32 offset = pc - 4u - 0x80000000u;
+    if (offset + 4u > m_guest.ram_size || !m_guest.ram)
+      return false;
+    const u8* p = m_guest.ram + offset;
+    const u32 raw = ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+    return (raw & 0xFC0007FEu) == 0x7C000124u;  // mtmsr
+  };
   m_module_active = m_module && (initial_game_id.empty() || initial_game_id == m_module->game_id);
 
   if (!m_module_active && m_fallback_jit && !m_guest.host_call)
@@ -150,7 +167,7 @@ void StaticRecompCore::Run()
           // matches the interpreter, where every block boundary between an
           // enable and the following disable is a delivery point.
           if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 &&
-              (m_guest.msr & 0x8000u) != 0)
+              (m_guest.msr & 0x8000u) != 0 && after_mtmsr(m_guest.pc))
             break;
         } while (m_module_active && fast_dispatchable_at(m_guest.pc) &&
                  !(m_guest.host_call && IsHostCallAddress(m_guest.pc)) && ppc.downcount > 0 &&
@@ -158,8 +175,8 @@ void StaticRecompCore::Run()
         SyncOut();
         if ((ppc.Exceptions & SYNC_EXCEPTION_MASK) != 0)
           power_pc.CheckExceptions();
-        else if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 &&
-                 ppc.msr.EE)
+        else if ((ppc.Exceptions & EXCEPTION_EXTERNAL_INT) != 0 && ppc.msr.EE &&
+                 after_mtmsr(ppc.pc))
           power_pc.CheckExternalExceptions();
       }
       else
