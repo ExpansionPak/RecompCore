@@ -194,6 +194,9 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
   StaticRecompLockstep::g_tb_override_active = false;
 
   const bool reached = (ppc.pc == end_pc && ppc.Exceptions == 0);
+  const bool cap_hit = !reached && ppc.Exceptions == 0 && steps >= m_ls_step_cap;
+  if (cap_hit)
+    ++m_ls_cap_hits;
   const bool undercharged = reached && (interp_cycles > native_charge + LS_UNDERCHARGE_GRACE) && !end_is_loop_header;
 
   std::string diff;
@@ -285,13 +288,20 @@ void StaticRecompLockstepVerifier::LockstepCheck(u32 entry_pc, u32 end_pc, const
       diff += " mmio-read-seq-divergence";
   }
 
-  if (!diff.empty() && m_ls_whitelist.find(entry_pc) == m_ls_whitelist.end())
+  if (!cap_hit && !diff.empty() && m_ls_whitelist.find(entry_pc) == m_ls_whitelist.end())
   {
-    ++m_ls_reports;
-    if (m_ls_max_report == 0 || m_ls_reports <= m_ls_max_report)
+    if (!m_ls_filter.empty() && diff.find(m_ls_filter) == std::string::npos)
     {
-      std::fprintf(stderr, "[lockstep] DIVERGE #%llu entry=0x%08X end=0x%08X:%s\n",
-                   (unsigned long long)m_ls_reports, entry_pc, end_pc, diff.c_str());
+      ++m_ls_filtered;
+    }
+    else
+    {
+      ++m_ls_reports;
+      if (m_ls_max_report == 0 || m_ls_reports <= m_ls_max_report)
+      {
+        std::fprintf(stderr, "[lockstep] DIVERGE #%llu entry=0x%08X end=0x%08X:%s\n",
+                     (unsigned long long)m_ls_reports, entry_pc, end_pc, diff.c_str());
+      }
     }
   }
   else if (undercharged)

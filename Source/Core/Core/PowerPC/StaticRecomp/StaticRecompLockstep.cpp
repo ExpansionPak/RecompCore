@@ -35,9 +35,11 @@ StaticRecompLockstepVerifier::~StaticRecompLockstepVerifier()
   {
     std::fprintf(stderr,
                  "[lockstep] summary: checks=%llu reports=%llu skipped_fallback=%llu "
-                 "skipped_zero=%llu undercharges=%llu max_deficit=%lld distinct_pcs=%zu\n",
+                 "skipped_zero=%llu cap_hits=%llu filtered=%llu undercharges=%llu "
+                 "max_deficit=%lld distinct_pcs=%zu\n",
                  (unsigned long long)m_ls_checks, (unsigned long long)m_ls_reports,
                  (unsigned long long)m_ls_skipped_fallback, (unsigned long long)m_ls_skipped_zero,
+                 (unsigned long long)m_ls_cap_hits, (unsigned long long)m_ls_filtered,
                  (unsigned long long)m_ls_undercharges, (long long)m_ls_max_undercharge,
                  m_ls_checked.size());
     if (m_set_mem_journal)
@@ -68,6 +70,10 @@ void StaticRecompLockstepVerifier::Init()
     m_ls_start = std::strtoull(s, nullptr, 0);
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_LIMIT"))
     m_ls_limit = std::strtoull(s, nullptr, 0);
+  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_FILTER"))
+    m_ls_filter = s;
+  if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_NODEDUP"))
+    m_ls_nodedup = s[0] != '0';
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_MAXREPORT"))
     m_ls_max_report = std::strtoull(s, nullptr, 0);
   if (const char* s = std::getenv("STATICRECOMP_LOCKSTEP_STEPCAP"))
@@ -105,7 +111,8 @@ bool StaticRecompLockstepVerifier::ShouldCheck(u32 address) const
     return false;
   if (!LockstepWindowOpen())
     return false;
-  return address == m_ls_repeat_pc || m_ls_checked.find(address) == m_ls_checked.end();
+  return m_ls_nodedup || address == m_ls_repeat_pc ||
+         m_ls_checked.find(address) == m_ls_checked.end();
 }
 
 bool StaticRecompLockstepVerifier::LockstepWindowOpen() const

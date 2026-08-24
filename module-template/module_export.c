@@ -8,31 +8,66 @@
 
 #include "StaticRecompABI.h"
 
+#if defined(DOLRECOMP_MODULE_HAVE_X86_64_V3) && defined(_MSC_VER)
+#include <intrin.h>
+#elif defined(DOLRECOMP_MODULE_HAVE_X86_64_V3) && defined(__x86_64__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#include <cpuid.h>
+#endif
+
+#if defined(DOLRECOMP_MODULE_HAVE_X86_64_V3)
 static int host_has_x86_64_v3(void)
 {
-#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+#if defined(_M_X64) && defined(_MSC_VER)
+    int leaf[4];
+    __cpuid(leaf, 1);
+    const unsigned int leaf1_ecx = (unsigned int)leaf[2];
+    const unsigned int leaf1_required = (1u << 12) | (1u << 22) | (1u << 27) |
+        (1u << 28) | (1u << 29);
+    if ((leaf1_ecx & leaf1_required) != leaf1_required ||
+        (_xgetbv(0) & 6u) != 6u)
+        return 0;
+    __cpuidex(leaf, 7, 0);
+    if (((unsigned int)leaf[1] & ((1u << 3) | (1u << 5) | (1u << 8))) !=
+        ((1u << 3) | (1u << 5) | (1u << 8)))
+        return 0;
+    __cpuid(leaf, (int)0x80000001u);
+    return ((unsigned int)leaf[2] & (1u << 5)) != 0;
+#elif defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
     static int supported = -1;
     if (supported < 0)
     {
-        __builtin_cpu_init();
-        supported = __builtin_cpu_supports("avx") &&
-            __builtin_cpu_supports("avx2") &&
-            __builtin_cpu_supports("fma") &&
-            __builtin_cpu_supports("bmi") &&
-            __builtin_cpu_supports("bmi2") &&
-            __builtin_cpu_supports("movbe") &&
-            __builtin_cpu_supports("lzcnt");
+        unsigned int eax, ebx, ecx, edx;
+        supported = __get_cpuid(1, &eax, &ebx, &ecx, &edx) != 0;
+        const unsigned int leaf1_required = (1u << 12) | (1u << 22) | (1u << 27) |
+            (1u << 28) | (1u << 29);
+        supported = supported && (ecx & leaf1_required) == leaf1_required;
+        if (supported)
+        {
+            unsigned int xcr0_low;
+            unsigned int xcr0_high;
+            __asm__ volatile("xgetbv" : "=a"(xcr0_low), "=d"(xcr0_high) : "c"(0));
+            supported = (xcr0_low & 6u) == 6u;
+        }
+        supported = supported && __get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx) != 0 &&
+            (ebx & ((1u << 3) | (1u << 5) | (1u << 8))) ==
+                ((1u << 3) | (1u << 5) | (1u << 8));
+        supported = supported && __get_cpuid(0x80000001u, &eax, &ebx, &ecx, &edx) != 0 &&
+            (ecx & (1u << 5)) != 0;
     }
     return supported;
 #else
     return 0;
 #endif
 }
+#endif
 
 static int selected_dispatch(CPUState* ctx, u32 address)
 {
+#if defined(DOLRECOMP_MODULE_HAVE_X86_64_V3)
     if (host_has_x86_64_v3())
         return dolrecomp_call__x86_64_v3(ctx, address);
+#endif
     return dolrecomp_call(ctx, address);
 }
 
