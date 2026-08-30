@@ -56,6 +56,11 @@ public:
   bool IsHostCallAddress(u32 address) const;
   bool ShouldYieldAt(u32 address);
 
+  // True when `address` is the head of a guest busy-wait loop, so the
+  // dispatcher can hand the remaining slice back to CoreTiming instead of
+  // spinning through it in real time.
+  bool IsBusyWaitLoop(u32 address);
+
   void ClearCache() override;
   void Jit(u32 em_address) override {}
   bool HandleFault(uintptr_t access_address, SContext* ctx) override { return false; }
@@ -175,6 +180,9 @@ private:
   u64 m_hook_fallback_instructions = 0;
   u64 m_timebase_cycle_remainder = 0;
   std::unordered_map<u32, u64> m_dispatch_samples;
+  // Analysis result per loop-head address. Invalidated whenever guest code
+  // could have changed (ClearCache, SMC re-verification, REL relink).
+  std::unordered_map<u32, bool> m_busy_wait_cache;
   u64 m_bursts = 0;          // SyncIn..SyncOut native runs (diagnostic)
   u64 m_charged_cycles = 0;  // cycles flushed from module charges (diagnostic)
 

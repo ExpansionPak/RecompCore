@@ -96,6 +96,7 @@ void StaticRecompCore::RefreshRelSections()
     if (m_chunk_state[i] == CHUNK_FAILED && m_failed_chunks != 0)
       --m_failed_chunks;
     m_chunk_state[i] = CHUNK_UNVERIFIED;
+    m_busy_wait_cache.clear();
     m_effective_chunk_hashes[i] = m_module->chunk_hashes[i];
   }
 }
