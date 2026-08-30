@@ -151,6 +151,24 @@ bool ppc_host_call(CPUState* cpu, u32 address) {
     return cpu->host_call ? cpu->host_call(cpu, address) : false;
 }
 
+bool ppc_native_region_available(CPUState* cpu, u32 start, u32 end) {
+    if (!cpu || !cpu->host_call)
+        return true;
+
+    u32 saved_addr = cpu->external_addr;
+    u32 saved_value = cpu->external_value;
+    u8 saved_rid = cpu->external_rid;
+    cpu->external_addr = start;
+    cpu->external_value = end;
+    cpu->external_rid = PPC_NATIVE_REGION_QUERY_PENDING;
+    bool blocked = cpu->host_call(cpu, PPC_HOST_CALL_NATIVE_REGION_QUERY);
+    bool handled = cpu->external_rid == PPC_NATIVE_REGION_QUERY_HANDLED;
+    cpu->external_addr = saved_addr;
+    cpu->external_value = saved_value;
+    cpu->external_rid = saved_rid;
+    return handled && !blocked;
+}
+
 void ppc_system_call_exception(CPUState* cpu, u32 cia) {
     ppc_take_exception(cpu, PPC_EXC_SYSTEM_CALL, PPC_VECTOR_SYSTEM_CALL, cia + 4u, 0);
 }
