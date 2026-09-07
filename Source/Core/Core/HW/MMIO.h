@@ -14,6 +14,7 @@
 #include "Common/CommonTypes.h"
 #include "Core/HW/GPFifo.h"
 #include "Core/HW/MMIOHandlers.h"
+#include "Core/HW/MmioObserver.h"
 
 namespace Core
 {
@@ -136,12 +137,16 @@ public:
   template <typename Unit>
   Unit Read(Core::System& system, u32 addr)
   {
+    if (const auto* obs = GetMmioObservers(); obs && obs->reads)
+      obs->reads->fetch_add(1, std::memory_order_relaxed);
     return GetHandlerForRead<Unit>(addr).Read(system, addr);
   }
 
   template <typename Unit>
   void Write(Core::System& system, u32 addr, Unit val)
   {
+    if (const auto* obs = GetMmioObservers(); obs && obs->writes)
+      obs->writes->fetch_add(1, std::memory_order_relaxed);
     GetHandlerForWrite<Unit>(addr).Write(system, addr, val);
   }
 

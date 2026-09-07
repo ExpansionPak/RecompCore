@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/TextureCacheBase.h"
+#include "VideoCommon/VideoZoneObserver.h"
 
 #include <algorithm>
 #include <chrono>
@@ -2132,6 +2133,8 @@ void TextureCacheBase::CopyRenderTargetToTexture(
     float gamma, bool clamp_top, bool clamp_bottom,
     const CopyFilterCoefficients::Values& filter_coefficients)
 {
+  if (const auto* obs = GetVideoZoneObservers(); obs && obs->efb_copies)
+    obs->efb_copies->fetch_add(1, std::memory_order_relaxed);
   // Emulation methods:
   //
   // - EFB to RAM:

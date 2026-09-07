@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/PowerPC/StaticRecomp/StaticRecompCore.h"
+#include "Core/PowerPC/StaticRecomp/StaticRecompObserver.h"
+
+#include <chrono>
 #include "Core/System.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Interpreter/Interpreter.h"
@@ -117,12 +120,18 @@ void StaticRecompCore::Run()
     return;
   }
 
+  const StaticRecompObservers* const observers = GetStaticRecompObservers();
+  std::atomic<u32>* const observed_pc = observers ? observers->guest_pc : nullptr;
+  const bool time_guest = observers != nullptr && observers->guest_cpu_ns != nullptr;
+
   while (*state_ptr == CPU::State::Running)
   {
     core_timing.Advance();
     const std::string current_game_id = SConfig::GetInstance().GetGameID();
     m_module_active = m_module && (current_game_id.empty() || current_game_id == m_module->game_id);
 
+    const auto slice_start = time_guest ? std::chrono::steady_clock::now()
+                                        : std::chrono::steady_clock::time_point{};
     do
     {
       // MSR.FP needs no gate here: generated FPU instructions raise the
@@ -155,6 +164,9 @@ void StaticRecompCore::Run()
           if (m_has_rel_modules)
             ResolveNativeAddress(runtime_dispatch_address, &linked_dispatch_address, nullptr);
           m_guest.pc = linked_dispatch_address;
+          // Same cadence as the histogram above, but independent of its flag.
+          if (observed_pc && (m_native_dispatches & 4095u) == 0)
+            observed_pc->store(m_guest.pc, std::memory_order_relaxed);
           m_module->dispatch(&m_guest, linked_dispatch_address);
           if (m_has_rel_modules)
             m_guest.pc = TranslateRelAddress(m_guest.pc);
@@ -263,6 +275,26 @@ void StaticRecompCore::Run()
         }
       }
     } while (ppc.downcount > 0 && *state_ptr == CPU::State::Running);
+
+    if (observers)
+    {
+      // Plain counters the core already keeps; republished per slice.
+      if (observers->dispatches)
+        observers->dispatches->store(m_native_dispatches, std::memory_order_relaxed);
+      if (observers->interpreter_fallbacks)
+        observers->interpreter_fallbacks->store(m_fallback_steps, std::memory_order_relaxed);
+      if (observers->exceptions)
+        observers->exceptions->store(m_native_exceptions, std::memory_order_relaxed);
+    }
+    if (time_guest)
+    {
+      // One clock pair per timing slice rather than per dispatch.
+      const auto elapsed = std::chrono::steady_clock::now() - slice_start;
+      observers->guest_cpu_ns->fetch_add(
+          static_cast<u64>(
+              std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count()),
+          std::memory_order_relaxed);
+    }
   }
 }
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/ShaderCache.h"
+#include "VideoCommon/VideoZoneObserver.h"
 
 #include <utility>
 
@@ -438,6 +439,9 @@ void ShaderCache::CompileMissingPipelines()
 
 std::unique_ptr<AbstractShader> ShaderCache::CompileVertexShader(const VertexShaderUid& uid) const
 {
+  const VideoZoneScope zone(VIDEO_ZONE_SINK(shader_generation_ns));
+  if (const auto* obs = GetVideoZoneObservers(); obs && obs->shader_compilations)
+    obs->shader_compilations->fetch_add(1, std::memory_order_relaxed);
   const ShaderCode source_code =
       GenerateVertexShaderCode(m_api_type, m_host_config, uid.GetUidData(), {});
   return g_gfx->CreateShaderFromSource(ShaderStage::Vertex, source_code.GetBuffer());
@@ -446,6 +450,9 @@ std::unique_ptr<AbstractShader> ShaderCache::CompileVertexShader(const VertexSha
 std::unique_ptr<AbstractShader>
 ShaderCache::CompileVertexUberShader(const UberShader::VertexShaderUid& uid) const
 {
+  const VideoZoneScope zone(VIDEO_ZONE_SINK(shader_generation_ns));
+  if (const auto* obs = GetVideoZoneObservers(); obs && obs->shader_compilations)
+    obs->shader_compilations->fetch_add(1, std::memory_order_relaxed);
   const ShaderCode source_code =
       UberShader::GenVertexShader(m_api_type, m_host_config, uid.GetUidData());
   return g_gfx->CreateShaderFromSource(ShaderStage::Vertex, source_code.GetBuffer(), nullptr,
@@ -454,6 +461,9 @@ ShaderCache::CompileVertexUberShader(const UberShader::VertexShaderUid& uid) con
 
 std::unique_ptr<AbstractShader> ShaderCache::CompilePixelShader(const PixelShaderUid& uid) const
 {
+  const VideoZoneScope zone(VIDEO_ZONE_SINK(shader_generation_ns));
+  if (const auto* obs = GetVideoZoneObservers(); obs && obs->shader_compilations)
+    obs->shader_compilations->fetch_add(1, std::memory_order_relaxed);
   const ShaderCode source_code =
       GeneratePixelShaderCode(m_api_type, m_host_config, uid.GetUidData(), {});
   return g_gfx->CreateShaderFromSource(ShaderStage::Pixel, source_code.GetBuffer());
@@ -462,6 +472,9 @@ std::unique_ptr<AbstractShader> ShaderCache::CompilePixelShader(const PixelShade
 std::unique_ptr<AbstractShader>
 ShaderCache::CompilePixelUberShader(const UberShader::PixelShaderUid& uid) const
 {
+  const VideoZoneScope zone(VIDEO_ZONE_SINK(shader_generation_ns));
+  if (const auto* obs = GetVideoZoneObservers(); obs && obs->shader_compilations)
+    obs->shader_compilations->fetch_add(1, std::memory_order_relaxed);
   const ShaderCode source_code =
       UberShader::GenPixelShader(m_api_type, m_host_config, uid.GetUidData());
   return g_gfx->CreateShaderFromSource(ShaderStage::Pixel, source_code.GetBuffer(), nullptr,
