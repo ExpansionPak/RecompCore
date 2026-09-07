@@ -13,6 +13,7 @@
 
 #include "VideoCommon/LookUpTables.h"
 #include "VideoCommon/TextureDecoder.h"
+#include "VideoCommon/VideoZoneObserver.h"
 #include "VideoCommon/TextureDecoder_Util.h"
 #include "VideoCommon/sfont.inc"
 
@@ -300,6 +301,9 @@ static void TexDecoder_DrawOverlay(u8* dst, int width, int height, TextureFormat
 void TexDecoder_Decode(u8* dst, const u8* src, int width, int height, TextureFormat texformat,
                        const u8* tlut, TLUTFormat tlutfmt)
 {
+  const VideoZoneScope zone(VIDEO_ZONE_SINK(texture_decode_ns));
+  if (const auto* obs = GetVideoZoneObservers(); obs && obs->texture_decodes)
+    obs->texture_decodes->fetch_add(1, std::memory_order_relaxed);
   _TexDecoder_DecodeImpl((u32*)dst, src, width, height, texformat, tlut, tlutfmt);
 
   if (TexFmt_Overlay_Enable)

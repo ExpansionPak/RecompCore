@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/VertexLoaderManager.h"
+#include "VideoCommon/VideoZoneObserver.h"
 
 #include <algorithm>
 #include <iterator>
@@ -398,6 +399,14 @@ static bool CanSplit(OpcodeDecoder::Primitive primitive)
 template <bool IsPreprocess>
 int RunVertices(int vtx_attr_group, OpcodeDecoder::Primitive primitive, int count, const u8* src)
 {
+  const VideoZoneScope zone(VIDEO_ZONE_SINK(vertex_loader_ns));
+  if (const auto* obs = GetVideoZoneObservers())
+  {
+    if (obs->draw_calls)
+      obs->draw_calls->fetch_add(1, std::memory_order_relaxed);
+    if (obs->vertices_loaded)
+      obs->vertices_loaded->fetch_add(static_cast<u64>(count), std::memory_order_relaxed);
+  }
   if (count == 0) [[unlikely]]
     return 0;
   ASSERT(count > 0);
