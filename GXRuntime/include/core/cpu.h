@@ -30,7 +30,11 @@ extern "C" {
 //   consumes and resets it (Dolphin chassis: per-dispatch flush into
 //   ppc_state.downcount). Hosts that do not meter guest time may ignore it
 //   (s64: it cannot wrap in any realistic session).
-#define GXRUNTIME_CPU_ABI_VERSION 3u
+// - ABI v4 adds `cycle_budget` directly after `downcount`, mirroring the
+//   field DolRecomp added to its generated-code CPUState in f0a86be. The
+//   prefix is shared with generated code, so the field must sit at the same
+//   offset on both sides; hosts that do not meter guest time may ignore it.
+#define GXRUNTIME_CPU_ABI_VERSION 4u
 #define GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX 1u
 #define GXRUNTIME_CPU_ABI_EXTERNAL_POINTER_EXTENSION 1u
 
@@ -153,6 +157,7 @@ struct CPUState {
     u32 ram_size;
     PPCExternalPointer external_pointer;
     s64 downcount;
+    s64 cycle_budget;
     u8* exram;
     u32 exram_size;
     PPCSPRRead spr_read;

@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-_Static_assert(GXRUNTIME_CPU_ABI_VERSION == 3u,
+_Static_assert(GXRUNTIME_CPU_ABI_VERSION == 4u,
                "update runtime ABI tests when the CPU ABI changes");
 _Static_assert(GXRUNTIME_CPU_ABI_DOLRECOMP_PREFIX == 1u,
                "GXRuntime generated-code prefix must stay explicit");
@@ -49,6 +49,10 @@ _Static_assert(offsetof(CPUState, downcount) > offsetof(CPUState, external_point
                "ABI v2 downcount must remain the tail field");
 _Static_assert(sizeof(((CPUState*)0)->downcount) == 8u,
                "downcount is s64 so unconsumed charges cannot wrap");
+_Static_assert(offsetof(CPUState, cycle_budget) > offsetof(CPUState, downcount),
+               "ABI v4 cycle_budget must follow downcount");
+_Static_assert(sizeof(((CPUState*)0)->cycle_budget) == 8u,
+               "cycle_budget is s64 to match DolRecomp's generated-code prefix");
 _Static_assert(offsetof(CPUState, spr_read) > offsetof(CPUState, exram_size),
                "ABI v3 callbacks must remain tail fields");
 _Static_assert(offsetof(CPUState, cache_control) > offsetof(CPUState, spr_write),
