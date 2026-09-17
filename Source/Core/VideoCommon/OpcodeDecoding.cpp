@@ -13,6 +13,7 @@
 // vertices.
 
 #include "VideoCommon/OpcodeDecoding.h"
+#include "VideoCommon/VideoZoneObserver.h"
 
 #include "Common/Assert.h"
 #include "Common/Logging/Log.h"
@@ -261,7 +262,12 @@ u8* RunFifo(DataReader src, u32* cycles)
 {
   using CallbackT = RunCallback<is_preprocess>;
   auto callback = CallbackT{};
-  u32 size = Run(src.GetPointer(), static_cast<u32>(src.size()), callback);
+  // One scope per FIFO batch, not per opcode.
+  u32 size;
+  {
+    const VideoZoneScope zone(VIDEO_ZONE_SINK(command_processor_ns));
+    size = Run(src.GetPointer(), static_cast<u32>(src.size()), callback);
+  }
 
   if (cycles != nullptr)
     *cycles = callback.m_cycles;
