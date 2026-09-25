@@ -182,7 +182,14 @@ void StaticRecompCore::Run()
           m_timebase_cycle_remainder = total_cycles % SystemTimers::TIMER_RATIO;
 
           // Idle loop skipping for configured target loops (e.g. Wii Menu OSIdleThread)
-          if (m_guest.pc == m_idle_pc && m_idle_pc != 0)
+          // A configured idle PC only covers loops we already know about. A
+          // dispatch that returns to the address it entered at is a self-loop,
+          // and if the analyzer agrees it is an idle loop there is nothing to
+          // gain from spinning it in real time.
+          const bool configured_idle = m_idle_pc != 0 && m_guest.pc == m_idle_pc;
+          const bool detected_idle = m_guest.pc == runtime_dispatch_address &&
+                                     IsBusyWaitLoop(runtime_dispatch_address);
+          if (configured_idle || detected_idle)
           {
             m_system.GetCoreTiming().Idle();
           }

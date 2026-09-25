@@ -348,8 +348,35 @@ void StaticRecompCore::LoadModule()
                  desc->num_smc_ranges);
 }
 
+
+bool StaticRecompCore::IsBusyWaitLoop(u32 address)
+{
+  // Analysis reads guest memory and is not meaningful while a debugger or
+  // branch watch is active, both of which want every block to actually execute.
+  if (IsDebuggingEnabled() || IsBranchWatchEnabled())
+    return false;
+
+  const auto cached = m_busy_wait_cache.find(address);
+  if (cached != m_busy_wait_cache.end())
+    return cached->second;
+
+  constexpr std::size_t max_loop_instructions = 64;
+  analyzer.Analyze(address, &code_block, &m_code_buffer,
+                   std::min(max_loop_instructions, m_code_buffer.size()));
+
+  const bool is_busy_wait = !code_block.m_memory_exception &&
+                            std::any_of(m_code_buffer.begin(),
+                                        m_code_buffer.begin() + code_block.m_num_instructions,
+                                        [address](const PPCAnalyst::CodeOp& op) {
+                                          return op.branchIsIdleLoop && op.branchTo == address;
+                                        });
+  m_busy_wait_cache.emplace(address, is_busy_wait);
+  return is_busy_wait;
+}
+
 void StaticRecompCore::ClearCache()
 {
+  m_busy_wait_cache.clear();
   if (m_fallback_jit)
     m_fallback_jit->ClearCache();
 
