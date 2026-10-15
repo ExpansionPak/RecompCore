@@ -45,6 +45,9 @@ target_include_directories(gxruntime
         "$<INSTALL_INTERFACE:include>"
 )
 
+# Fastmem module discovery uses dladdr/dlopen/dlinfo on Linux.
+target_link_libraries(gxruntime PUBLIC ${CMAKE_DL_LIBS})
+
 include(CheckLibraryExists)
 check_library_exists(m sqrt "" GXRUNTIME_HAVE_LIBM)
 if(GXRUNTIME_HAVE_LIBM)
@@ -136,4 +139,35 @@ if(BUILD_TESTING)
     )
     target_link_libraries(gxruntime_tests PRIVATE GXRuntime::runtime)
     add_test(NAME gxruntime_tests COMMAND gxruntime_tests)
+endif()
+
+# The fixed fastmem instruction sequence and VEH recovery are x86-64 GNU-asm
+# code. MSVC and other hosts continue to exercise the checked accessors.
+if(BUILD_TESTING AND WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND
+   CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC")
+    foreach(mode IN ITEMS fault disabled)
+        add_executable(gxruntime_fastmem_${mode}_test tests/fastmem_${mode}_test.c src/core/cpu.c)
+        target_include_directories(gxruntime_fastmem_${mode}_test PRIVATE include)
+        target_compile_options(gxruntime_fastmem_${mode}_test PRIVATE -ffunction-sections)
+        target_link_options(gxruntime_fastmem_${mode}_test PRIVATE -Wl,/opt:ref)
+    endforeach()
+    add_test(NAME gxruntime_fastmem_fault_test
+             COMMAND ${CMAKE_COMMAND} -E env --unset=DOLRECOMP_NO_FASTMEM
+                     $<TARGET_FILE:gxruntime_fastmem_fault_test>)
+    add_test(NAME gxruntime_fastmem_disabled_test
+             COMMAND ${CMAKE_COMMAND} -E env DOLRECOMP_NO_FASTMEM=1
+                     $<TARGET_FILE:gxruntime_fastmem_disabled_test>)
+
+    add_executable(gxruntime_fastmem_unload_test tests/fastmem_unload_test.c)
+    foreach(crt IN ITEMS MultiThreaded MultiThreadedDLL)
+        set(module gxruntime_fastmem_unload_${crt})
+        add_library(${module} SHARED tests/fastmem_unload_module.c src/core/cpu.c)
+        set_property(TARGET ${module} PROPERTY MSVC_RUNTIME_LIBRARY ${crt})
+        target_include_directories(${module} PRIVATE include)
+        target_compile_options(${module} PRIVATE -ffunction-sections)
+        target_link_options(${module} PRIVATE -Wl,/opt:ref -Wl,/entry:_DllMainCRTStartup)
+        add_test(NAME gxruntime_fastmem_unload_${crt}_test
+                 COMMAND ${CMAKE_COMMAND} -E env --unset=DOLRECOMP_NO_FASTMEM
+                         $<TARGET_FILE:gxruntime_fastmem_unload_test> $<TARGET_FILE:${module}>)
+    endforeach()
 endif()

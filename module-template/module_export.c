@@ -38,7 +38,12 @@ static const StaticRecompModuleDesc s_desc = {
     .chunk_hashes = s_chunk_hashes,
 };
 
-__attribute__((visibility("default"))) const StaticRecompModuleDesc* staticrecomp_get_module(void)
+#if defined(_WIN32)
+__declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+const StaticRecompModuleDesc* staticrecomp_get_module(void)
 {
     return &s_desc;
 }

@@ -1,3 +1,6 @@
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE 1 /* dladdr, dlinfo (fastmem fault handler) */
+#endif
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/cpu.h"
 #include <stdio.h>
@@ -24,7 +27,250 @@
  * offset (into cpu->ram) about to be written, `size` the width in bytes. */
 PPCMemWriteJournal g_mem_write_journal = NULL;
 void* g_mem_write_journal_user = NULL;
-__attribute__((visibility("default"))) void ppc_set_mem_write_journal(PPCMemWriteJournal fn, void* user) {
+
+#if DOLRECOMP_FASTMEM
+/* See the fastmem block in cpu.h. */
+u8* g_dolrecomp_fm_base = NULL;
+u64 g_dolrecomp_fm_min = 1ull << 32;  /* off until the runtime hands out a base */
+int g_dolrecomp_fm_queried = 0;
+static CPUState* g_dolrecomp_fm_cpu;
+static uintptr_t g_dolrecomp_fm_code_lo, g_dolrecomp_fm_code_hi;
+
+/* A fastmem access that faulted: an address in the view that no BAT maps
+   (beyond main RAM, a stray pointer, a page between DBAT updates). Decode
+   the faulting instruction - only the forms the cpu.h accessors emit:
+   [66] [REX] 8B/89/88 or 0F B6/B7 with a memory ModRM - do the access
+   through the checked accessors, exactly as with fastmem off (a RAM alias
+   the view has not mapped yet still reaches RAM), update
+   the destination register and step over the instruction. regs is the 16
+   general registers in encoding order (rax, rcx, rdx, rbx, rsp, rbp, rsi,
+   rdi, r8..r15). Returns 0 when this is not one of ours. */
+static int dolrecomp_fastmem_emulate(uintptr_t rip, u64* regs[16]) {
+    if (rip < g_dolrecomp_fm_code_lo || rip >= g_dolrecomp_fm_code_hi)
+        return -1;
+    const u8* ip = (const u8*)rip;
+    int i = 0, op16 = 0, rex = 0;
+    if (ip[i] == 0x66) { op16 = 1; i++; }
+    if ((ip[i] & 0xF0) == 0x40) { rex = ip[i]; i++; }
+    int store, size, zext32 = 1;
+    if (ip[i] == 0x8B) { store = 0; size = (rex & 8) ? 8 : 4; i++; }
+    else if (ip[i] == 0x89) { store = 1; size = (rex & 8) ? 8 : (op16 ? 2 : 4); i++; }
+    else if (ip[i] == 0x88) { store = 1; size = 1; i++; }
+    else if (ip[i] == 0x0F && ip[i + 1] == 0xB6) { store = 0; size = 1; i += 2; }
+    else if (ip[i] == 0x0F && ip[i + 1] == 0xB7) { store = 0; size = 2; i += 2; }
+    else return -1;
+    if (size == 8) zext32 = 0;
+    const u8 modrm = ip[i++];
+    const int mod = modrm >> 6, rm = modrm & 7;
+    const int reg = ((modrm >> 3) & 7) | ((rex & 4) ? 8 : 0);
+    if (mod == 3)
+        return -1;
+    u64 ea = 0;
+    if (rm == 4) {
+        const u8 sib = ip[i++];
+        const int scale = sib >> 6;
+        const int index = ((sib >> 3) & 7) | ((rex & 2) ? 8 : 0);
+        const int base = (sib & 7) | ((rex & 1) ? 8 : 0);
+        if (index != 4)
+            ea += *regs[index] << scale;
+        if (mod == 0 && (sib & 7) == 5) {
+            int32_t d; memcpy(&d, ip + i, 4); i += 4; ea += (u64)(int64_t)d;
+        } else {
+            ea += *regs[base];
+        }
+    } else if (mod == 0 && rm == 5) {
+        return -1;  /* RIP-relative: never a guest access */
+    } else {
+        ea += *regs[rm | ((rex & 1) ? 8 : 0)];
+    }
+    if (mod == 1) { ea += (u64)(int64_t)(int8_t)ip[i]; i += 1; }
+    else if (mod == 2) { int32_t d; memcpy(&d, ip + i, 4); i += 4; ea += (u64)(int64_t)d; }
+    const u64 off = ea - (u64)(uintptr_t)g_dolrecomp_fm_base;
+    if (off > 0xFFFFFFFFull)
+        return -1;
+    const u32 guest = (u32)off;
+    /* Log at the 1st, 2nd, 4th, 8th... fault: a steady stream here would mean
+       a hot region missing from the view (it should be rare stray accesses). */
+    static unsigned long long faults;
+    const unsigned long long nth = ++faults;
+    if ((nth & (nth - 1)) == 0)
+        fprintf(stderr, "[fastmem] fault #%llu: %s %08X size %d\n", nth, store ? "write" : "read", guest, size);
+    CPUState* cpu = g_dolrecomp_fm_cpu;
+    if (store) {
+        u64 raw;
+        if (size == 1 && !rex && reg >= 4 && reg < 8)
+            raw = (*regs[reg - 4] >> 8) & 0xFF;  /* ah, ch, dh, bh */
+        else
+            raw = *regs[reg];
+        u64 value = size == 8 ? bswap64(raw) : size == 4 ? bswap32((u32)raw)
+                  : size == 2 ? bswap16((u16)raw) : (raw & 0xFF);
+        switch (size) {
+        case 1: dolrecomp_mem_write8_slow(cpu, guest, (u8)value); break;
+        case 2: dolrecomp_mem_write16_slow(cpu, guest, (u16)value); break;
+        case 4: dolrecomp_mem_write32_slow(cpu, guest, (u32)value); break;
+        default: dolrecomp_mem_write64_slow(cpu, guest, value); break;
+        }
+    } else {
+        u64 value;
+        switch (size) {
+        case 1: value = dolrecomp_mem_read8_slow(cpu, guest); break;
+        case 2: value = dolrecomp_mem_read16_slow(cpu, guest); break;
+        case 4: value = dolrecomp_mem_read32_slow(cpu, guest); break;
+        default: value = dolrecomp_mem_read64_slow(cpu, guest); break;
+        }
+        u64 raw = size == 8 ? bswap64(value) : size == 4 ? bswap32((u32)value)
+                : size == 2 ? bswap16((u16)value) : (value & 0xFF);
+        *regs[reg] = zext32 ? (u32)raw : raw;
+    }
+    return i;
+}
+
+#if defined(_WIN32)
+#include <windows.h>
+static PVOID g_dolrecomp_fm_handler;
+/* The module can be unloaded while the emulator lives on; do not leave a
+   process-wide handler pointing into its unmapped image. */
+static void dolrecomp_fastmem_uninstall(void) {
+    if (g_dolrecomp_fm_handler)
+        RemoveVectoredExceptionHandler(g_dolrecomp_fm_handler);
+}
+static LONG CALLBACK dolrecomp_fastmem_fault(EXCEPTION_POINTERS* ep) {
+    const EXCEPTION_RECORD* er = ep->ExceptionRecord;
+    if (er->ExceptionCode != EXCEPTION_ACCESS_VIOLATION || er->NumberParameters < 2)
+        return EXCEPTION_CONTINUE_SEARCH;
+    const uintptr_t fault = (uintptr_t)er->ExceptionInformation[1];
+    const uintptr_t base = (uintptr_t)g_dolrecomp_fm_base;
+    if (!base || fault < base || fault - base > 0xFFFFFFFFull + 8)
+        return EXCEPTION_CONTINUE_SEARCH;
+    CONTEXT* c = ep->ContextRecord;
+    u64* regs[16] = {&c->Rax, &c->Rcx, &c->Rdx, &c->Rbx, &c->Rsp, &c->Rbp, &c->Rsi, &c->Rdi,
+                     &c->R8,  &c->R9,  &c->R10, &c->R11, &c->R12, &c->R13, &c->R14, &c->R15};
+    const int len = dolrecomp_fastmem_emulate((uintptr_t)c->Rip, regs);
+    if (len < 0)
+        return EXCEPTION_CONTINUE_SEARCH;
+    c->Rip += (DWORD64)len;
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+static int dolrecomp_fastmem_install(void) {
+    HMODULE self = NULL;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            (LPCSTR)(void*)&dolrecomp_fastmem_query, &self))
+        return 0;
+    const IMAGE_DOS_HEADER* dos = (const IMAGE_DOS_HEADER*)self;
+    const IMAGE_NT_HEADERS* nt = (const IMAGE_NT_HEADERS*)((const u8*)self + dos->e_lfanew);
+    g_dolrecomp_fm_code_lo = (uintptr_t)self;
+    g_dolrecomp_fm_code_hi = (uintptr_t)self + nt->OptionalHeader.SizeOfImage;
+    g_dolrecomp_fm_handler = AddVectoredExceptionHandler(1, dolrecomp_fastmem_fault);
+    /* Unlike a compiler destructor section, the DLL CRT on-exit table runs
+       at FreeLibrary with both static and dynamic CRT linkage. */
+    if (g_dolrecomp_fm_handler && atexit(dolrecomp_fastmem_uninstall) != 0) {
+        dolrecomp_fastmem_uninstall();
+        g_dolrecomp_fm_handler = NULL;
+    }
+    return g_dolrecomp_fm_handler != NULL;
+}
+#elif defined(__linux__)
+#include <dlfcn.h>
+#include <link.h>
+#include <signal.h>
+#include <ucontext.h>
+static struct sigaction g_dolrecomp_fm_prev;
+static int g_dolrecomp_fm_installed;
+static void dolrecomp_fastmem_fault(int sig, siginfo_t* info, void* raw);
+/* Unloading the module puts the previous SIGSEGV action back (see the
+   Windows branch). */
+static void __attribute__((destructor)) dolrecomp_fastmem_uninstall(void) {
+    struct sigaction current;
+    if (g_dolrecomp_fm_installed && sigaction(SIGSEGV, NULL, &current) == 0 &&
+        (current.sa_flags & SA_SIGINFO) && current.sa_sigaction == dolrecomp_fastmem_fault)
+        sigaction(SIGSEGV, &g_dolrecomp_fm_prev, NULL);
+}
+static void dolrecomp_fastmem_fault(int sig, siginfo_t* info, void* raw) {
+    ucontext_t* uc = (ucontext_t*)raw;
+    const uintptr_t fault = (uintptr_t)info->si_addr;
+    const uintptr_t base = (uintptr_t)g_dolrecomp_fm_base;
+    if (base && fault >= base && fault - base <= 0xFFFFFFFFull + 8) {
+        greg_t* g = uc->uc_mcontext.gregs;
+        u64* regs[16] = {(u64*)&g[REG_RAX], (u64*)&g[REG_RCX], (u64*)&g[REG_RDX], (u64*)&g[REG_RBX],
+                         (u64*)&g[REG_RSP], (u64*)&g[REG_RBP], (u64*)&g[REG_RSI], (u64*)&g[REG_RDI],
+                         (u64*)&g[REG_R8],  (u64*)&g[REG_R9],  (u64*)&g[REG_R10], (u64*)&g[REG_R11],
+                         (u64*)&g[REG_R12], (u64*)&g[REG_R13], (u64*)&g[REG_R14], (u64*)&g[REG_R15]};
+        const int len = dolrecomp_fastmem_emulate((uintptr_t)g[REG_RIP], regs);
+        if (len >= 0) {
+            g[REG_RIP] += len;
+            return;
+        }
+    }
+    /* Not ours: hand it to whoever was installed before (Dolphin's handler). */
+    if (g_dolrecomp_fm_prev.sa_flags & SA_SIGINFO) {
+        if (g_dolrecomp_fm_prev.sa_sigaction) { g_dolrecomp_fm_prev.sa_sigaction(sig, info, raw); return; }
+    } else if (g_dolrecomp_fm_prev.sa_handler != SIG_DFL && g_dolrecomp_fm_prev.sa_handler != SIG_IGN) {
+        g_dolrecomp_fm_prev.sa_handler(sig);
+        return;
+    }
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+static int dolrecomp_fastmem_install(void) {
+    Dl_info dl;
+    if (!dladdr((void*)&dolrecomp_fastmem_query, &dl) || !dl.dli_fbase)
+        return 0;
+    /* The module's mapped extent: the span of its PT_LOAD segments. */
+    struct link_map* lm = NULL;
+    void* h = dlopen(dl.dli_fname, RTLD_NOW | RTLD_NOLOAD);
+    if (!h)
+        return 0;
+    if (dlinfo(h, RTLD_DI_LINKMAP, &lm) != 0 || !lm) {
+        dlclose(h);
+        return 0;
+    }
+    const ElfW(Ehdr)* eh = (const ElfW(Ehdr)*)dl.dli_fbase;
+    const ElfW(Phdr)* ph = (const ElfW(Phdr)*)((const u8*)eh + eh->e_phoff);
+    uintptr_t hi = 0;
+    for (int k = 0; k < eh->e_phnum; k++)
+        if (ph[k].p_type == PT_LOAD && lm->l_addr + ph[k].p_vaddr + ph[k].p_memsz > hi)
+            hi = lm->l_addr + ph[k].p_vaddr + ph[k].p_memsz;
+    g_dolrecomp_fm_code_lo = (uintptr_t)dl.dli_fbase;
+    g_dolrecomp_fm_code_hi = hi;
+    /* RTLD_NOLOAD still acquires a reference; retaining it would prevent unload. */
+    dlclose(h);
+    struct sigaction sa;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_sigaction = dolrecomp_fastmem_fault;
+    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
+    sigemptyset(&sa.sa_mask);
+    g_dolrecomp_fm_installed = sigaction(SIGSEGV, &sa, &g_dolrecomp_fm_prev) == 0;
+    return g_dolrecomp_fm_installed;
+}
+#else
+static int dolrecomp_fastmem_install(void) { return 0; }
+#endif
+
+void dolrecomp_fastmem_query(CPUState* cpu) {
+    g_dolrecomp_fm_queried = 1;
+    if (getenv("DOLRECOMP_NO_FASTMEM") || !cpu->external_pointer)
+        return;
+    u8* base = (u8*)cpu->external_pointer(cpu, 0xFFFFF000u, 0);
+    if (!base)
+        return;
+    g_dolrecomp_fm_cpu = cpu;
+    g_dolrecomp_fm_base = base;
+    if (!dolrecomp_fastmem_install()) {
+        g_dolrecomp_fm_base = NULL;
+        fprintf(stderr, "[fastmem] fault handler not installed; staying on the checked path\n");
+        return;
+    }
+    g_dolrecomp_fm_min = 0x06000000u;
+    fprintf(stderr, "[fastmem] module guest accesses use the logical view at %p\n", (void*)base);
+}
+#endif
+#if defined(_WIN32)
+__declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+void ppc_set_mem_write_journal(PPCMemWriteJournal fn, void* user) {
     g_mem_write_journal = fn;
     g_mem_write_journal_user = user;
 }

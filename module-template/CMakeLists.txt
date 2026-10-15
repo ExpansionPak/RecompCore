@@ -67,7 +67,17 @@ target_include_directories(${MODULE_NAME} PRIVATE
   "${CHASSIS_ABI_DIR}"
   "${CMAKE_CURRENT_BINARY_DIR}")
 
-target_link_libraries(${MODULE_NAME} PRIVATE m)
+target_link_libraries(${MODULE_NAME} PRIVATE ${CMAKE_DL_LIBS})
+include(CheckLibraryExists)
+check_library_exists(m sqrt "" MODULE_HAVE_LIBM)
+if(MODULE_HAVE_LIBM)
+  target_link_libraries(${MODULE_NAME} PRIVATE m)
+endif()
+
+# Unity builds may include system headers before cpu.c's local feature macro.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_definitions(${MODULE_NAME} PRIVATE _GNU_SOURCE)
+endif()
 
 # ThinLTO so the GXRuntime cpu.c helpers inline into the generated chunk
 # call sites; semantics unchanged (no -ffast-math, FP stays bit-exact).
