@@ -248,6 +248,7 @@ void PlatformWin32::ToggleFullscreen()
                  monitor.rcMonitor.bottom - monitor.rcMonitor.top,
                  SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     m_fullscreen = true;
+    m_window_fullscreen = true;
     return;
   }
 
@@ -258,6 +259,7 @@ void PlatformWin32::ToggleFullscreen()
                m_windowed_rect.bottom - m_windowed_rect.top,
                SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_NOZORDER);
   m_fullscreen = false;
+  m_window_fullscreen = false;
 }
 
 bool PlatformWin32::Init()
@@ -265,9 +267,9 @@ bool PlatformWin32::Init()
   if (!RegisterRenderWindowClass() || !CreateRenderWindow() || !CreateMenus())
     return false;
 
-  // TODO: Enter fullscreen if enabled.
   if (Config::Get(Config::MAIN_FULLSCREEN))
   {
+    ToggleFullscreen();
     ProcessEvents();
   }
 
